@@ -183,36 +183,8 @@ interface PaymentSettings {
 
 import { PDFWatermark } from '@/components/common/document-branding';
 
-interface InvoiceProps {
-    organization: {
-        name: string,
-        city: string,
-        gstin?: string,
-        phone?: string,
-        email?: string,
-        address?: string,
-        address_line1?: string,
-        address_line2?: string,
-        state?: string,
-        pincode?: string,
-        logo_url?: string
-    };
-    buyer: { name: string, city: string, gstin?: string, state_code?: string };
-    billNo: string;
-    date: Date;
-    items: any[];
-    payment_summary?: { balance_due: number; amount_received?: number; amount_paid?: number };
-    marketFee?: number;
-    nirashrit?: number;
-    cgst?: number;
-    sgst?: number;
-    igst?: number;
-    isIgst?: boolean;
-    placeOfSupply?: string;
-    paymentSettings?: PaymentSettings;
-    paymentMode?: string;
-    branding?: any;
     amount_received?: number;
+};
 
 // Helper to format currency without the rupee symbol (Helvetica can't render it)
 const fmtCurrency = (n: number) => `Rs.${n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -255,18 +227,18 @@ export const InvoiceTemplate = ({
     const subTotal = safeItems.reduce((sum, item) => sum + (Number(item.qty || 0) * Number(item.rate || 0)), 0);
 
     const totalGst = Number(cgst || 0) + Number(sgst || 0) + Number(igst || 0);
-    const finalTotal = subTotal + totalGst + Number(marketFee || 0) + Number(nirashrit || 0) + Number(miscFee || 0) + Number(loadingCharges || 0) + Number(unloadingCharges || 0) + Number(otherExpenses || 0);
     const amountReceived = Number(payment_summary?.amount_received ?? payment_summary?.amount_paid ?? 0);
-    const balanceDue = Math.max(0, finalTotal - amountReceived);
 
     // Calculate total with all fees
-    const finalTotal = subTotal +
+    const finalTotal = subTotal + totalGst +
         Number(marketFee || 0) +
         Number(nirashrit || 0) +
         Number(miscFee || 0) +
         Number(loadingCharges || 0) +
         Number(unloadingCharges || 0) +
         Number(otherExpenses || 0);
+
+    const balanceDue = Math.max(0, finalTotal - amountReceived);
 
     const totalQty = items.reduce((sum: number, item: any) => sum + Number(item.qty || 0), 0);
     const avgRate = totalQty > 0 ? (finalTotal / totalQty) : 0;
