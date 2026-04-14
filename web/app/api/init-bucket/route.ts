@@ -13,7 +13,7 @@ export async function GET() {
             fileSizeLimit: 5242880 // 5MB
         })
 
-        if (bucketError) {
+        if (bucketError && (bucketError as any).message !== 'The resource already exists') {
             console.error('Bucket creation error:', bucketError)
         }
 
