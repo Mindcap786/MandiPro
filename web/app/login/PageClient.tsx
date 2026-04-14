@@ -81,11 +81,17 @@ export default function LoginClient() {
         const { data: settingsRes } = await supabase
             .schema('core').from('app_settings').select('value').eq('key', 'global_trial_days').maybeSingle();
         
-        // Handle JSONB value parsing (Supabase returns it as a parsed object or string depending on column type)
-        const rawValue = settingsRes?.value;
+        const rawValue: any = settingsRes?.value;
         if (rawValue) {
-            const val = typeof rawValue === 'string' ? Number(rawValue) : Number(JSON.parse(JSON.stringify(rawValue)));
-            if (!isNaN(val)) setTrialDays(val);
+            // Robustly extract numeric value from potential { value: N } object structure
+            let finalVal: number | NaN = NaN;
+            if (typeof rawValue === 'object' && rawValue.value !== undefined) {
+                finalVal = Number(rawValue.value);
+            } else {
+                finalVal = Number(rawValue);
+            }
+            
+            if (!isNaN(finalVal)) setTrialDays(finalVal);
         }
     }
 

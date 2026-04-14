@@ -47,10 +47,9 @@ export default function AdminSettingsPage() {
                 supabase.schema('core').from('subscriptions').select('status').eq('status', 'active'),
                 supabase.schema('core').from('feature_flags').select('key, is_enabled').is('organization_id', null),
                 supabase.schema('core').from('platform_branding_settings').select('*').maybeSingle(),
-                supabase.schema('core').from('settings')
+                supabase.schema('core').from('app_settings')
                     .select('key, value')
-                    .is('organization_id', null)
-                    .in('key', ['global_trial_period_days', 'grace_period_days_monthly', 'grace_period_days_yearly', 'payment_reminder_days_monthly', 'payment_reminder_days_yearly']),
+                    .in('key', ['global_trial_days', 'grace_period_days_monthly', 'grace_period_days_yearly', 'payment_reminder_days_monthly', 'payment_reminder_days_yearly']),
             ]);
 
             setPlatformInfo({
@@ -70,10 +69,17 @@ export default function AdminSettingsPage() {
                 const get = (key: string, def: number) => {
                     const row = s.find((r: any) => r.key === key);
                     if (!row) return def;
-                    const v = typeof row.value === 'string' ? parseInt(row.value) : (row.value as any);
+                    
+                    // Handle both direct value and JSONB value structure from app_settings
+                    let val = row.value;
+                    if (val && typeof val === 'object' && val.value !== undefined) {
+                        val = val.value;
+                    }
+
+                    const v = typeof val === 'string' ? parseInt(val) : (val as any);
                     return isNaN(v) ? def : v;
                 };
-                setTrialDays(get('global_trial_period_days', 14));
+                setTrialDays(get('global_trial_days', 14));
                 setGraceDaysMonthly(get('grace_period_days_monthly', 7));
                 setGraceDaysYearly(get('grace_period_days_yearly', 14));
                 setReminderDaysMonthly(get('payment_reminder_days_monthly', 3));
@@ -110,15 +116,15 @@ export default function AdminSettingsPage() {
         setSaving(true);
         try {
             const rows = [
-                { key: 'global_trial_period_days', value: trialDays.toString(), organization_id: null },
-                { key: 'grace_period_days_monthly', value: graceDaysMonthly.toString(), organization_id: null },
-                { key: 'grace_period_days_yearly', value: graceDaysYearly.toString(), organization_id: null },
-                { key: 'payment_reminder_days_monthly', value: reminderDaysMonthly.toString(), organization_id: null },
-                { key: 'payment_reminder_days_yearly', value: reminderDaysYearly.toString(), organization_id: null },
+                { key: 'global_trial_days', value: { value: trialDays } },
+                { key: 'grace_period_days_monthly', value: { value: graceDaysMonthly } },
+                { key: 'grace_period_days_yearly', value: { value: graceDaysYearly } },
+                { key: 'payment_reminder_days_monthly', value: { value: reminderDaysMonthly } },
+                { key: 'payment_reminder_days_yearly', value: { value: reminderDaysYearly } },
             ];
             const { error } = await supabase.schema('core')
-                .from('settings')
-                .upsert(rows, { onConflict: 'key,organization_id', ignoreDuplicates: false });
+                .from('app_settings')
+                .upsert(rows, { onConflict: 'key', ignoreDuplicates: false });
             if (error) throw error;
             toast({ title: '✅ Billing Settings Saved', description: `Lifecycle settings updated successfully.` });
         } catch (e: any) {
