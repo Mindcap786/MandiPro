@@ -16,8 +16,14 @@ export async function GET() {
         })
 
         if (bucketError) {
-            const errorMsg = bucketError.message || (bucketError as any).error || '';
-            if (!errorMsg.toLowerCase().includes('already exists')) {
+            // Robust check for "already exists" which is a common and expected result
+            const isAlreadyExists = 
+                bucketError.message?.toLowerCase().includes('already exists') || 
+                (bucketError as any).error?.toLowerCase().includes('already exists') ||
+                (bucketError as any).statusCode === '409' || // Conflict
+                (bucketError as any).status === 409;
+
+            if (!isAlreadyExists) {
                 console.error('Bucket creation error:', bucketError);
             }
         }

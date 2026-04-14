@@ -2,9 +2,8 @@ import { createClient } from '@supabase/supabase-js';
 import { notFound } from 'next/navigation';
 import DownloadInvoiceButton from '@/components/billing/download-invoice-button';
 
-export const dynamicParams = false;
-export const dynamic = 'force-static';
-export async function generateStaticParams() { return [{ id: '1' }]; }
+export const dynamic = 'force-dynamic';
+export const dynamicParams = true;
 
 export default async function PublicInvoicePage({ params }: { params: { id: string } }) {
 

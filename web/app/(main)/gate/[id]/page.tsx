@@ -4,9 +4,7 @@ export async function generateMetadata({ params }: { params: { id: string } }) {
     return { title: `Gate Entry #${params.id} | MandiPro` };
 }
 
-export async function generateStaticParams() {
-    return [{ id: 'preview' }];
-}
+export const dynamic = 'force-dynamic';
 
 import GateEntryDetailsPage from './PageClient';
 
