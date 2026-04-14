@@ -183,6 +183,35 @@ interface PaymentSettings {
 
 import { PDFWatermark } from '@/components/common/document-branding';
 
+interface InvoiceProps {
+    organization: {
+        name: string,
+        city: string,
+        gstin?: string,
+        phone?: string,
+        email?: string,
+        address?: string,
+        address_line1?: string,
+        address_line2?: string,
+        state?: string,
+        pincode?: string,
+        logo_url?: string
+    };
+    buyer: { name: string, city: string, gstin?: string, state_code?: string };
+    billNo: string;
+    date: Date;
+    items: any[];
+    payment_summary?: { balance_due: number; amount_received?: number; amount_paid?: number };
+    marketFee?: number;
+    nirashrit?: number;
+    cgst?: number;
+    sgst?: number;
+    igst?: number;
+    isIgst?: boolean;
+    placeOfSupply?: string;
+    paymentSettings?: PaymentSettings;
+    paymentMode?: string;
+    branding?: any;
     amount_received?: number;
 };
 
