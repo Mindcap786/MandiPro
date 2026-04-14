@@ -1,0 +1,46 @@
+See name: 🌙 Daily Database Backup
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # Every night at midnight UTC
+  workflow_dispatch: # Allows manual trigger
+
+jobs:
+  backup:
+    name: 💾 Backup to S3
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 🛰️ Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 🐘 Install PostgreSQL Client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: 🚀 Run Backup Script
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          chmod +x ./scripts/backup-database.sh
+          ./scripts/backup-database.sh
+
+      - name: ☁️ Upload to S3 (AWS/R2)
+        uses: jakejarvis/s3-sync-action@master
+        with:
+          args: --acl private --follow-symlinks
+        env:
+          AWS_S3_BUCKET: ${{ secrets.AWS_S3_BACKUP_BUCKET }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: 'us-east-1' # Change to your region
+          AWS_S3_ENDPOINT: ${{ secrets.AWS_S3_ENDPOINT }} # Required for R2
+          SOURCE_DIR: './backups'
+          DEST_DIR: 'database'
+
+      - name: 🔔 Notification (Optional)
+        if: failure()
+        run: |
+          echo "❌ Database backup failed on $(date)"
+          # You can add a curl command here to ping Sentry or a Slack webhook

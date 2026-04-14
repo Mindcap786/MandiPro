@@ -1,0 +1,77 @@
+
+# Dependencies
+node_modules/
+package-lock.json
+*.egg-info/
+__pycache__/
+
+# Environment & Secrets
+.env
+.env.local
+.env.*.local
+.env.sentry.template
+web/.env
+web/.env.local
+web/.env.*.local
+
+# IDE & Editor Settings
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+.kilo/
+.claude/
+
+# Build & Runtime Output
+.next/
+.next_clean.log
+.next_crash.log
+out/
+dist/
+build/
+*.log
+node_modules/.cache/
+
+# Test & Coverage
+coverage/
+.nyc_output/
+test-results/
+*.lcov
+
+# Temporary & Debug Files
+tmp/
+scratch/
+*.tmp
+result.txt
+dev.log
+dev_fresh.log
+server.log
+nextjs-error.txt
+dashboard.html
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Build artifacts for mobile
+android/.gradle/
+android/local.properties
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.modulemap
+
+# Vercel
+.vercel
+.vercel/output/
+
+# TSBuildInfo
+*.tsbuildinfo
+
+# Local database dumps & backups
+*.sql.bak
+local_schema.sql
+dump_*.sql
