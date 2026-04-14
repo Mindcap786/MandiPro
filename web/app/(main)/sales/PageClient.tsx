@@ -115,7 +115,7 @@ export default function Sales() {
             setTotalCount(statsData?.length || 0);
 
             const startIdx = (page - 1) * pageSize;
-            let tableQuery = buildQuery("*, contact:contacts!sales_buyer_id_fkey(id, name), sale_items(*, lot:lots(lot_code, arrival_type, supplier_rate, commission_percent, grade, variety, item:commodities(name))), sale_adjustments(id), vouchers(amount, discount_amount, type, cheque_status, is_cleared, payment_mode)", { count: "exact" }).order("created_at", { ascending: false });
+            let tableQuery = buildQuery("*, contact:contacts!sales_buyer_id_fkey(id, name), sale_items(id, sale_id, lot_id, quantity, rate, total_price, qty, amount, unit, item_id, gst_rate, tax_amount, hsn_code, lot:lots(lot_code, arrival_type, supplier_rate, commission_percent, grade, variety, item:commodities(name))), sale_adjustments(id), vouchers(amount, discount_amount, type, cheque_status, is_cleared, payment_mode)", { count: "exact" }).order("created_at", { ascending: false });
 
             if (search) {
                 const { data: matchingBuyers } = await supabase.schema("mandi").from("contacts").select("id").eq("organization_id", profile.organization_id).ilike("name", `%${search}%`);

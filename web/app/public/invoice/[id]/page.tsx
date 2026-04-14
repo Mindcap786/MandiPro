@@ -28,7 +28,7 @@ export default async function PublicInvoicePage({ params }: { params: { id: stri
         .select(`
             *,
             contact:contacts(*),
-            sale_items(*, lot:lots(*, item:commodities(*))),
+            sale_items(id, sale_id, lot_id, quantity, rate, total_price, qty, amount, unit, item_id, gst_rate, tax_amount, hsn_code, lot:lots(*, item:commodities(*))),
             vouchers(*)
         `)
         .eq('id', id)
