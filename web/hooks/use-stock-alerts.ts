@@ -69,8 +69,12 @@ export function useStockAlerts() {
     useEffect(() => {
         if (!orgId) return;
 
+        // Create a unique channel name for this organization
+        const channelName = `stock-alerts-${orgId}`;
+        
+        // Ensure we add all listeners BEFORE calling .subscribe()
         const channel = supabase
-            .channel(`stock-alerts-${orgId}`)
+            .channel(channelName)
             .on(
                 'postgres_changes',
                 {
@@ -81,7 +85,11 @@ export function useStockAlerts() {
                 },
                 (payload) => {
                     const newAlert = payload.new as StockAlert;
-                    setAlerts((prev) => [newAlert, ...prev]);
+                    setAlerts((prev) => {
+                        // Prevent duplicate state updates if realtime and fetch conflict
+                        if (prev.some(a => a.id === newAlert.id)) return prev;
+                        return [newAlert, ...prev];
+                    });
 
                     let titleStr = '';
                     switch (newAlert.alert_type) {
@@ -110,10 +118,13 @@ export function useStockAlerts() {
                     const updated = payload.new as StockAlert;
                     setAlerts((prev) => prev.map(a => a.id === updated.id ? updated : a));
                 }
-            )
-            .subscribe();
+            );
+
+        // Crucial: subscribe() MUST be the last call
+        channel.subscribe();
 
         return () => {
+            // Robust cleanup: remove this specific channel
             supabase.removeChannel(channel);
         };
     }, [orgId, toast]);
