@@ -35,23 +35,20 @@ type ConfirmSaleTransactionParams = {
 type ConfirmSaleTransactionResult = {
     data: any;
     error: any;
-    usedLegacyFallback: boolean;
-    warning?: string;
 };
-
-const isAmbiguousConfirmSaleError = (message: string | undefined) =>
-    !!message &&
-    message.includes("Could not choose the best candidate function between") &&
-    message.includes("confirm_sale_transaction");
-
-const isPaidSale = (paymentMode: string, chequeStatus: boolean) =>
-    ["cash", "upi", "bank_transfer", "UPI/BANK", "bank_upi"].includes(paymentMode) ||
-    (paymentMode === "cheque" && chequeStatus);
 
 export async function confirmSaleTransactionWithFallback(
     params: ConfirmSaleTransactionParams
 ): Promise<ConfirmSaleTransactionResult> {
-    const chequeStatus = !!params.chequeStatus;
+    
+    // Validate organizationId is a valid UUID
+    if (!params.organizationId || typeof params.organizationId !== 'string') {
+        return {
+            data: null,
+            error: { message: 'Invalid organization ID' }
+        };
+    }
+
     const payload = {
         p_organization_id: params.organizationId,
         p_buyer_id: params.buyerId,
@@ -66,33 +63,30 @@ export async function confirmSaleTransactionWithFallback(
         p_unloading_charges: params.unloadingCharges || 0,
         p_other_expenses: params.otherExpenses || 0,
         p_amount_received: params.amountReceived ?? 0,
-        p_idempotency_key: params.idempotencyKey || null,
-        p_due_date: params.dueDate || null,
-        p_bank_account_id: params.bankAccountId || null,
-        p_cheque_no: params.chequeNo || null,
-        p_cheque_date: params.chequeDate || null,
-        p_cheque_status: !!params.chequeStatus,
-        p_bank_name: params.bankName || null,
+        p_idempotency_key: params.idempotencyKey,
+        p_due_date: params.dueDate,
+        p_bank_account_id: params.bankAccountId,
+        p_cheque_no: params.chequeNo,
+        p_cheque_date: params.chequeDate,
+        p_cheque_status: params.chequeStatus || false,
+        p_bank_name: params.bankName,
         p_cgst_amount: params.cgstAmount || 0,
         p_sgst_amount: params.sgstAmount || 0,
         p_igst_amount: params.igstAmount || 0,
         p_gst_total: params.gstTotal || 0,
         p_discount_percent: params.discountPercent || 0,
         p_discount_amount: params.discountAmount || 0,
-        p_place_of_supply: params.placeOfSupply || null,
-        p_buyer_gstin: params.buyerGstin || null,
+        p_place_of_supply: params.placeOfSupply,
+        p_buyer_gstin: params.buyerGstin,
         p_is_igst: params.isIgst || false,
     };
 
-    // FIX: Call the mandi schema version which has all parameters
-    // (The public wrapper has fewer parameters and causes API key mismatch)
     const response = await supabase
         .schema("mandi")
         .rpc("confirm_sale_transaction", payload);
 
     return {
         data: response.data,
-        error: response.error,
-        usedLegacyFallback: false
+        error: response.error
     };
 }
