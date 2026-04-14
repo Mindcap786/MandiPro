@@ -33,23 +33,6 @@ function getRedirectUrl(): string {
     return `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/auth/callback`
 }
 
-/**
- * FIX: Custom fetch wrapper to disable HTTP caching (prevents 304 Not Modified issues)
- * This ensures Supabase always returns full responses instead of 304s with empty bodies
- */
-function customFetch(url: string, options: RequestInit = {}): Promise<Response> {
-    return fetch(url, {
-        ...options,
-        headers: {
-            ...options.headers,
-            // Explicitly disable caching at HTTP level
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0',
-        }
-    })
-}
-
 // Supabase client initialization
 // On Native: Use raw createClient (no cookie SSR parsing) to avoid WebView hangs
 // On Web: Use createBrowserClient for seamless Next.js SSR cookie syncing
@@ -61,9 +44,6 @@ export const supabase = isNative()
             persistSession: true,
             autoRefreshToken: true,
             storageKey: 'mandigrow-auth-token',
-        },
-        global: {
-            fetch: customFetch // Use custom fetch with no-cache headers
         }
     })
     : createBrowserClient(supabaseUrl, supabaseAnonKey, {
@@ -73,9 +53,6 @@ export const supabase = isNative()
             persistSession: true,
             autoRefreshToken: true,
         },
-        global: {
-            fetch: customFetch // Use custom fetch with no-cache headers
-        }
     })
 
 /**
