@@ -3,11 +3,13 @@ import { Client } from 'pg';
 import fs from 'fs';
 import path from 'path';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
     console.log("🚀 API-Triggered Database Repair starting...");
     
     const client = new Client({
-        connectionString: "postgresql://postgres:9SjI2m*M@ldayxjabzyorpugwszpt.supabase.co:5432/postgres",
+        connectionString: process.env.DATABASE_URL,
     });
 
     try {
