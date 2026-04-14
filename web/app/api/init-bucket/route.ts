@@ -9,14 +9,17 @@ export async function GET() {
         const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
         const supabase = createClient(supabaseUrl, supabaseKey)
 
-        const { data: bucketData, error: bucketError } = await supabase.storage.createBucket('item_images', {
+        const { error: bucketError } = await supabase.storage.createBucket('item_images', {
             public: true,
             allowedMimeTypes: ['image/png', 'image/jpeg', 'image/gif', 'image/webp'],
             fileSizeLimit: 5242880 // 5MB
         })
 
-        if (bucketError && (bucketError as any).message !== 'The resource already exists') {
-            console.error('Bucket creation error:', bucketError)
+        if (bucketError) {
+            const errorMsg = bucketError.message || (bucketError as any).error || '';
+            if (!errorMsg.toLowerCase().includes('already exists')) {
+                console.error('Bucket creation error:', bucketError);
+            }
         }
 
         // Also create the missing DB table

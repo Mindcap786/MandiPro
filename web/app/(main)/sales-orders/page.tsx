@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabaseClient";
 import { Plus, ClipboardList, TrendingUp, Users, Loader2, Filter, Search, Calendar as CalendarIcon, ChevronLeft, ChevronRight, RefreshCw, X, LayoutGrid, List } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -16,7 +16,7 @@ import SalesOrdersTable from "@/components/sales-orders/sales-orders-table";
 import { useLanguage } from "@/components/i18n/language-provider";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export default function SalesOrdersPage() {
+function SalesOrders() {
     const { profile, loading: authLoading } = useAuth();
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -319,6 +319,18 @@ export default function SalesOrdersPage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+export default function SalesOrdersPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+                <Loader2 className="w-8 h-8 animate-spin text-[#0C831F]" />
+            </div>
+        }>
+            <SalesOrders />
+        </Suspense>
     );
 }
 

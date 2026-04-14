@@ -6,7 +6,7 @@ import {
     Gavel, Truck, Receipt as ReceiptIcon, ShoppingCart, IndianRupee,
     Zap, Store, RotateCcw, Users, Tractor, UserCheck, Briefcase, Tag,
     MapPin, Warehouse, Settings, Shield, Landmark, QrCode, Palette,
-    CreditCard, ShieldCheck, Sliders, ChevronRight
+    CreditCard, ShieldCheck, Sliders, ChevronRight, BookOpen
 } from "lucide-react"
 import Link from "next/link"
 

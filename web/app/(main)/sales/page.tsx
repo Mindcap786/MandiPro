@@ -10,7 +10,7 @@ import {
     ChevronDown, Receipt, Clock, CheckCircle2, AlertCircle
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import SalesTable from "@/components/sales/sales-table";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -38,7 +38,7 @@ import { StatChip } from "@/components/mobile/NativeSummaryCard";
 // ALL BUSINESS LOGIC IDENTICAL — only JSX return changes on native
 // ──────────────────────────────────────────────────────────────────────────────
 
-export default function SalesPage() {
+function Sales() {
     const { profile, loading: authLoading } = useAuth();
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -467,6 +467,18 @@ export default function SalesPage() {
                 )}
             </div>
         </div>
+    );
+}
+
+export default function SalesPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+                <Loader2 className="w-8 h-8 animate-spin text-[#0C831F]" />
+            </div>
+        }>
+            <Sales />
+        </Suspense>
     );
 }
 

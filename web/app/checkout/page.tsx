@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
@@ -24,7 +26,7 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
-export default function CheckoutPage() {
+function Checkout() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const supabaseClient = supabase;
@@ -704,5 +706,17 @@ export default function CheckoutPage() {
                 </div>
             </main>
         </div>
+    );
+}
+
+export default function CheckoutPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center bg-slate-50">
+                <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+            </div>
+        }>
+            <Checkout />
+        </Suspense>
     );
 }

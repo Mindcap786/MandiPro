@@ -29,7 +29,7 @@ export default async function PublicInvoicePage({ params }: { params: { id: stri
         .select(`
             *,
             contact:contacts(*),
-            sale_items(*, lot:lots(*, item:items(*))),
+            sale_items(*, lot:lots(*, item:commodities(*))),
             vouchers(*)
         `)
         .eq('id', id)

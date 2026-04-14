@@ -1,13 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+export const dynamic = 'force-dynamic';
+
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { Button } from '@/components/ui/button';
 import { Loader2, CheckCircle2, XCircle, ArrowRight, ShieldCheck } from 'lucide-react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 
-export default function JoinPage() {
+function Join() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const token = searchParams.get('token');
@@ -168,5 +170,17 @@ export default function JoinPage() {
                 </CardFooter>
             </Card>
         </div>
+    );
+}
+
+export default function JoinPage() {
+    return (
+        <Suspense fallback={
+            <div className="h-screen flex items-center justify-center bg-[#050510]">
+                <Loader2 className="animate-spin text-neon-blue w-8 h-8" />
+            </div>
+        }>
+            <Join />
+        </Suspense>
     );
 }

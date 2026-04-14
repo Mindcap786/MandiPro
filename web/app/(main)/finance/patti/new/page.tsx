@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Check, Loader2, IndianRupee, PieChart, ArrowRight, Table as TableIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -10,7 +10,7 @@ import { supabase } from "@/lib/supabaseClient"
 import { useAuth } from "@/components/auth/auth-provider"
 import { useToast } from "@/hooks/use-toast"
 
-export default function NewPattiForm() {
+function NewPattiFormContent() {
     const searchParams = useSearchParams()
     const router = useRouter()
     const farmerId = searchParams.get('farmer')
@@ -230,4 +230,16 @@ export default function NewPattiForm() {
             </div>
         </div>
     )
+}
+export default function NewPattiForm() {
+    return (
+        <Suspense fallback={
+            <div className="p-10 text-center animate-pulse font-black text-gray-500 uppercase tracking-widest">
+                <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-[#00b7ff]" />
+                Initializing Settlement Workspace...
+            </div>
+        }>
+            <NewPattiFormContent />
+        </Suspense>
+    );
 }

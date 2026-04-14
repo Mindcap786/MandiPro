@@ -55,6 +55,7 @@ export default function DailyRateFixer() {
             // Let's filter for trading_model = 'commission' primarily, but let's show all "Pending" for now.
 
             const { data, error } = await supabase
+                .schema('mandi')
                 .from('lots')
                 .select(`
                     *,
@@ -135,6 +136,7 @@ export default function DailyRateFixer() {
 
             // Update Lots Status
             await supabase
+                .schema('mandi')
                 .from('lots')
                 .update({
                     billing_status: 'billed',

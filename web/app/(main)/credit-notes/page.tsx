@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabaseClient";
 import { Plus, ArrowDownToLine, ArrowUpToLine, FileText, Search, Filter, Loader2, Calendar as CalendarIcon, ChevronLeft, ChevronRight, X, LayoutGrid, List } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -16,7 +16,7 @@ import { useLanguage } from "@/components/i18n/language-provider";
 import { useRouter, useSearchParams } from "next/navigation";
 import CreditNotesTable from "@/components/credit-notes/credit-notes-table";
 
-export default function CreditNotesPage() {
+function CreditNotes() {
     const { profile, loading: authLoading } = useAuth();
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -287,6 +287,18 @@ export default function CreditNotesPage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+export default function CreditNotesPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+                <Loader2 className="w-8 h-8 animate-spin text-[#0C831F]" />
+            </div>
+        }>
+            <CreditNotes />
+        </Suspense>
     );
 }
 

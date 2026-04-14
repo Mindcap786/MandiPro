@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabaseClient";
 import { Plus, Search, Truck, Loader2, Calendar as CalendarIcon, ChevronLeft, ChevronRight, X } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -15,7 +15,7 @@ import { useLanguage } from "@/components/i18n/language-provider";
 import { useRouter, useSearchParams } from "next/navigation";
 import DeliveryChallansTable from "@/components/delivery-challans/delivery-challans-table";
 
-export default function DeliveryChallansPage() {
+function DeliveryChallans() {
     const { profile, loading: authLoading } = useAuth();
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -222,5 +222,16 @@ export default function DeliveryChallansPage() {
                 </div>
             </div>
         </div>
+    );
+}
+export default function DeliveryChallansPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+                <Loader2 className="w-8 h-8 animate-spin text-[#0C831F]" />
+            </div>
+        }>
+            <DeliveryChallans />
+        </Suspense>
     );
 }

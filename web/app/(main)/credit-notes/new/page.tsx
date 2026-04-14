@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -29,7 +29,7 @@ const formSchema = z.object({
     reason: z.string().min(1, "Reason is required")
 });
 
-export default function NewCreditNotePage() {
+function NewCreditNote() {
     const { profile } = useAuth();
     const { toast } = useToast();
     const router = useRouter();
@@ -320,5 +320,16 @@ export default function NewCreditNotePage() {
                 </div>
             </div>
         </div>
+    );
+}
+export default function NewCreditNotePage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
+                <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
+            </div>
+        }>
+            <NewCreditNote />
+        </Suspense>
     );
 }

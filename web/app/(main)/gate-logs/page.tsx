@@ -9,6 +9,7 @@ export const dynamic = 'force-static'
 
 async function getGateEntries() {
     const { data, error } = await supabase
+        .schema('mandi')
         .from('lots')
         .select('*')
         .order('created_at', { ascending: false })
