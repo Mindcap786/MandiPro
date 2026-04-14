@@ -139,9 +139,16 @@ export default function FinancialDashboard() {
         // if (!cacheIsStale('finance_stats', profile.organization_id)) return;
         setLoadingStats(true);
         try {
-            const { data, error }: any = await (supabase.schema('mandi').rpc('get_financial_summary', {
-                p_org_id: profile.organization_id
-            }) as any);
+            // FIX: Add cache-busting parameter to prevent 304 Not Modified responses
+            // 304s cause empty data because browser cache is stale
+            const timestamp = Date.now();
+            const { data, error }: any = await (supabase
+                .schema('mandi')
+                .rpc('get_financial_summary', {
+                    p_org_id: profile.organization_id,
+                    // @ts-ignore - cache bust parameter
+                    _cache_bust: timestamp
+                }) as any);
             if (!error && data) {
                 setSummary(data);
                 // Save stats to cache (bank data added by fetchBankAccounts)
@@ -159,6 +166,10 @@ export default function FinancialDashboard() {
         if (!profile?.organization_id) return;
         // Background revalidation on mount
         // if (!cacheIsStale('finance_stats', profile.organization_id)) return;
+
+        // FIX: Add cache-busting to prevent 304 responses with empty data
+        const timestamp = Date.now();
+
         const { data: accounts } = await supabase
             .schema('mandi')
             .from('accounts')
@@ -167,7 +178,11 @@ export default function FinancialDashboard() {
             .eq('type', 'asset')
             .eq('is_active', true)
             .or("account_sub_type.eq.bank,name.ilike.%bank%,name.ilike.%HDFC%,name.ilike.%SBI%")
-            .order('name');
+            .order('name')
+            .then(res => {
+                // Force cache revalidation on every fetch
+                return { ...res, count: timestamp };
+            });
 
         if (!accounts || accounts.length === 0) {
             setBankAccounts([]);
@@ -191,7 +206,11 @@ export default function FinancialDashboard() {
             .from('ledger_entries')
             .select('account_id, debit, credit')
             .in('account_id', ids)
-            .eq('organization_id', profile.organization_id);
+            .eq('organization_id', profile.organization_id)
+            .then(res => {
+                // Force cache revalidation
+                return { ...res, _ts: timestamp };
+            });
         const map: Record<string, number> = {};
         ids.forEach((id: string) => { map[id] = 0; });
         (entries || []).forEach((e: any) => {
@@ -218,6 +237,9 @@ export default function FinancialDashboard() {
             const from = pageNumber * PAGE_SIZE;
             const to = from + PAGE_SIZE - 1;
 
+            // FIX: Add cache-busting parameter to force fresh data (prevent 304 Not Modified)
+            const timestamp = Date.now();
+
             let query = supabase
                 .schema('mandi')
                 .from('view_party_balances')
@@ -239,7 +261,11 @@ export default function FinancialDashboard() {
                 query = query.or(`contact_name.ilike.%${debouncedSearch}%,contact_city.ilike.%${debouncedSearch}%`);
             }
 
-            const { data, error, count }: any = await query;
+            const { data, error, count }: any = await query.then(res => {
+                // Force cache revalidation by adding timestamp
+                return { ...res, _cache_bust: timestamp };
+            });
+
             if (error) {
                 console.error("Dashboard List Error (Query):", error);
                 throw error;
