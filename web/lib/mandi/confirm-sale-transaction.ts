@@ -84,6 +84,8 @@ export async function confirmSaleTransactionWithFallback(
         p_is_igst: params.isIgst || false,
     };
 
+    // FIX: Call the mandi schema version which has all parameters
+    // (The public wrapper has fewer parameters and causes API key mismatch)
     const response = await supabase
         .schema("mandi")
         .rpc("confirm_sale_transaction", payload);
