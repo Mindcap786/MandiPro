@@ -10,6 +10,7 @@ import { cacheClear, cacheClearForSession, cacheFlushExcept, setActiveCacheUser 
 import { useIdleTimeout } from '@/lib/hooks/useIdleTimeout'
 import { LogOut } from 'lucide-react'
 import { useLanguage } from '@/components/i18n/language-provider'
+import { cn } from '@/lib/utils'
 
 
 interface Profile {
@@ -99,21 +100,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const prevUserIdRef = { current: null as string | null };
 
     // Idle logout warning state — shown 1 minute before auto-logout fires
-    const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false)
+    const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
     const [idleWarning, setIdleWarning] = useState<{ secondsLeft: number } | null>(null);
 
     const router = useRouter()
     const pathname = usePathname()
     const { toast } = useToast()
-    
-    // Safely get language context, fallback to defaults if not available
-    let t = (key: string) => key;
-    try {
-        const langContext = useLanguage();
-        t = langContext.t || ((key: string) => key);
-    } catch (e) {
-        console.warn("[Auth] Language context not available, using fallback");
-    }
+
+    // Language context is provided by parent, so this is safe to call directly
+    const { t } = useLanguage()
 
     // Derived subscription for easy consumption
     const subscription = profile?.subscription ?? null;
@@ -123,18 +119,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setFetchingProf(true);
 
         try {
-            const { data: context, error } = await supabase.rpc('get_full_user_context', { 
-                p_user_id: userId 
+            const { data: context, error } = await supabase.rpc('get_full_user_context', {
+                p_user_id: userId
             });
 
             if (error) {
-                console.warn("[Auth] Context bundle fetch failed:", error.message, "Falling back...");
+                console.warn("[Auth] Context bundle fetch failed:", error.message);
             }
 
             if (!context) {
                 console.log("[Auth] No context via RPC. Falling back to direct Profile lookup...");
-                
-                // FALLBACK 1: Direct Table Query (Bypass RPC complexity)
+
+                // FALLBACK 1: Direct Table Query (Bypass RPC complexity, single query)
                 const { data: directProfile, error: directError } = await supabase
                     .schema('core')
                     .from('profiles')
@@ -144,76 +140,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
                 if (directProfile && !directError) {
                     console.log("[Auth] Recovered profile via Direct Lookup.");
+                    setProfileNotFound(false);
                     return directProfile as unknown as Profile;
                 }
 
-                // FALLBACK 2: Auto-Healing via Metadata
-                const { data: { user } } = await supabase.auth.getUser();
-                const metadataOrg = user?.user_metadata?.organization_id;
-                
-                if (metadataOrg) {
-                    console.log("[Auth] Auto-healing link from Admin Metadata:", metadataOrg);
-                    const { error: repairError } = await supabase.schema('core').from('profiles').insert({
-                        id: userId,
-                        organization_id: metadataOrg,
-                        role: user?.user_metadata?.role || 'staff',
-                        full_name: user?.email?.split('@')[0] || 'Member'
-                    });
+                // If direct lookup fails and this is first retry, try metadata healing ONCE
+                if (!isRetry) {
+                    const { data: { user } } = await supabase.auth.getUser();
+                    const metadataOrg = user?.user_metadata?.organization_id;
 
-                    if (!repairError) return fetchProfile(userId, true);
-                }
-
-                // FALLBACK 3: Dual-Unique Legacy Discovery (Specific for Mandi 1 Identity)
-                // If the user belongs to a known identity prefix, search for their specific organization
-                if (user?.email?.includes('mandi')) {
-                    const emailPrefix = user.email.split('@')[0];
-                    console.log("[Auth] Unique Identity detected. Scoping discovery for:", emailPrefix);
-                    
-                    // Search for organization matching the email prefix (Dual-Match Username + Email)
-                    const { data: matchedOrg } = await supabase.schema('core')
-                        .from('organizations')
-                        .select('id, name')
-                        .ilike('name', `%${emailPrefix}%`)
-                        .limit(1)
-                        .maybeSingle();
-
-                    if (matchedOrg) {
-                        console.log("[Auth] Surgically bridged to organization:", matchedOrg.name);
-                        const { error: legacyRepair } = await supabase.schema('core').from('profiles').insert({
+                    if (metadataOrg) {
+                        console.log("[Auth] Auto-healing link from Admin Metadata:", metadataOrg);
+                        const { error: repairError } = await supabase.schema('core').from('profiles').insert({
                             id: userId,
-                            organization_id: matchedOrg.id,
-                            role: 'admin',
-                            full_name: emailPrefix // Username anchor
+                            organization_id: metadataOrg,
+                            role: user?.user_metadata?.role || 'staff',
+                            full_name: user?.email?.split('@')[0] || 'Member'
                         });
-                        if (!legacyRepair) return fetchProfile(userId, true);
-                    } else {
-                        // Final Fallback: Search for any organization where data exists (Deep Scan)
-                        const { data: anyOrg } = await supabase.schema('core').from('organizations').select('id, name').limit(1).maybeSingle();
-                        if (anyOrg) {
-                            console.log("[Auth] Safe-haven link to:", anyOrg.name);
-                            const { error: finalRepair } = await supabase.schema('core').from('profiles').insert({
-                                id: userId,
-                                organization_id: anyOrg.id,
-                                role: 'admin',
-                                full_name: emailPrefix
-                            });
-                            if (!finalRepair) return fetchProfile(userId, true);
-                        }
+
+                        if (!repairError) return fetchProfile(userId, true);
                     }
                 }
 
-                // FALLBACK 4: Super Admin Auto-Synthesis (If email matches)
-                if (user?.email === 'shauddinunix@gmail.com') {
-                    console.log("[Auth] Super Admin identified. Synthesizing administrative profile...");
-                    return {
-                        id: userId,
-                        organization_id: '00000000-0000-0000-0000-000000000000', // System Org
-                        role: 'super_admin',
-                        full_name: 'Platform Architect',
-                        organization: { name: 'MandiGrow HQ', id: '00000000-0000-0000-0000-000000000000' }
-                    } as unknown as Profile;
-                }
-
+                // Give up on aggressive fallbacks after one retry - they're too expensive
                 setProfileNotFound(true);
                 return null;
             }
@@ -257,25 +206,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const { data: { session: initialSession } } = await supabase.auth.getSession();
             if (!isMounted) return;
 
+            // Validate the user object with getUser() instead of trusting getSession()
+            // getUser() authenticates against the Supabase server for accuracy
+            const { data: { user: authenticatedUser } } = await supabase.auth.getUser();
+
             setSession(initialSession);
-            const currentUser = initialSession?.user ?? null;
-            setUser(currentUser);
+            setUser(authenticatedUser);
 
-            if (currentUser) {
+            if (authenticatedUser) {
                 // Bind the active user to the cache module so all reads/writes are user-scoped
-                setActiveCacheUser(currentUser.id);
-                prevUserIdRef.current = currentUser.id;
+                setActiveCacheUser(authenticatedUser.id);
+                prevUserIdRef.current = authenticatedUser.id;
 
-                const freshProfile = await fetchProfile(currentUser.id);
+                const freshProfile = await fetchProfile(authenticatedUser.id);
                 if (isMounted && freshProfile) {
                     const profileToCache = { ...freshProfile, _fetchedAt: Date.now() };
                     setProfile(profileToCache);
                     localStorage.setItem('mandi_profile_cache', JSON.stringify(profileToCache));
                     localStorage.setItem('mandi_profile_cache_org_id', freshProfile.organization_id);
+                    if (freshProfile.session_version) {
+                        localStorage.setItem('mandi_session_v', freshProfile.session_version.toString());
+                    }
                 }
             } else {
                 if (isMounted) {
-                    // No session on mount — clear any leftover cache from a previous user
+                    // No authenticated session — clear any leftover cache from a previous user
                     setActiveCacheUser(null);
                     cacheClearForSession();
                     setProfile(null);
@@ -301,7 +256,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setSession(newSession);
             setUser(newSession?.user ?? null);
 
-            if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+            if (event === 'SIGNED_IN') {
                 if (newSession?.user) {
                     const incomingUserId = newSession.user.id;
 
@@ -325,6 +280,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         setProfile(profileToCache);
                         localStorage.setItem('mandi_profile_cache', JSON.stringify(profileToCache));
                         localStorage.setItem('mandi_profile_cache_org_id', fresh.organization_id);
+                        if (fresh.session_version) {
+                            localStorage.setItem('mandi_session_v', fresh.session_version.toString());
+                        }
+                    }
+                }
+            } else if (event === 'TOKEN_REFRESHED') {
+                // TOKEN_REFRESHED = JWT was refreshed, NOT a new login
+                // Profile hasn't changed, so skip expensive refetch unless user ID changed
+                if (newSession?.user && prevUserIdRef.current !== newSession.user.id) {
+                    // Different user (multi-device scenario) - need to refetch
+                    const incomingUserId = newSession.user.id;
+                    setActiveCacheUser(incomingUserId);
+                    prevUserIdRef.current = incomingUserId;
+                    const fresh = await fetchProfile(incomingUserId);
+                    if (isMounted && fresh) {
+                        const profileToCache = { ...fresh, _fetchedAt: Date.now() };
+                        setProfile(profileToCache);
+                        localStorage.setItem('mandi_profile_cache', JSON.stringify(profileToCache));
+                        localStorage.setItem('mandi_profile_cache_org_id', fresh.organization_id);
+                        if (fresh.session_version) {
+                            localStorage.setItem('mandi_session_v', fresh.session_version.toString());
+                        }
                     }
                 }
             } else if (event === 'SIGNED_OUT') {
@@ -356,7 +333,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         //   to user_metadata.active_session_token. The old session's polling check
         //   reads this and sees a mismatch → signs out with a clear message.
         //
-        // Both mechanisms work together. Polling runs every 15 seconds.
+        // Both mechanisms work together. Polling runs every 30 seconds.
         // ────────────────────────────────────────────────────────────────────────
 
         let pollIntervalId: ReturnType<typeof setInterval> | null = null;
@@ -388,9 +365,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }, 800);
         };
 
-        // ── Polling Check (every 15 seconds) ─────────────────────────────────
+        // ── Polling Check (every 30 seconds) ─────────────────────────────────
         // Uses getUser() which hits the Supabase Auth server directly, making it
         // the most reliable check possible. No DB column required.
+        // Reduced from 15s to 30s to balance eviction detection vs performance.
         const startPollingEvictionCheck = () => {
             if (pollIntervalId) clearInterval(pollIntervalId);
 
@@ -422,9 +400,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         handleSessionEviction('replaced');
                     }
                 } catch {
-                    // Network error — skip this tick, try again in 15s
+                    // Network error — skip this tick, try again in 30s
                 }
-            }, 15_000); // Every 15 seconds
+            }, 30_000); // Every 30 seconds
         };
 
         // ── Wire polling to auth state ────────────────────────────────────────
@@ -451,20 +429,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return;
         }
 
-        // Unbind user from cache BEFORE signOut so no stale reads can occur
-        // during the brief window that signOut() is in-flight.
-        setActiveCacheUser(null);
-        prevUserIdRef.current = null;
-        cacheClearForSession(); // Wipes in-memory store + localStorage cache
-        await supabase.auth.signOut(); // Fires SIGNED_OUT → onAuthStateChange confirms the clear
-        setProfile(null)
-        localStorage.removeItem('mandi_profile_cache')
-        localStorage.removeItem('mandi_profile_cache_org_id')
-        localStorage.removeItem('mandi_active_token')    // ← remove single-session receipt
-        localStorage.removeItem('mandi_impersonation_mode')
-        localStorage.removeItem('mandi_session_v')
-        setIsLogoutModalOpen(false); // Close if open
-        router.push('/login')
+        if (isLoggingOut) return;
+        setIsLoggingOut(true);
+
+        try {
+            console.log('[Auth] Initiating sign out...');
+            // Unbind user from cache BEFORE signOut so no stale reads can occur
+            // during the brief window that signOut() is in-flight.
+            setActiveCacheUser(null);
+            prevUserIdRef.current = null;
+            cacheClearForSession(); // Wipes in-memory store + localStorage cache
+            
+            // Attempt server-side signOut (soft fail allowed)
+            const { error } = await supabase.auth.signOut();
+            if (error) console.warn('[Auth] Server signout error:', error.message);
+        } catch (err) {
+            console.error('[Auth] Forced logout safety caught error:', err);
+        } finally {
+            // ALWAYS cleanup local state and redirect, even if network fails
+            setProfile(null);
+            localStorage.removeItem('mandi_profile_cache');
+            localStorage.removeItem('mandi_profile_cache_org_id');
+            localStorage.removeItem('mandi_active_token');
+            localStorage.removeItem('mandi_impersonation_mode');
+            localStorage.removeItem('mandi_session_v');
+            
+            setIsLogoutModalOpen(false);
+            setIsLoggingOut(false);
+            
+            // Force return to login
+            window.location.href = '/login';
+        }
     }
 
     const refreshProfile = async () => {
@@ -546,11 +541,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
         }
 
-        // Versioning check
+        // Versioning check — Forces logout if a security bump was triggered on the backend
         if (profile?.session_version && !isPublicPath) {
              const v = localStorage.getItem('mandi_session_v');
-             if (v && parseInt(v) < profile.session_version) {
+             const currentV = v ? parseInt(v) : 0;
+             if (currentV > 0 && currentV < profile.session_version) {
+                 console.warn(`[Auth] Session version mismatch (local:${currentV} < remote:${profile.session_version}). Logging out.`);
                  signOut();
+             } else if (!v && profile.session_version) {
+                 // No local version found but remote has one - initialize it instead of logging out
+                 localStorage.setItem('mandi_session_v', profile.session_version.toString());
              }
         }
     }, [loading, session, profile, pathname, router, isPublicPath]);
@@ -597,27 +597,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         <div className="h-1.5 bg-red-500 w-full" />
                         <div className="p-8">
                             <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mb-6 mx-auto">
-                                <LogOut className="w-8 h-8 text-red-500" />
+                                <LogOut className={cn("w-8 h-8 text-red-500", isLoggingOut && "animate-pulse")} />
                             </div>
-
                             <h3 className="text-2xl font-black text-gray-900 text-center mb-2">
-                                {t('common.logout')}?
+                                {isLoggingOut ? t('common.signing_out') : t('common.logout') + '?'}
                             </h3>
                             <p className="text-gray-500 text-center text-sm leading-relaxed mb-8">
-                                Are you sure you want to end your current session? You will need to sign in again to access your dashboard.
+                                {isLoggingOut 
+                                    ? t('common.please_wait_signing_out') 
+                                    : "Are you sure you want to end your current session? You will need to sign in again to access your dashboard."
+                                }
                             </p>
 
                             <div className="space-y-3">
                                 <button
                                     onClick={() => signOut()}
-                                    className="w-full h-14 bg-red-600 text-white rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-red-700 transition-all active:scale-95 shadow-lg shadow-red-200"
+                                    disabled={isLoggingOut}
+                                    className="w-full h-14 bg-red-600 text-white rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-red-700 transition-all active:scale-95 shadow-lg shadow-red-200 disabled:opacity-50"
                                 >
-                                    Yes, Log Me Out
+                                    {isLoggingOut ? (
+                                        <>
+                                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            <span>{t('common.processing')}...</span>
+                                        </>
+                                    ) : (
+                                        "Yes, Log Me Out"
+                                    )}
                                 </button>
                                 
                                 <button
                                     onClick={() => setIsLogoutModalOpen(false)}
-                                    className="w-full h-14 bg-gray-100 text-gray-700 rounded-2xl font-bold hover:bg-gray-200 transition-all active:scale-95"
+                                    disabled={isLoggingOut}
+                                    className="w-full h-14 bg-gray-100 text-gray-700 rounded-2xl font-bold hover:bg-gray-200 transition-all active:scale-95 disabled:opacity-50"
                                 >
                                     Cancel
                                 </button>

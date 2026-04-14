@@ -165,6 +165,7 @@ export async function generateInvoicePDF(
     if (!sourceElement) {
         const { default: BuyerInvoice } = await import("@/components/sales/invoice-template");
         const { createRoot } = await import("react-dom/client");
+        const { LanguageProvider } = await import("@/components/i18n/language-provider");
         const React = await import("react");
 
         offScreenContainer = document.createElement("div");
@@ -173,7 +174,11 @@ export async function generateInvoicePDF(
 
         offScreenRoot = createRoot(offScreenContainer);
         await new Promise<void>((resolve) => {
-            offScreenRoot!.render(React.createElement(BuyerInvoice, { sale, organization }));
+            offScreenRoot!.render(
+                React.createElement(LanguageProvider, null, 
+                    React.createElement(BuyerInvoice, { sale, organization })
+                )
+            );
             setTimeout(resolve, 800);
         });
 

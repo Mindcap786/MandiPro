@@ -1,5 +1,6 @@
 'use client'
 
+import { useLanguage } from '@/components/i18n/language-provider'
 import { IndianRupee, ShoppingCart, Undo2, PackageCheck, Zap, ShieldCheck, LogOut } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
@@ -10,16 +11,17 @@ import { supabase } from '@/lib/supabaseClient'
 import { AlertBell } from '@/components/alerts/AlertBell'
 
 const QUICK_LINKS = [
-    { tKey: 'nav.quick_purchase', label: 'Quick Purchase', href: '/stock/quick-entry', icon: ShoppingCart, color: 'text-purple-600', bg: 'bg-purple-50' },
-    { tKey: 'nav.quick_sales', label: 'Sales', href: '/sales', icon: IndianRupee, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-    { tKey: 'nav.pos', label: 'POS', href: '/sales/pos', icon: Zap, color: 'text-violet-600', bg: 'bg-violet-50' },
-    { tKey: 'nav.returns', label: 'Returns', href: '/sales/return/new', icon: Undo2, color: 'text-orange-600', bg: 'bg-orange-50' },
+    { tKey: 'nav.quick_purchase', href: '/stock/quick-entry', icon: ShoppingCart, color: 'text-purple-600', bg: 'bg-purple-50' },
+    { tKey: 'nav.quick_sales', href: '/sales', icon: IndianRupee, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+    { tKey: 'nav.pos', href: '/sales/pos', icon: Zap, color: 'text-violet-600', bg: 'bg-violet-50' },
+    { tKey: 'nav.returns', href: '/sales/return/new', icon: Undo2, color: 'text-orange-600', bg: 'bg-orange-50' },
 ]
 
 export function TopNav() {
     const pathname = usePathname()
     const router = useRouter()
     const { profile, can, isImpersonating } = usePermission()
+    const { t } = useLanguage()
     const [isImpersonatingState, setIsImpersonatingState] = useState(false)
 
     useEffect(() => {
@@ -116,20 +118,13 @@ export function TopNav() {
                                 "text-xs tracking-wide whitespace-nowrap",
                                 isActive ? "text-white" : "text-slate-700"
                             )}>
-                                {link.label}
+                                {t(link.tKey)}
                             </span>
                         </Link>
                     )
                 })}
 
-                <div className="ml-auto flex items-center gap-4 pl-4 border-l border-slate-100">
-                    <AlertBell />
-                    <div className="flex items-center gap-2">
-                        <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.15em]">Live</span>
-                    </div>
                 </div>
             </div>
-        </div>
     )
 }

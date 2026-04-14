@@ -450,7 +450,7 @@ export default function BuyerInvoice({ sale, organization, onRefresh }: InvoiceT
                     <div className="mt-6 h-px w-32 bg-gray-200" />
                 </div>
                 <div className="text-right text-[10px] font-black text-gray-400 flex flex-col items-end gap-1 uppercase tracking-widest">
-                    <span>{branding?.document_footer_presented_by_text || 'Presented by MandiPro'}</span>
+                    <span>{branding?.document_footer_presented_by_text || 'Presented by MandiGrow'}</span>
                     <span className="text-gray-900 border-t border-gray-100 mt-1 pt-1">{branding?.document_footer_powered_by_text || 'Powered by MindT Corporation'}</span>
                     <span className="text-[8px] font-bold text-gray-300 italic">{branding?.document_footer_developed_by_text || 'Developed by MindT Solutions'}</span>
                 </div>

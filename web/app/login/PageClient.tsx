@@ -598,7 +598,7 @@ export default function LoginClient() {
                 <div className="w-full max-w-[480px] my-auto py-12">
                     <div className="text-center mb-8">
                         <Link href="/" className="inline-flex lg:hidden items-center gap-3 mb-8 text-emerald-900" onClick={(e) => {
-                            if (isNative) {
+                            if (isNativePlatform) {
                                 e.preventDefault();
                                 const newCount = tapCount + 1;
                                 setTapCount(newCount);

@@ -49,7 +49,7 @@ export function formatCurrency(amount: number): string {
 
 /**
  * Rounds a number to exactly 2 decimal places to prevent floating-point drift.
- * Standard used for all financial calculations in MandiPro.
+ * Standard used for all financial calculations in MandiGrow.
  */
 export function roundTo2(num: number): number {
     return Math.round((num + Number.EPSILON) * 100) / 100;

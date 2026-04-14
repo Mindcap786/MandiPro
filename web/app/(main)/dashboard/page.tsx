@@ -24,6 +24,7 @@ import { SkeletonDashboard } from '@/components/mobile/ShimmerSkeleton'
 // ──────────────────────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
+    const { t } = useLanguage()
     const { profile, loading: authLoading } = useAuth()
     const router = useRouter()
     const [mounted, setMounted] = useState(false)

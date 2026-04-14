@@ -15,6 +15,10 @@ export const translations = {
             settings: "Settings",
             balance_sheet: "Balance Sheet",
             bank_reconcile: "Bank Reconcile",
+            quick_purchase: "Quick Purchase",
+            quick_sales: "Sales",
+            pos: "POS",
+            returns: "Returns",
             logout: "Log Out",
             language: "Language",
             sale_invoice: "Sale Invoice",
@@ -42,7 +46,32 @@ export const translations = {
             money: "Money",
             edition: "Edition",
             system_online: "System Online",
-            new_invoice: "Invoice"
+            new_invoice: "Invoice",
+            gate_logs: "Gate Logs",
+            gate_detail: "Gate Detail",
+            purchase_invoices: "Purchase Invoices",
+            buyer_settlements: "Buyer Settlements",
+            rate_fixer: "Rate Fixer",
+            reminders: "Reminders",
+            patti_voucher: "Patti Voucher",
+            receipts: "Receipts",
+            ledger: "Ledger",
+            margin_report: "Margin Report",
+            ledgers: "Ledgers",
+            warehouse: "Warehouse",
+            field_manager: "Field Manager",
+            field_governance: "Field Governance"
+        },
+        actions: {
+            new_sale: "New Sale",
+            new_arrival: "New Arrival",
+            add_contact: "Add Contact",
+            quick_entry: "Quick Entry",
+            add_payment: "Add Payment",
+            gate_entry: "Gate Entry",
+            inward: "Inward",
+            outward: "Outward",
+            payment: "Payment"
         },
         common: {
             dashboard: "Dashboard",
@@ -422,7 +451,32 @@ export const translations = {
             next: "अगला",
             pagination_info: "पृष्ठ {page} / {totalPages} • कुल {total} रिकॉर्ड",
             team_access: "टीम एक्सेस",
-            new_invoice: "चालान"
+            new_invoice: "चालान",
+            gate_logs: "गेट लॉग्स",
+            gate_detail: "गेट विवरण",
+            purchase_invoices: "خرید انوائس",
+            buyer_settlements: "खरीदार निपटान",
+            rate_fixer: "दर फिक्सर",
+            reminders: "अनुस्मारक",
+            patti_voucher: "पट्टी वाउचर",
+            receipts: "रसीदें",
+            ledger: "लेजर",
+            margin_report: "मार्जिन रिपोर्ट",
+            ledgers: "लेजर",
+            warehouse: "गोदام",
+            field_manager: "क्षेत्र प्रबंधक",
+            field_governance: "क्षेत्र शासन"
+        },
+        actions: {
+            new_sale: "नया विक्रय",
+            new_arrival: "नया आगमन",
+            add_contact: "संपर्क जोड़ें",
+            quick_entry: "त्वरित प्रविष्टि",
+            add_payment: "भुगतान जोड़ें",
+            gate_entry: "गेट एंट्री",
+            inward: "आवक",
+            outward: "जावक",
+            payment: "भुगतान"
         },
         sales: {
             title: "बिक्री डैशबोर्ड",
@@ -579,6 +633,17 @@ export const translations = {
             pagination_info: "పేజీ {page} / {totalPages} • మొత్తం {total} రికార్డులు",
             team_access: "టీమ్ యాక్సెస్",
             new_invoice: "ఇన్వాయిస్"
+        },
+        actions: {
+            new_sale: "కొత్త అమ్మకం",
+            new_arrival: "కొత్త రాక",
+            add_contact: "పరిచయాన్ని జోడించు",
+            quick_entry: "త్వరిత ప్రవేశం",
+            add_payment: "చెల్లింపును జోడించు",
+            gate_entry: "గేట్ ఎంట్రీ",
+            inward: "ఆవకం",
+            outward: "జావకం",
+            payment: "చెల్లింపు"
         },
         sales: {
             title: "అమ్మకాల వివరాలు",
@@ -829,6 +894,17 @@ export const translations = {
             history: "வரத்து வரலாறு",
             new_entry: "புதிய பதிவு"
         },
+        actions: {
+            new_sale: "புதிய விற்பனை",
+            new_arrival: "புதிய வரவு",
+            add_contact: "தொடர்பைச் சேர்க்கவும்",
+            quick_entry: "விரைவான நுழைவு",
+            add_payment: "கட்டணத்தைச் சேர்க்கவும்",
+            gate_entry: "கேட் என்ட்ரி",
+            inward: "சரக்கு வரத்து",
+            outward: "சரக்கு வெளிச்செல்லல்",
+            payment: "பணம் செலுத்தல்"
+        },
         languages: {
             en: "English",
             hi: "இந்தி (Hindi)",
@@ -955,6 +1031,17 @@ export const translations = {
             subtitle: "ಗೇಟ್‌ನಲ್ಲಿ ಹೊಸ ಸರಕು ಆಗಮನವನ್ನು ನಿಖರವಾಗಿ ದಾಖಲಿಸಿ.",
             history: "ಆಗಮನದ ಇತಿಹಾಸ",
             new_entry: "ಹೊಸ ದಾಖಲೆ"
+        },
+        actions: {
+            new_sale: "ಹೊಸ ಮಾರಾಟ",
+            new_arrival: "ಹೊಸ ಆಗಮನ",
+            add_contact: "ಸಂಪರ್ಕ ಸೇರಿಸು",
+            quick_entry: "ತ್ವರಿತ ಪ್ರವೇಶ",
+            add_payment: "ಪಾವತಿ ಸೇರಿಸು",
+            gate_entry: "ಗೇಟ್ ಎಂಟ್ರಿ",
+            inward: "ಒಳಬರುವಿಕೆ",
+            outward: "ಹೊರಹೋಗುವಿಕೆ",
+            payment: "ಪಾವತಿ"
         },
         languages: {
             en: "English",
@@ -1116,6 +1203,17 @@ export const translations = {
         history: "ആഗമന ചരിത്രം",
         new_entry: "പുതിയ എൻട്രി"
     },
+    actions: {
+        new_sale: "പുതിയ വിൽപന",
+        new_arrival: "പുതിയ വരവ്",
+        add_contact: "കോൺടാക്റ്റ് ചേർക്കുക",
+        quick_entry: "പെട്ടെന്നുള്ള എൻട്രി",
+        add_payment: "പേയ്‌മെന്റ് ചേർക്കുക",
+        gate_entry: "ഗേറ്റ് എൻട്രി",
+        inward: "ചരക്ക് വരവ്",
+        outward: "ചരക്ക് പോകൽ",
+        payment: "പേയ്‌മെന്റ്"
+    },
     languages: {
         en: "English",
         hi: "ഹിന്ദി (Hindi)",
@@ -1276,6 +1374,17 @@ export const translations = {
         subtitle: "گیٹ پر نئے اسٹاک کی آمد کو درست طریقے سے درج کریں۔",
         history: "آمد کی تاریخ",
         new_entry: "نئی انٹری"
+    },
+    actions: {
+        new_sale: "نئی فروخت",
+        new_arrival: "نئی آمد",
+        add_contact: "رابطہ شامل کریں",
+        quick_entry: "فوری اندراج",
+        add_payment: "ادائیگی شامل کریں",
+        gate_entry: "گیٹ انٹری",
+        inward: "آمد",
+        outward: "روانگی",
+        payment: "ادائیگی"
     },
     languages: {
         en: "English",

@@ -1,9 +1,10 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import { useLanguage } from "@/components/i18n/language-provider";
 import { ChevronLeft, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AlertBell } from "@/components/alerts/AlertBell";
+import { usePathname, useRouter } from "next/navigation";
 
 /**
  * NativeTopBar
@@ -24,58 +25,58 @@ interface NativeTopBarProps {
     transparent?: boolean;
 }
 
-// Route → display title mapping  
+// Route → translation key mapping  
 const ROUTE_TITLES: Record<string, string> = {
-    "/dashboard":               "Home",
-    "/gate":                    "Gate Entry",
-    "/gate-logs":               "Gate Logs",
-    "/gate/[id]":               "Gate Detail",
-    "/arrivals":                "Inward Entry",
-    "/purchase/bills":          "Purchase Bills",
-    "/purchase/invoices":       "Purchase Invoices",
-    "/stock/quick-entry":       "Quick Consignment",
-    "/sales":                   "Sales",
-    "/sales/new":               "New Sale",
-    "/sales/new-invoice":       "Bulk Lot Sale",
-    "/sales/pos":               "Point of Sale",
-    "/sales/returns":           "Sales Returns",
-    "/sales/return/new":        "New Return",
-    "/stock":                   "Stock",
-    "/inventory/items":         "Commodities",
-    "/inventory/storage-map":   "Storage Map",
-    "/finance":                 "Finance",
-    "/finance/payments":        "Payments",
-    "/finance/reconciliation":  "Cheque Mgmt",
-    "/finance/purchase-bills":  "Payable Bills",
-    "/finance/buyer-settlements":  "Buyer Settlements",
-    "/finance/daily-rate-fixer": "Rate Fixer",
-    "/finance/reminders":       "Reminders",
-    "/finance/patti/new":       "Patti Voucher",
-    "/receipts":                "Receipts",
-    "/reports/pl":              "P&L Report",
-    "/reports/daybook":         "Day Book",
-    "/reports/gst":             "GST Report",
-    "/reports/balance-sheet":   "Balance Sheet",
-    "/reports/ledger":          "Ledger",
-    "/reports/margins":         "Margin Report",
-    "/reports/stock":           "Stock Report",
-    "/reports/price-forecast":  "Price Forecast",
-    "/contacts":                "Contacts",
-    "/buyers":                  "Buyers",
-    "/employees":               "Employees",
-    "/ledgers":                 "Ledgers",
-    "/warehouse":               "Warehouse",
-    "/field-manager":           "Field Manager",
-    "/accounting":              "Accounting",
-    "/settings":                "Settings",
-    "/settings/billing":        "Subscription",
-    "/settings/branding":       "Branding",
-    "/settings/banks":          "Bank Accounts",
-    "/settings/bank-details":   "Bank Details",
-    "/settings/team":           "Team Access",
-    "/settings/fields":         "Field Governance",
-    "/settings/compliance":     "Compliance",
-    "/settings/feature-flags":  "Feature Flags",
+    "/dashboard":               "nav.dashboard",
+    "/gate":                    "nav.gate_entry",
+    "/gate-logs":               "nav.gate_logs",
+    "/gate/[id]":               "nav.gate_detail",
+    "/arrivals":                "nav.arrivals",
+    "/purchase/bills":          "nav.purchase_bills",
+    "/purchase/invoices":       "nav.purchase_invoices",
+    "/stock/quick-entry":       "nav.quick_purchase",
+    "/sales":                   "nav.sales",
+    "/sales/new":               "actions.new_sale",
+    "/sales/new-invoice":       "nav.new_invoice",
+    "/sales/pos":               "nav.pos",
+    "/sales/returns":           "nav.returns",
+    "/sales/return/new":        "nav.returns",
+    "/stock":                   "nav.inventory",
+    "/inventory/items":         "nav.commodity_master",
+    "/inventory/storage-map":   "nav.storage_map",
+    "/finance":                 "nav.finance",
+    "/finance/payments":        "nav.payments",
+    "/finance/reconciliation":  "nav.cheque_mgmt",
+    "/finance/purchase-bills":  "nav.purchase_bills",
+    "/finance/buyer-settlements":  "nav.buyer_settlements",
+    "/finance/daily-rate-fixer": "nav.rate_fixer",
+    "/finance/reminders":       "nav.reminders",
+    "/finance/patti/new":       "nav.patti_voucher",
+    "/receipts":                "nav.receipts",
+    "/reports/pl":              "nav.trading_pl",
+    "/reports/daybook":         "nav.day_book",
+    "/reports/gst":             "nav.gst_compliance",
+    "/reports/balance-sheet":   "nav.balance_sheet",
+    "/reports/ledger":          "nav.ledger",
+    "/reports/margins":         "nav.margin_report",
+    "/reports/stock":           "nav.stock_status",
+    "/reports/price-forecast":  "nav.price_forecast",
+    "/contacts":                "nav.contacts",
+    "/buyers":                  "nav.customers_vendors",
+    "/employees":               "nav.employees",
+    "/ledgers":                 "nav.ledgers",
+    "/warehouse":               "nav.warehouse",
+    "/field-manager":           "nav.field_manager",
+    "/accounting":              "nav.financials",
+    "/settings":                "nav.settings",
+    "/settings/billing":        "nav.subscription_billing",
+    "/settings/branding":       "nav.branding",
+    "/settings/banks":          "nav.banks",
+    "/settings/bank-details":   "nav.bank_details",
+    "/settings/team":           "nav.team_access",
+    "/settings/fields":         "nav.field_governance",
+    "/settings/compliance":     "nav.compliance",
+    "/settings/feature-flags":  "nav.feature_flags",
 };
 
 // Root screens that get "Home" icon treatment (no back chevron)
@@ -91,8 +92,11 @@ export function NativeTopBar({
 }: NativeTopBarProps) {
     const pathname = usePathname();
     const router = useRouter();
+    const { t } = useLanguage();
 
-    const resolvedTitle = title || ROUTE_TITLES[pathname] || "MandiGrow";
+    const tKey = title || ROUTE_TITLES[pathname];
+    const resolvedTitle = tKey ? t(tKey) : "MandiGrow";
+
     const isRoot = ROOT_SCREENS.includes(pathname);
     const shouldShowBack = showBack !== undefined ? showBack : !isRoot;
 
