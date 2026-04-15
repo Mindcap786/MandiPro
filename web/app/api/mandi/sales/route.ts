@@ -5,35 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createMandiServerClient, requireAuth, apiError, auditLog } from '../_lib/server-client'
 
-// ── Runtime validation ────────────────────────────────────────────────────────
-
-function validateSalePayload(body: unknown): { ok: true; data: Record<string, unknown> } | { ok: false; issues: string[] } {
-  const b = body as Record<string, unknown>
-  const issues: string[] = []
-
-  if (!b.sale_date || typeof b.sale_date !== 'string') issues.push('sale_date is required (YYYY-MM-DD)')
-  if (!b.buyer_id || typeof b.buyer_id !== 'string') issues.push('buyer_id is required')
-  if (!b.items || !Array.isArray(b.items) || (b.items as unknown[]).length === 0) issues.push('items array must have at least one lot')
-  if (!b.payment_mode) issues.push('payment_mode is required')
-
-  const validModes = ['cash', 'bank_transfer', 'cheque', 'upi', 'udhaar']
-  if (b.payment_mode && !validModes.includes(b.payment_mode as string)) {
-    issues.push(`payment_mode must be one of: ${validModes.join(', ')}`)
-  }
-
-  if (Array.isArray(b.items)) {
-    ;(b.items as Record<string, unknown>[]).forEach((item, i) => {
-      if (!item.lot_id) issues.push(`items[${i}].lot_id is required`)
-      if (!item.quantity || Number(item.quantity) <= 0) issues.push(`items[${i}].quantity must be > 0`)
-      if (!item.rate_per_unit || Number(item.rate_per_unit) <= 0) issues.push(`items[${i}].rate_per_unit must be > 0`)
-    })
-  }
-
-  if (b.payment_mode === 'cheque' && !b.cheque_number) issues.push('cheque_number required when payment_mode is cheque')
-
-  if (issues.length > 0) return { ok: false, issues }
-  return { ok: true, data: b }
-}
+import { CreateSaleSchema } from '@mandi-pro/validation'
 
 // ── GET /api/mandi/sales ──────────────────────────────────────────────────────
 
@@ -92,12 +64,12 @@ export async function POST(request: NextRequest) {
   let body: unknown
   try { body = await request.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
 
-  const validation = validateSalePayload(body)
-  if (!validation.ok) { return apiError.validation((validation as { ok: false; issues: string[] }).issues) }
-  const payload: Record<string, unknown> = validation.data
-
-
-  const items = payload.items as Array<{ lot_id: string; quantity: number; rate_per_unit: number; discount_amount?: number }>
+  const result = CreateSaleSchema.safeParse(body)
+  if (!result.success) {
+    return apiError.validation(result.error.errors.map(e => `${e.path.join('.')}: ${e.message}`))
+  }
+  const payload = result.data
+  const items = payload.items
 
   // Validate stock availability atomically via RPC
   const { data, error } = await supabase.rpc('confirm_sale_transaction', {

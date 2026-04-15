@@ -54,8 +54,9 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/components/auth/auth-provider";
 import { ContactDialog } from "@/components/contacts/contact-dialog";
 import { ItemDialog } from "@/components/inventory/item-dialog";
-import { useFieldGovernance } from "@/hooks/useFieldGovernance";
 import { cacheGet, cacheSet, cacheIsStale } from "@/lib/data-cache";
+import { useArrivalsMasterData } from "@/hooks/mandi/useArrivalsMasterData";
+import { useArrivals } from "@/hooks/mandi/useArrivals";
 
 const itemSchema = z.object({
     item_id: z.string().optional(),
@@ -118,21 +119,23 @@ export default function ArrivalsEntryForm() {
     const { toast } = useToast();
     const pathname = usePathname();
     const router = useRouter();
-    const { profile, loading } = useAuth();
+    const { profile, loading: authLoading } = useAuth();
     
-    // QR Code State
-    const [qrSlipsOpen, setQrSlipsOpen] = useState(false);
-    const [qrLots, setQrLots] = useState<LotQRData[]>([]);
+    // Domain Hooks
+    const { 
+        contacts, 
+        commodities, 
+        storageLocations, 
+        bankAccounts, 
+        defaultCommissionRate,
+        loading: masterLoading,
+        error: masterError,
+        refetch: refetchMaster
+    } = useArrivalsMasterData(profile?.organization_id);
 
-    const [contacts, setContacts] = useState<any[]>([]);
-    const [availableItems, setAvailableItems] = useState<any[]>([]);
-    const [storageLocations, setStorageLocations] = useState<any[]>([]);
-    const [bankAccounts, setBankAccounts] = useState<any[]>([]);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [showSuccessDialog, setShowSuccessDialog] = useState(false);
-    const [dialogConfig, setDialogConfig] = useState({ title: '', message: '', type: 'success' as 'success' | 'error' });
-    const [showUnlock, setShowUnlock] = useState(false);
-    const [defaultCommissionRate, setDefaultCommissionRate] = useState<number>(0);
+    const { createArrival, isCreating } = useArrivals();
+
+    // QR Code State
 
     const [arrivalType, setArrivalType] = useState<"direct" | "commission" | "commission_supplier">("direct");
     const { isVisible, isMandatory, getLabel, getDefaultValue } = useFieldGovernance(
@@ -311,153 +314,9 @@ export default function ArrivalsEntryForm() {
         }
     }, [currentArrivalType, defaultCommissionRate, form]);
 
-    useEffect(() => {
-        if (profile?.organization_id) {
-            fetchMasterData();
-        }
-    }, [profile]);
+    const isSubmitting = isCreating;
 
-    const fetchMasterData = async () => {
-        if (!profile?.organization_id) {
-            console.log("fetchMasterData: No organization_id found in profile", profile);
-            return;
-        }
-
-        const schema = 'mandi';
-        console.log("fetchMasterData: Fetching for org:", profile.organization_id, "Schema:", schema);
-
-        try {
-            const cacheKey = 'arrivals_form_master';
-            const cachedData = cacheGet<any>(cacheKey, profile.organization_id);
-
-            if (cachedData) {
-                setContacts(cachedData.contacts || []);
-                setAvailableItems(cachedData.items || []);
-                
-                const sortedLocs = cachedData.storage || [];
-                setStorageLocations(sortedLocs);
-                if (sortedLocs.length > 0 && !form.getValues('storage_location')) {
-                    form.setValue('storage_location', sortedLocs[0].name);
-                }
-
-                setBankAccounts(cachedData.banks || []);
-                if (cachedData.settings?.commission_rate_default) {
-                    setDefaultCommissionRate(Number(cachedData.settings.commission_rate_default));
-                }
-
-                if (!cacheIsStale(cacheKey, profile.organization_id)) {
-                    console.log("fetchMasterData: Served exactly from cache, skipping background fetch.");
-                    return;
-                }
-                console.log("fetchMasterData: Cache stale, fetching in background...");
-            }
-
-            const { data: contactsData, error: contactsError } = await supabase.schema(schema)
-                .from("contacts")
-                .select("id, name, type, city")
-                .eq("organization_id", profile.organization_id)
-                .in("type", ["farmer", "supplier"]);
-
-            if (contactsError) {
-                console.error("fetchMasterData: Contacts error:", contactsError);
-            } else {
-                console.log("fetchMasterData: Contacts fetched:", contactsData?.length);
-                setContacts(contactsData || []);
-            }
-
-            const { data: itemsData, error: itemsError } = await supabase
-                .schema(schema)
-                .from("commodities")
-                .select("id, name, local_name, sku_code, default_unit, custom_attributes")
-                .eq("organization_id", profile.organization_id)
-                .order('name');
-
-            if (itemsError) {
-                console.error("fetchMasterData: Items error:", itemsError);
-            } else {
-                console.log("fetchMasterData: Items fetched:", itemsData?.length);
-                setAvailableItems(itemsData || []);
-            }
-
-            const { data: storageData, error: storageError } = await supabase
-                .schema(schema)
-                .from("storage_locations")
-                .select("name, is_active")
-                .eq("organization_id", profile.organization_id)
-                .eq("is_active", true);
-
-            let sortedLocations: any[] = [];
-            if (storageError) {
-                console.error("fetchMasterData: Storage error:", storageError);
-            } else {
-                // Deduplicate items by name
-                const uniqueLocations = Array.from(new Map((storageData || []).map(item => [item.name, item])).values());
-
-                // Sort: Mandi (Yard) first, then Cold Storage, then others
-                sortedLocations = uniqueLocations.sort((a, b) => {
-                    if (a.name === 'Mandi (Yard)') return -1;
-                    if (b.name === 'Mandi (Yard)') return 1;
-                    if (a.name === 'Cold Storage') return -1;
-                    if (b.name === 'Cold Storage') return 1;
-                    return a.name.localeCompare(b.name);
-                });
-
-                setStorageLocations(sortedLocations);
-
-                // Set default storage location if not set
-                if (sortedLocations.length > 0 && !form.getValues('storage_location')) {
-                    form.setValue('storage_location', sortedLocations[0].name);
-                }
-            }
-
-            const { data: bankData, error: bankError } = await supabase
-                .schema(schema)
-                .from('accounts')
-                .select('id, name, description, is_default')
-                .eq('organization_id', profile.organization_id)
-                .eq('account_sub_type', 'bank')
-                .eq('type', 'asset')
-                .eq('is_active', true)
-                .order('name');
-
-            if (bankError) {
-                console.error("fetchMasterData: Bank Accounts error:", bankError);
-            } else {
-                const filteredBanks = (bankData || []).filter(b => 
-                    !b.name.toLowerCase().includes('cheques in hand') && 
-                    !b.name.toLowerCase().includes('transit')
-                );
-                console.log("fetchMasterData: Bank Accounts fetched:", filteredBanks.length);
-                setBankAccounts(filteredBanks);
-            }
-
-            const { data: settingsData, error: settingsError } = await supabase
-                .schema(schema)
-                .from('mandi_settings' as any)
-                .select('commission_rate_default')
-                .eq('organization_id', profile.organization_id)
-                .maybeSingle();
-
-            if (settingsError) {
-                console.error("fetchMasterData: Settings error:", settingsError);
-            } else if (settingsData && settingsData.commission_rate_default) {
-                setDefaultCommissionRate(Number(settingsData.commission_rate_default));
-            }
-
-            cacheSet('arrivals_form_master', profile.organization_id, {
-                contacts: contactsData || [],
-                items: itemsData || [],
-                storage: sortedLocations || [],
-                banks: bankData || [],
-                settings: settingsData || {}
-            });
-
-        } catch (err) {
-            console.error("fetchMasterData: Unexpected error:", err);
-        }
-    };
-
-    if (loading) {
+    if (authLoading || masterLoading) {
         return (
             <div className="p-12 flex flex-col items-center justify-center gap-6 text-gray-400">
                 <div className="relative">
@@ -727,182 +586,57 @@ export default function ArrivalsEntryForm() {
         setIsSubmitting(true);
 
         try {
-            const schema = 'mandi';
-            console.log("onSubmit: Starting submission to schema:", schema);
+            const payload: any = {
+                arrival_date: format(values.entry_date, 'yyyy-MM-dd'),
+                party_id: values.contact_id || null,
+                arrival_type: values.arrival_type,
+                lot_prefix: values.lot_prefix || 'LOT',
+                storage_location: values.storage_location || null,
+                vehicle_number: values.vehicle_number || null,
+                vehicle_type: values.vehicle_type || null,
+                driver_name: values.driver_name || null,
+                driver_mobile: values.driver_mobile || null,
+                guarantor: values.guarantor || null,
+                loaders_count: values.loaders_count,
+                hire_charges: values.hire_charges,
+                hamali_expenses: values.hamali_expenses,
+                other_expenses: values.other_expenses,
+                advance: values.advance,
+                advance_payment_mode: values.advance_payment_mode,
+                advance_bank_account_id: values.advance_bank_account_id || null,
+                advance_cheque_no: values.advance_cheque_no || null,
+                advance_cheque_date: values.advance_cheque_date ? format(values.advance_cheque_date as Date, 'yyyy-MM-dd') : null,
+                advance_bank_name: values.advance_bank_name || null,
+                reference_no: values.reference_no || null,
+                items: values.items
+            };
 
-            // 1. Create Arrival Header (Trip)
-            console.log("onSubmit: Creating Arrival Header...");
-            const { data: arrivalData, error: arrivalError }: any = await supabase.schema(schema)
-                .from("arrivals")
-                .insert({
-                    organization_id: profile.organization_id,
-                    party_id: values.contact_id || null,
-                    arrival_date: format(values.entry_date, 'yyyy-MM-dd'),
-                    arrival_type: values.arrival_type,
-                    storage_location: values.storage_location || null,
-                    vehicle_number: values.vehicle_number || null,
-                    vehicle_type: values.vehicle_type || null,
-                    driver_name: values.driver_name,
-                    driver_mobile: values.driver_mobile,
-                    guarantor: values.guarantor,
-                    loaders_count: values.loaders_count,
-                    hire_charges: values.hire_charges,
-                    hamali_expenses: values.hamali_expenses,
-                    other_expenses: values.other_expenses,
-                    reference_no: values.reference_no,
-                    metadata: {
-                        item_name: values.items.length > 0
-                            ? `${availableItems.find(i => i.id === values.items[0].item_id)?.name || 'Commodity'}${values.items.length > 1 ? ` (+${values.items.length - 1} more)` : ''}`
-                            : 'No Items'
-                    },
-                    status: 'received'
-                })
-                .select()
-                .single();
+            const result = await createArrival(payload);
+            if (!result) return; // Hook handles error toasts
 
-            if (arrivalError) {
-                console.error("onSubmit: Arrival Header Error:", arrivalError);
-                throw arrivalError;
-            }
-            console.log("onSubmit: Arrival Header Created:", arrivalData.id);
-
-            // 2. Create Lots for each item linked to Arrival
-            const createdLotsForQr: LotQRData[] = [];
-            for (let i = 0; i < values.items.length; i++) {
-                const item = values.items[i];
-                console.log("onSubmit: Processing Item:", item.item_id);
-                const totalWeight = item.qty * item.unit_weight;
-                
-                // USER REQUEST: Use exactly the lot code given. If multiple items, add a numeric index.
-                const lotCode = values.items.length > 1 
-                    ? `${values.lot_prefix || 'LOT'}-${i + 1}`
-                    : (values.lot_prefix || 'LOT');
-
-                const qrString = `MANDI_LOT:{"orgId":"${profile.organization_id}","lotCode":"${lotCode}","type":"${values.arrival_type}"}`;
-
-                const { data: lotData, error: lotError }: any = await supabase
-                    .schema(schema)
-                    .from("lots")
-                    .insert({
-                        organization_id: profile.organization_id,
-                        arrival_id: arrivalData.id,
-                        lot_code: lotCode,
-                        contact_id: values.contact_id || null,
-                        item_id: item.item_id || null,
-                        arrival_type: values.arrival_type,
-                        storage_location: values.storage_location || null,
-
-                        initial_qty: item.qty,
-                        current_qty: item.qty,
+            // Update QR Code state for printing
+            if (result.lot_codes && result.lot_codes.length > 0) {
+                 const createdLotsForQr = result.lot_codes.map((code: string, idx: number) => {
+                     const item = values.items[idx];
+                     const itemName = commodities?.find(i => i.id === item.item_id)?.name || 'Unknown Item';
+                     const partyName = contacts?.find(c => c.id === values.contact_id)?.name || 'Unknown Party';
+                     return {
+                        qrNumber: `MANDI_LOT:{"orgId":"${profile.organization_id}","lotCode":"${code}","type":"${values.arrival_type}"}`,
+                        item_id: item.item_id,
+                        arrivalType: values.arrival_type,
+                        unitWeight: item.unit_weight,
+                        lotCode: code,
+                        itemName,
+                        qty: item.qty,
                         unit: item.unit,
-
-                        grade: item.grade,
-                        variety: item.variety,
-                        unit_weight: item.unit_weight,
-                        total_weight: totalWeight,
-                        supplier_rate: item.supplier_rate,
-                        commission_percent: item.commission_percent,
-                        less_percent: item.less_percent,
-                        packing_cost: item.packing_cost,
-                        loading_cost: item.loading_cost,
-                        // Arrival-level advance consolidated to the FIRST lot for ledger summation
-                        advance: i === 0 ? values.advance : 0,
-                        advance_payment_mode: i === 0 ? (values.advance_payment_mode === 'upi_bank' ? 'bank' : values.advance_payment_mode) : 'cash',
-                        advance_cheque_no: i === 0 ? (values.advance_cheque_no || null) : null,
-                        advance_cheque_date: (i === 0 && values.advance_cheque_date) ? format(values.advance_cheque_date, 'yyyy-MM-dd') : null,
-                        advance_bank_name: i === 0 ? (values.advance_bank_name || null) : null,
-                        advance_bank_account_id: i === 0 ? (values.advance_bank_account_id || null) : null,
-                        advance_cheque_status: i === 0 ? values.advance_cheque_status : false,
-                        farmer_charges: item.farmer_charges,
-                        sale_price: (item.sale_price && item.sale_price > 0) ? item.sale_price : null,
-                        barcode: item.barcode || null,
-                        qr_code: qrString,
-                        status: 'active'
-                    })
-                    .select()
-                    .single();
-
-                if (lotError) {
-                    console.error("onSubmit: Lot Creation Error:", lotError);
-                    throw lotError;
-                }
-                console.log("onSubmit: Lot Created:", lotData.id);
-
-                // 3. Log into stock ledger
-                console.log("onSubmit: Creating Stock Ledger Entry...");
-                const { error: ledgerError } = await supabase
-                    .schema(schema)
-                    .from("stock_ledger")
-                    .insert({
-                        organization_id: profile.organization_id,
-                        lot_id: lotData.id,
-                        transaction_type: 'arrival',
-                        qty_change: item.qty,
-                        reference_id: arrivalData.id // Reference the Arrival ID now regarding context
-                    });
-
-                if (ledgerError) {
-                    console.error("onSubmit: Ledger Error:", ledgerError);
-                    throw ledgerError;
-                }
-                console.log("onSubmit: Ledger Entry Created.");
-
-                // Prepare QR data for printable UI
-                // Prepare QR data for printable UI using a unique 6-digit number
-                const qrNumber = Math.floor(100000 + Math.random() * 900000).toString();
-                const itemName = availableItems.find(i => i.id === item.item_id)?.name || 'Commodity';
-                const partyName = contacts.find(p => p.id === values.contact_id)?.name || '';
-                createdLotsForQr.push({
-                    lotId: lotData.id,
-                    lotCode: lotCode,
-                    qrNumber: qrNumber,
-                    orgId: profile.organization_id,
-                    arrivalType: values.arrival_type as any,
-                    itemName,
-                    qty: item.qty,
-                    unit: item.unit,
-                    partyName,
-                    date: values.entry_date.toISOString(),
-                });
-
-                // Update the QR code string in DB now that we have the auto-generated lot ID
-                const exactQrString = createdLotsForQr[createdLotsForQr.length - 1].qrNumber;
-                await supabase.schema(schema).from("lots").update({ qr_code: exactQrString }).eq('id', lotData.id);
-
-            }
-
-            // 4. Post Arrival Ledger Entries (Expenses / Liability)
-            console.log("onSubmit: Posting Arrival Ledger...");
-            const { data: rpcResponse, error: rpcError } = await supabase.schema(schema).rpc('post_arrival_ledger', { p_arrival_id: arrivalData.id });
-            
-            if (rpcError) {
-                console.error("onSubmit: Post Arrival Ledger Error:", rpcError);
-                toast({
-                    title: "Ledger Sync Warning",
-                    description: rpcError.message || "Arrival saved, but ledger synchronization failed. Please contact support.",
-                    variant: "destructive"
-                });
-            } else if (rpcResponse && !rpcResponse.success) {
-                // RPC returned { success: false, error: "..." }
-                const errorMsg = rpcResponse.error || "Unknown error while posting ledger";
-                console.error("onSubmit: Ledger Post Failed:", errorMsg);
-                toast({
-                    title: "Ledger Setup Issue",
-                    description: errorMsg,
-                    variant: "destructive"
-                });
-            } else {
-                console.log("onSubmit: Ledger Posted Successfully");
-            }
-
-            console.log("onSubmit: All items processed. Showing success toast.");
-
-            // Show QR Slips (ONLY IF TOGGLED ON)
-            if (createdLotsForQr.length > 0) {
-                setQrLots(createdLotsForQr);
-                if (form.getValues('auto_print_qr')) {
-                    setTimeout(() => setQrSlipsOpen(true), 300);
-                }
+                        partyName,
+                        date: values.entry_date.toISOString(),
+                     }
+                 });
+                 setQrLots(createdLotsForQr);
+                 if (form.getValues('auto_print_qr')) {
+                     setTimeout(() => setQrSlipsOpen(true), 300);
+                 }
             }
 
             setDialogConfig({

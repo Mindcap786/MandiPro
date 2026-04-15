@@ -8,52 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createMandiServerClient, requireAuth, apiError, auditLog } from '../_lib/server-client'
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-type PaymentType = 'payment' | 'receipt'
-type PaymentMode = 'cash' | 'bank_transfer' | 'cheque' | 'upi'
-
-interface PaymentPayload {
-    payment_date: string
-    payment_type: PaymentType
-    party_id: string
-    account_id: string
-    amount: number
-    payment_mode: PaymentMode
-    reference_number?: string
-    cheque_id?: string
-    sale_id?: string
-    arrival_id?: string
-    narration?: string
-    idempotency_key: string
-}
-
-// ── Runtime validation ────────────────────────────────────────────────────────
-
-function validatePaymentPayload(body: unknown): { ok: true; data: PaymentPayload } | { ok: false; issues: string[] } {
-    const b = body as Record<string, unknown>
-    const issues: string[] = []
-
-    if (!b.idempotency_key || typeof b.idempotency_key !== 'string') {
-        issues.push('idempotency_key is required (UUID)')
-    }
-    if (!b.payment_date || typeof b.payment_date !== 'string') issues.push('payment_date is required')
-    if (!b.payment_type || !['payment', 'receipt'].includes(b.payment_type as string)) {
-        issues.push('payment_type must be "payment" or "receipt"')
-    }
-    if (!b.party_id || typeof b.party_id !== 'string') issues.push('party_id is required')
-    if (!b.account_id || typeof b.account_id !== 'string') issues.push('account_id is required')
-    if (!b.amount || Number(b.amount) <= 0) issues.push('amount must be > 0')
-    if (!b.payment_mode || !['cash', 'bank_transfer', 'cheque', 'upi'].includes(b.payment_mode as string)) {
-        issues.push('payment_mode must be cash | bank_transfer | cheque | upi')
-    }
-    if (b.payment_mode === 'cheque' && !b.cheque_id) {
-        issues.push('cheque_id is required when payment_mode is cheque')
-    }
-
-    if (issues.length > 0) return { ok: false, issues }
-    return { ok: true, data: b as unknown as PaymentPayload }
-}
+import { CreatePaymentSchema } from '@mandi-pro/validation'
 
 // ── GET /api/mandi/payments ───────────────────────────────────────────────────
 
@@ -110,12 +65,11 @@ export async function POST(request: NextRequest) {
         return apiError.forbidden()
     }
 
-    let body: unknown
-    try { body = await request.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
-
-    const validation = validatePaymentPayload(body)
-    if (!validation.ok) { return apiError.validation((validation as { ok: false; issues: string[] }).issues) }
-    const payload: PaymentPayload = validation.data
+    const result = CreatePaymentSchema.safeParse(body)
+    if (!result.success) {
+        return apiError.validation(result.error.errors.map(e => `${e.path.join('.')}: ${e.message}`))
+    }
+    const payload = result.data
 
 
     // Attempt insert — idempotency_key is UNIQUE so a duplicate returns a constraint error

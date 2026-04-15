@@ -5,42 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createMandiServerClient, requireAuth, apiError, auditLog } from '../_lib/server-client'
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-interface ArrivalListFilters {
-    page?: number
-    limit?: number
-    date_from?: string
-    date_to?: string
-    party_id?: string
-    commodity_id?: string
-    status?: string
-}
-
-// Minimal Zod-like runtime guard (full Zod schema once packages/validation is set up)
-function validateArrivalPayload(body: unknown): { ok: true; data: Record<string, unknown> } | { ok: false; issues: string[] } {
-    const b = body as Record<string, unknown>
-    const issues: string[] = []
-
-    if (!b.arrival_date || typeof b.arrival_date !== 'string') issues.push('arrival_date is required (YYYY-MM-DD)')
-    if (b.arrival_date && new Date(b.arrival_date as string) > new Date()) issues.push('arrival_date cannot be in the future')
-    if (!b.party_id || typeof b.party_id !== 'string') issues.push('party_id is required')
-    if (!b.commodity_id || typeof b.commodity_id !== 'string') issues.push('commodity_id is required')
-    if (!b.arrival_type) issues.push('arrival_type is required')
-    if (!['commission_farmer', 'commission_supplier', 'direct_purchase'].includes(b.arrival_type as string)) {
-        issues.push('arrival_type must be commission_farmer | commission_supplier | direct_purchase')
-    }
-    if (!b.lot_prefix || typeof b.lot_prefix !== 'string') issues.push('lot_prefix is required')
-    if (!b.num_lots || Number(b.num_lots) < 1) issues.push('num_lots must be ≥ 1')
-    if (!b.bags_per_lot || Number(b.bags_per_lot) < 1) issues.push('bags_per_lot must be ≥ 1')
-    if (!b.gross_qty || Number(b.gross_qty) <= 0) issues.push('gross_qty must be > 0')
-    if (Number(b.commission_percent) < 0 || Number(b.commission_percent) > 25) {
-        issues.push('commission_percent must be 0–25')
-    }
-
-    if (issues.length > 0) return { ok: false, issues }
-    return { ok: true, data: b }
-}
+import { CreateArrivalSchema } from '@mandi-pro/validation'
 
 // ── GET /api/mandi/arrivals ───────────────────────────────────────────────────
 
@@ -118,41 +83,37 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
     }
 
-    const validation = validateArrivalPayload(body)
-    if (!validation.ok) return apiError.validation((validation as { ok: false; issues: string[] }).issues)
+    const result = CreateArrivalSchema.safeParse(body)
+    if (!result.success) {
+        return apiError.validation(result.error.errors.map(e => `${e.path.join('.')}: ${e.message}`))
+    }
 
-    const payload = validation.ok ? validation.data : null as never
+    const payload = result.data
 
     // Delegate to transactional RPC — one atomic operation, no partial state possible
-    const { data, error } = await supabase.rpc('create_arrival_with_lots', {
+    const { data, error } = await supabase.rpc('create_mixed_arrival', {
         p_arrival: {
-            organization_id: profile.organization_id,
-            arrival_date: payload.arrival_date,
-            party_id: payload.party_id,
-            commodity_id: payload.commodity_id,
-            arrival_type: payload.arrival_type,
-            lot_prefix: payload.lot_prefix,
-            num_lots: Number(payload.num_lots),
-            bags_per_lot: Number(payload.bags_per_lot),
-            gross_qty: Number(payload.gross_qty),
-            less_percent: Number(payload.less_percent ?? 0),
-            less_units: Number(payload.less_units ?? 0),
-            grade: payload.grade ?? null,
-            commission_percent: Number(payload.commission_percent ?? 0),
-            transport_amount: Number(payload.transport_amount ?? 0),
-            loading_amount: Number(payload.loading_amount ?? 0),
-            packing_amount: Number(payload.packing_amount ?? 0),
-            advance_amount: Number(payload.advance_amount ?? 0),
-            misc_expenses: payload.misc_expenses ?? [],
-            gate_entry_id: payload.gate_entry_id ?? null,
-            notes: payload.notes ?? null,
+            ...payload,
+            organization_id: profile.organization_id // injected server side
         },
         p_created_by: user.id,
-    } as never)
+    } as any)
 
     if (error) {
         console.error('[arrivals:POST]', error.message)
         return apiError.server(error.message)
+    }
+
+    // Attempt to post ledger automatically via RPC
+    const arrivalData = data as any;
+    if (arrivalData?.arrival_id) {
+        const { error: ledgerError } = await supabase.rpc('post_arrival_ledger', {
+            p_arrival_id: arrivalData.arrival_id
+        });
+        if (ledgerError) {
+            console.error('[arrivals:POST] Ledger Post Failed:', ledgerError.message);
+            // Non-fatal, admin can handle it
+        }
     }
 
     // Audit (fire-and-forget — never block response)

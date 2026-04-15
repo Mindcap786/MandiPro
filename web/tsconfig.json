@@ -24,6 +24,12 @@
     "paths": {
       "@/*": [
         "./*"
+      ],
+      "@mandi-pro/validation": [
+        "../packages/validation/src"
+      ],
+      "@mandi-pro/domain": [
+        "../packages/domain/src"
       ]
     }
   },
