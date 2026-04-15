@@ -7,6 +7,19 @@
 -- casting exceptions are safely caught natively instead of crashing Checkouts.
 -- ============================================================
 
+-- 1. BOOTSTRAPPING HELPER (Security Definer to break recursion)
+CREATE OR REPLACE FUNCTION core.get_org_id_base(p_uid uuid)
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+    -- This runs with 'postgres' privileges to bypass the recursive RLS check on core.profiles
+    RETURN (SELECT organization_id FROM core.profiles WHERE id = p_uid LIMIT 1);
+END;
+$$;
+
+-- 2. UNIVERSAL ORG ID HELPER (High Performance)
 CREATE OR REPLACE FUNCTION core.get_my_org_id()
 RETURNS uuid
 LANGUAGE plpgsql
@@ -16,34 +29,23 @@ DECLARE
     v_org_id uuid;
 BEGIN
     -- 1. Try native Auth JWT (Highest Performance)
-    -- We check app_metadata (Server Set), user_metadata (Client Sync), and claims (Custom)
     BEGIN
         v_org_id := (auth.jwt() -> 'app_metadata' ->> 'organization_id')::uuid;
         IF v_org_id IS NOT NULL THEN RETURN v_org_id; END IF;
         
         v_org_id := (auth.jwt() -> 'user_metadata' ->> 'organization_id')::uuid;
         IF v_org_id IS NOT NULL THEN RETURN v_org_id; END IF;
-
-        v_org_id := (auth.jwt() -> 'claims' ->> 'organization_id')::uuid;
-        IF v_org_id IS NOT NULL THEN RETURN v_org_id; END IF;
-        
-        v_org_id := (auth.jwt() ->> 'organization_id')::uuid;
-        IF v_org_id IS NOT NULL THEN RETURN v_org_id; END IF;
     EXCEPTION WHEN OTHERS THEN END;
 
     -- 2. Try REST request setting (PostgREST environment)
     BEGIN
-        v_org_id := (nullif(current_setting('request.jwt.claims', true), '')::jsonb -> 'app_metadata' ->> 'organization_id')::uuid;
-        IF v_org_id IS NOT NULL THEN RETURN v_org_id; END IF;
-
         v_org_id := (nullif(current_setting('request.jwt.claims', true), '')::jsonb -> 'user_metadata' ->> 'organization_id')::uuid;
         IF v_org_id IS NOT NULL THEN RETURN v_org_id; END IF;
     EXCEPTION WHEN OTHERS THEN END;
 
     -- 3. FINAL SAFE FALLBACK (Recursive Bootstrapping)
-    -- This succeeds because the 'tenant_isolation_profiles' policy permits the user to see their own row.
-    SELECT organization_id INTO v_org_id FROM core.profiles WHERE id = auth.uid() LIMIT 1;
-    RETURN v_org_id;
+    -- This calls the Security Definer helper to guarantee it breaks the loop.
+    RETURN core.get_org_id_base(auth.uid());
 END;
 $$;
 
