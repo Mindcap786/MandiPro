@@ -432,33 +432,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (isLoggingOut) return;
         setIsLoggingOut(true);
 
+        // ATOMIC LOCAL CLEANUP: Execute local state wiping immediately
+        // This ensures the user is "logged out" in their browser even if the network hangs.
+        const cleanupLocalState = () => {
+             console.log('[Auth] Cleaning up local session state...');
+             setActiveCacheUser(null);
+             prevUserIdRef.current = null;
+             cacheClearForSession(); // Wipes in-memory store + localStorage cache
+             
+             setProfile(null);
+             localStorage.removeItem('mandi_profile_cache');
+             localStorage.removeItem('mandi_profile_cache_org_id');
+             localStorage.removeItem('mandi_active_token');
+             localStorage.removeItem('mandi_impersonation_mode');
+             localStorage.removeItem('mandi_session_v');
+             
+             // Clear session storage if any
+             sessionStorage.clear();
+        };
+
         try {
-            console.log('[Auth] Initiating sign out...');
-            // Unbind user from cache BEFORE signOut so no stale reads can occur
-            // during the brief window that signOut() is in-flight.
-            setActiveCacheUser(null);
-            prevUserIdRef.current = null;
-            cacheClearForSession(); // Wipes in-memory store + localStorage cache
+            console.log('[Auth] Initiating sign out sequence...');
             
-            // Attempt server-side signOut (soft fail allowed)
-            const { error } = await supabase.auth.signOut();
-            if (error) console.warn('[Auth] Server signout error:', error.message);
+            // 1. Local cleanup first (priority)
+            cleanupLocalState();
+            
+            // 2. Wrap Supabase signOut in a Promise with a 2-second timeout
+            // This prevents the "hanging" if Supabase server is unreachable.
+            await Promise.race([
+                supabase.auth.signOut(),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Sign-out timeout')), 2000))
+            ]).catch(err => console.warn('[Auth] Server signout slow or failed:', err.message));
+
         } catch (err) {
             console.error('[Auth] Forced logout safety caught error:', err);
         } finally {
-            // ALWAYS cleanup local state and redirect, even if network fails
-            setProfile(null);
-            localStorage.removeItem('mandi_profile_cache');
-            localStorage.removeItem('mandi_profile_cache_org_id');
-            localStorage.removeItem('mandi_active_token');
-            localStorage.removeItem('mandi_impersonation_mode');
-            localStorage.removeItem('mandi_session_v');
-            
+            console.log('[Auth] Sign out complete. Redirecting...');
             setIsLogoutModalOpen(false);
             setIsLoggingOut(false);
             
-            // Force return to login
-            window.location.href = '/login';
+            // USE window.location.replace for a cleaner redirect that doesn't mess with history
+            // and ensures no lingering React state interferes.
+            window.location.replace('/login');
         }
     }
 
