@@ -67,6 +67,15 @@ export default function Sales() {
     const [statusSheetOpen, setStatusSheetOpen] = useState(false);
     const [dateSheetOpen, setDateSheetOpen] = useState(false);
 
+    // High Performance Search Debouncing
+    const [debouncedSearch, setDebouncedSearch] = useState(search);
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedSearch(search);
+        }, 400); // 400ms delay to prevent rapid-fire requests
+        return () => clearTimeout(handler);
+    }, [search]);
+
     useEffect(() => {
         if (!_orgId) return;
         const cached = cacheGet<any>("sales_page", _orgId);
@@ -79,11 +88,31 @@ export default function Sales() {
         setLoading(false);
     }, [_orgId]);
 
+    // Sync main table load with debounced search
     useEffect(() => {
         if (authLoading) return;
         if (!profile?.organization_id) { setLoading(false); return; }
         fetchSalesAndStats();
-    }, [search, page, statusFilter, dateRange, profile, authLoading]);
+    }, [debouncedSearch, page, statusFilter, dateRange, profile, authLoading]);
+
+    // Live Realtime Subscriptions (Blazing Fast Sync)
+    useEffect(() => {
+        if (!profile?.organization_id) return;
+        const channelId = `sales-dashboard-${Math.random().toString(36).substring(7)}`;
+        const channel = supabase.channel(channelId)
+            .on('postgres_changes', 
+                { event: '*', schema: 'mandi', table: 'sales', filter: `organization_id=eq.${profile.organization_id}` }, 
+                () => {
+                    console.log("Realtime event received! Updating Dashboard UI silently.");
+                    fetchSalesAndStats(false);
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [profile?.organization_id]);
 
     const fetchSalesAndStats = async (isManualRefresh = false) => {
         if (!profile?.organization_id) { setLoading(false); return; }
@@ -117,16 +146,16 @@ export default function Sales() {
             const startIdx = (page - 1) * pageSize;
             let tableQuery = buildQuery("*, contact:contacts!sales_buyer_id_fkey(id, name), sale_items(id, sale_id, lot_id, quantity, rate, total_price, qty, amount, unit, item_id, gst_rate, tax_amount, hsn_code, lot:lots(lot_code, arrival_type, supplier_rate, commission_percent, grade, variety, item:commodities(name))), sale_adjustments(id), vouchers(amount, discount_amount, type, cheque_status, is_cleared, payment_mode)", { count: "exact" }).order("created_at", { ascending: false });
 
-            if (search) {
-                const { data: matchingBuyers } = await supabase.schema("mandi").from("contacts").select("id").eq("organization_id", profile.organization_id).ilike("name", `%${search}%`);
+            if (debouncedSearch) {
+                const { data: matchingBuyers } = await supabase.schema("mandi").from("contacts").select("id").eq("organization_id", profile.organization_id).ilike("name", `%${debouncedSearch}%`);
                 const buyerIds = matchingBuyers?.map((b) => b.id) || [];
-                const isNumericSearch = /^\d+$/.test(search.trim());
+                const isNumericSearch = /^\d+$/.test(debouncedSearch.trim());
                 if (buyerIds.length > 0) {
                     const idsStr = `(${buyerIds.join(",")})`;
-                    if (isNumericSearch) tableQuery = tableQuery.or(`bill_no.eq.${Number(search.trim())},contact_bill_no.eq.${Number(search.trim())},buyer_id.in.${idsStr}`);
+                    if (isNumericSearch) tableQuery = tableQuery.or(`bill_no.eq.${Number(debouncedSearch.trim())},contact_bill_no.eq.${Number(debouncedSearch.trim())},buyer_id.in.${idsStr}`);
                     else tableQuery = tableQuery.or(`buyer_id.in.${idsStr}`);
                 } else {
-                    if (isNumericSearch) tableQuery = tableQuery.or(`bill_no.eq.${Number(search.trim())},contact_bill_no.eq.${Number(search.trim())}`);
+                    if (isNumericSearch) tableQuery = tableQuery.or(`bill_no.eq.${Number(debouncedSearch.trim())},contact_bill_no.eq.${Number(debouncedSearch.trim())}`);
                     else tableQuery = tableQuery.eq("bill_no", -1);
                 }
             }
