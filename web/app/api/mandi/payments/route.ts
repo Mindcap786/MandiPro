@@ -114,9 +114,9 @@ export async function POST(request: NextRequest) {
     try { body = await request.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
 
     const validation = validatePaymentPayload(body)
-    if (!validation.ok) return apiError.validation(validation.issues)
+    if (!validation.ok) { return apiError.validation((validation as { ok: false; issues: string[] }).issues) }
+    const payload: PaymentPayload = validation.data
 
-    const payload = validation.data
 
     // Attempt insert — idempotency_key is UNIQUE so a duplicate returns a constraint error
     const { data, error } = await supabase

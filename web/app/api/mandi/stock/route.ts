@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Aggregate by commodity for summary view
-    const summary = buildStockSummary(data ?? [])
+    const summary = buildStockSummary((data ?? []) as unknown as LotRow[])
 
     return NextResponse.json({ lots: data ?? [], summary })
 }

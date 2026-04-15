@@ -75,10 +75,11 @@ export function auditLog(
         new_values?: Record<string, unknown>
     }
 ) {
-    supabase
-        .schema('core')
-        .from('audit_log' as never)
-        .insert(entry)
-        .then(() => {})
-        .catch((e: Error) => console.warn('[audit_log] Failed to write:', e.message))
+    Promise.resolve(
+        supabase
+            .schema('core')
+            .from('audit_log' as never)
+            .insert(entry)
+    ).catch((e: Error) => console.warn('[audit_log] Failed to write:', e.message))
 }
+

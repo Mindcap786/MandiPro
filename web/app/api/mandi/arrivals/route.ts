@@ -119,9 +119,9 @@ export async function POST(request: NextRequest) {
     }
 
     const validation = validateArrivalPayload(body)
-    if (!validation.ok) return apiError.validation(validation.issues)
+    if (!validation.ok) return apiError.validation((validation as { ok: false; issues: string[] }).issues)
 
-    const payload = validation.data
+    const payload = validation.ok ? validation.data : null as never
 
     // Delegate to transactional RPC — one atomic operation, no partial state possible
     const { data, error } = await supabase.rpc('create_arrival_with_lots', {

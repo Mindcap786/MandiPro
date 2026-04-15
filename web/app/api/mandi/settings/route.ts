@@ -113,13 +113,16 @@ export async function PATCH(request: NextRequest) {
     try { body = await request.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
 
     const validation = validateSettingsPatch(body)
-    if (!validation.ok) return apiError.validation(validation.issues)
+    if (!validation.ok) { return apiError.validation((validation as { ok: false; issues: string[] }).issues) }
+
+
+    const validData: OrgSettingsPatch = validation.data
 
     const {
         name, gstin, address_line1, address_line2, settings,
         period_lock_enabled, period_locked_until,
         ...mandiFields
-    } = validation.data
+    } = validData
 
     const orgPayload: Record<string, unknown> = {}
     if (name !== undefined) orgPayload.name = name.trim()
@@ -148,8 +151,8 @@ export async function PATCH(request: NextRequest) {
                 Object.entries(mandiFields).map(([k, v]) => [k, Number(v)])
             ),
             // Re-apply non-numeric fields
-            gst_enabled: validation.data.gst_enabled,
-            gst_type: validation.data.gst_type,
+            gst_enabled: validData.gst_enabled,
+            gst_type: validData.gst_type,
             updated_at: new Date().toISOString(),
         }
         promises.push(
@@ -176,7 +179,7 @@ export async function PATCH(request: NextRequest) {
         action: 'settings_updated',
         entity_type: 'organization',
         entity_id: profile.organization_id,
-        new_values: validation.data,
+        new_values: validData as Record<string, unknown>,
     })
 
     return NextResponse.json({ success: true })
