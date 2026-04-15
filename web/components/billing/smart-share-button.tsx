@@ -12,13 +12,13 @@ import {
 import { useState } from 'react';
 import { Loader2, Share2, Mail, MessageCircle, Download } from 'lucide-react';
 import { useAuth } from '@/components/auth/auth-provider';
-import { useI18n } from '@/lib/i18n/use-i18n';
+import { useLanguage } from '@/components/i18n/language-provider';
 import { isNativePlatform } from '@/lib/capacitor-utils';
 
 export default function SmartShareButton({ sale, organization }: { sale: any, organization?: any }) {
     const auth = useAuth?.();
     const profile = auth?.profile;
-    const { t } = useI18n();
+    const { t } = useLanguage();
     const [loadingId, setLoadingId] = useState<string | null>(null);
 
     const org = organization || profile?.organization || {

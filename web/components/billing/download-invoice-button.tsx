@@ -3,12 +3,12 @@
 import { useState } from 'react';
 import { Loader2, Download } from 'lucide-react';
 import { useAuth } from '@/components/auth/auth-provider';
-import { useI18n } from '@/lib/i18n/use-i18n';
+import { useLanguage } from '@/components/i18n/language-provider';
 
 export default function DownloadInvoiceButton({ sale, organization }: { sale: any, organization?: any }) {
     const auth = useAuth?.();
     const profile = auth?.profile;
-    const { t } = useI18n();
+    const { t } = useLanguage();
     const [isGenerating, setIsGenerating] = useState(false);
 
     const org = organization || profile?.organization || {
