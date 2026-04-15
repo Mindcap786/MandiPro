@@ -41,3 +41,66 @@ BEGIN
     RETURN v_org_id;
 END;
 $$;
+
+-- Grant execute to authenticated users
+GRANT EXECUTE ON FUNCTION core.get_my_org_id() TO authenticated;
+
+-- ============================================================
+-- 2. UNIVERSAL POLICY UPDATES
+-- ============================================================
+
+-- core.accounts
+DROP POLICY IF EXISTS "tenant_isolation_accounts" ON core.accounts;
+DROP POLICY IF EXISTS "Enable all for users based on organization_id" ON core.accounts;
+CREATE POLICY "tenant_isolation_accounts" ON core.accounts
+    FOR ALL USING (organization_id = core.get_my_org_id())
+    WITH CHECK (organization_id = core.get_my_org_id());
+
+-- core.profiles
+DROP POLICY IF EXISTS "Users can view profiles in their organization" ON core.profiles;
+DROP POLICY IF EXISTS "tenant_isolation_profiles" ON core.profiles;
+CREATE POLICY "tenant_isolation_profiles" ON core.profiles
+    FOR ALL USING (organization_id = core.get_my_org_id());
+
+-- mandi.ledger_entries (CRITICAL PERFORMANCE)
+DROP POLICY IF EXISTS "tenant_isolation_ledger_entries" ON mandi.ledger_entries;
+DROP POLICY IF EXISTS "Enable all for users based on organization_id" ON mandi.ledger_entries;
+CREATE POLICY "tenant_isolation_ledger_entries" ON mandi.ledger_entries
+    FOR ALL USING (organization_id = core.get_my_org_id())
+    WITH CHECK (organization_id = core.get_my_org_id());
+
+-- mandi.vouchers
+DROP POLICY IF EXISTS "tenant_isolation_vouchers" ON mandi.vouchers;
+DROP POLICY IF EXISTS "Enable all for users based on organization_id" ON mandi.vouchers;
+CREATE POLICY "tenant_isolation_vouchers" ON mandi.vouchers
+    FOR ALL USING (organization_id = core.get_my_org_id())
+    WITH CHECK (organization_id = core.get_my_org_id());
+
+-- mandi.sales
+DROP POLICY IF EXISTS "tenant_isolation_sales" ON mandi.sales;
+DROP POLICY IF EXISTS "Enable all for users based on organization_id" ON mandi.sales;
+CREATE POLICY "tenant_isolation_sales" ON mandi.sales
+    FOR ALL USING (organization_id = core.get_my_org_id())
+    WITH CHECK (organization_id = core.get_my_org_id());
+
+-- mandi.arrivals
+DROP POLICY IF EXISTS "tenant_isolation_arrivals" ON mandi.arrivals;
+DROP POLICY IF EXISTS "Enable all for users based on organization_id" ON mandi.arrivals;
+CREATE POLICY "tenant_isolation_arrivals" ON mandi.arrivals
+    FOR ALL USING (organization_id = core.get_my_org_id())
+    WITH CHECK (organization_id = core.get_my_org_id());
+
+-- mandi.lots
+DROP POLICY IF EXISTS "tenant_isolation_lots" ON mandi.lots;
+DROP POLICY IF EXISTS "Enable all for users based on organization_id" ON mandi.lots;
+CREATE POLICY "tenant_isolation_lots" ON mandi.lots
+    FOR ALL USING (organization_id = core.get_my_org_id())
+    WITH CHECK (organization_id = core.get_my_org_id());
+
+-- mandi.contacts
+DROP POLICY IF EXISTS "tenant_isolation_contacts" ON mandi.contacts;
+DROP POLICY IF EXISTS "Enable all for users based on organization_id" ON mandi.contacts;
+CREATE POLICY "tenant_isolation_contacts" ON mandi.contacts
+    FOR ALL USING (organization_id = core.get_my_org_id())
+    WITH CHECK (organization_id = core.get_my_org_id());
+
