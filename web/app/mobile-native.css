@@ -1,0 +1,575 @@
+/*
+ * mobile-native.css
+ * MandiGrow Capacitor Native Override Layer
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * RULES OF THIS FILE:
+ *   1. Every rule MUST be scoped to .is-native-app or .capacitor-native
+ *      so the web desktop build is provably untouched.
+ *   2. Never use !important unless overriding a Radix/Tailwind inline style.
+ *   3. All spacing follows the established token set:
+ *        --n-primary:   #1A6B3C
+ *        --n-secondary: #F97316
+ *        --n-app-bg:    #EFEFEF
+ *        --n-card-bg:   #FFFFFF
+ *        --n-txt-main:  #1A1A2E
+ *        --n-txt-muted: #6B7280
+ *        --n-divider:   #E5E7EB
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+
+/* ══════════════════════════════════════════════════════════════════════════════
+ * §0  CSS CUSTOM PROPERTIES (native token layer)
+ * ══════════════════════════════════════════════════════════════════════════════ */
+
+:root {
+    --n-primary:    #1A6B3C;
+    --n-primary-dk: #156033;
+    --n-secondary:  #F97316;
+    --n-app-bg:     #EFEFEF;
+    --n-card-bg:    #FFFFFF;
+    --n-txt-main:   #1A1A2E;
+    --n-txt-muted:  #6B7280;
+    --n-divider:    #E5E7EB;
+    --n-success:    #16A34A;
+    --n-warning:    #D97706;
+    --n-error:      #DC2626;
+    --bottom-nav-h: 60px;
+    --top-bar-h:    56px;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+ * §1  GLOBAL NATIVE RESET
+ * ══════════════════════════════════════════════════════════════════════════════ */
+
+.is-native-app,
+html.capacitor-native {
+    /* Page chrome */
+    background-color: var(--n-app-bg) !important;
+
+    /* Momentum scroll everywhere */
+    -webkit-overflow-scrolling: touch;
+
+    /* No tap flash */
+    -webkit-tap-highlight-color: transparent;
+
+    /* No bounce overscroll at root */
+    overscroll-behavior: none;
+}
+
+html.capacitor-native {
+    height: 100%;
+    overflow: hidden !important;
+}
+
+html.capacitor-native body {
+    height: 100%;
+    overflow: hidden !important;
+    background-color: var(--n-app-bg) !important;
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
+    position: fixed;
+    width: 100%;
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════════════
+ * §2  TYPOGRAPHY — Inter everywhere on native
+ * ══════════════════════════════════════════════════════════════════════════════ */
+
+html.capacitor-native body,
+html.capacitor-native input,
+html.capacitor-native textarea,
+html.capacitor-native button {
+    font-family: "Inter", system-ui, -apple-system, sans-serif;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+ * §3  HIDE WEB CHROME ON NATIVE
+ * ══════════════════════════════════════════════════════════════════════════════ */
+
+html.capacitor-native .web-only,
+html.capacitor-native .web-top-nav,
+html.capacitor-native aside:not(.native-sidebar),
+html.capacitor-native .desktop-sidebar,
+html.capacitor-native header.web-header {
+    display: none !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+ * §4  BOTTOM NAVIGATION — Vyapar green theme
+ * ══════════════════════════════════════════════════════════════════════════════ */
+
+html.capacitor-native .mobile-bottom-nav {
+    background: #FFFFFF !important;
+    border-top: 1px solid var(--n-divider) !important;
+    box-shadow: 0 -1px 0 rgba(0, 0, 0, 0.08) !important;
+    height: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom)) !important;
+    padding-bottom: env(safe-area-inset-bottom) !important;
+}
+
+/* Active nav item top indicator */
+html.capacitor-native .mobile-nav-item[data-active="true"] {
+    color: var(--n-primary) !important;
+}
+
+/* Remove any legacy dark gradients */
+html.capacitor-native .mobile-bottom-nav::before {
+    display: none !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+ * §5  NATIVE TOP BAR & SAFE AREA
+ * ══════════════════════════════════════════════════════════════════════════════ */
+
+/* Status bar fill — white to match NativeTopBar */
+html.capacitor-native #cap-safe-top {
+    background-color: #FFFFFF !important;
+}
+
+/* Content offset: sits below 56px top bar */
+html.capacitor-native main {
+    padding-top: calc(var(--top-bar-h) + env(safe-area-inset-top)) !important;
+    padding-bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + 16px) !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+ * §6  NATIVE CARD
+ * ══════════════════════════════════════════════════════════════════════════════ */
+
+html.capacitor-native .native-card {
+    background: var(--n-card-bg);
+    border-radius: 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+}
+
+html.capacitor-native .native-card:active {
+    background: #F9FAFB;
+    transform: scale(0.98);
+    transition: all 0.1s ease;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+ * §7  FORM INPUTS
+ *     h-12 (48px) minimum — prevents iOS auto-zoom below 16px font-size
+ * ══════════════════════════════════════════════════════════════════════════════ */
+
+html.capacitor-native input[type="text"],
+html.capacitor-native input[type="number"],
+html.capacitor-native input[type="email"],
+html.capacitor-native input[type="tel"],
+html.capacitor-native input[type="date"],
+html.capacitor-native input[type="search"],
+html.capacitor-native input[type="password"],
+html.capacitor-native textarea,
+html.capacitor-native select {
+    font-size: 16px !important;   /* Prevents iOS keyboard zoom */
+    min-height: 48px;
+    border-radius: 12px;
+    border: 1px solid var(--n-divider);
+    background: var(--n-card-bg);
+    padding: 0 16px;
+    color: var(--n-txt-main);
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+html.capacitor-native input:focus,
+html.capacitor-native textarea:focus,
+html.capacitor-native select:focus {
+    border-color: var(--n-primary);
+    box-shadow: 0 0 0 2px rgba(26, 107, 60, 0.2);
+}
+
+html.capacitor-native input::placeholder,
+html.capacitor-native textarea::placeholder {
+    color: #9CA3AF;
+    font-size: 15px;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+ * §8  BUTTONS — Tactile feedback
+ * ══════════════════════════════════════════════════════════════════════════════ */
+
+html.capacitor-native button,
+html.capacitor-native [role="button"],
+html.capacitor-native a {
+    -webkit-tap-highlight-color: transparent;
+}
+
+html.capacitor-native button:active,
+html.capacitor-native [role="button"]:active {
+    transform: scale(0.96);
+    transition: transform 0.1s ease;
+}
+
+/* Primary CTA buttons */
+html.capacitor-native .btn-primary {
+    background: var(--n-primary);
+    color: white;
+    border-radius: 12px;
+    height: 48px;
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 0.01em;
+    border: none;
+    transition: all 0.15s ease;
+}
+
+html.capacitor-native .btn-primary:active {
+    background: var(--n-primary-dk);
+    transform: scale(0.97);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+ * §9  SCROLLABLE AREAS — hide scrollbars, enable momentum
+ * ══════════════════════════════════════════════════════════════════════════════ */
+
+html.capacitor-native *::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+}
+
+html.capacitor-native * {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+html.capacitor-native .overflow-y-auto,
+html.capacitor-native .overflow-auto,
+html.capacitor-native [data-scroll],
+html.capacitor-native main {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+ * §10  BOTTOM SHEET & MODALS
+ *      Radix Dialog override — slide from bottom instead of center
+ * ══════════════════════════════════════════════════════════════════════════════ */
+
+/* Suppress Radix's built-in fade-in-center animation on native */
+html.capacitor-native [data-radix-dialog-content] {
+    border-radius: 24px 24px 0 0 !important;
+    bottom: 0 !important;
+    top: auto !important;
+    left: 0 !important;
+    right: 0 !important;
+    transform: none !important;
+    max-height: 92dvh !important;
+    animation: sheet-slide-up 0.3s cubic-bezier(0.32, 0.72, 0, 1) !important;
+    padding-bottom: env(safe-area-inset-bottom) !important;
+}
+
+@keyframes sheet-slide-up {
+    from { transform: translateY(100%); opacity: 0.8; }
+    to   { transform: translateY(0);    opacity: 1;   }
+}
+
+/* Radix overlay */
+html.capacitor-native [data-radix-dialog-overlay] {
+    background: rgba(0, 0, 0, 0.5) !important;
+    backdrop-filter: blur(2px) !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+ * §11  RADIX SELECT → NATIVE-LIKE STYLE
+ * ══════════════════════════════════════════════════════════════════════════════ */
+
+html.capacitor-native [data-radix-select-content] {
+    border-radius: 20px !important;
+    border: none !important;
+    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.18) !important;
+    overflow: hidden !important;
+    padding: 8px 0 !important;
+}
+
+html.capacitor-native [data-radix-select-item] {
+    height: 52px !important;
+    font-size: 15px !important;
+    padding: 0 20px !important;
+    border-radius: 0 !important;
+}
+
+html.capacitor-native [data-radix-select-item][data-highlighted] {
+    background: #F0FDF4 !important;
+    color: var(--n-primary) !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+ * §12  RADIX POPOVER → BOTTOM-SHEET STYLE
+ * ══════════════════════════════════════════════════════════════════════════════ */
+
+html.capacitor-native [data-radix-popover-content] {
+    border-radius: 20px !important;
+    border: none !important;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.16) !important;
+    max-width: calc(100vw - 32px) !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+ * §13  TABLE → CARD LIST
+ *      Tables are hidden on native; pages use NativeCard lists.
+ *      This is a safety net for any table that wasn't yet converted.
+ * ══════════════════════════════════════════════════════════════════════════════ */
+
+html.capacitor-native table {
+    display: block;
+    overflow-x: auto;
+    font-size: 13px;
+    -webkit-overflow-scrolling: touch;
+}
+
+html.capacitor-native thead {
+    display: none; /* Hide web table headers on native */
+}
+
+html.capacitor-native tr {
+    display: flex;
+    flex-direction: column;
+    background: var(--n-card-bg);
+    border-radius: 12px;
+    margin: 4px 0;
+    padding: 12px 16px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+html.capacitor-native td {
+    border: none !important;
+    padding: 2px 0 !important;
+    font-size: 13px;
+}
+
+html.capacitor-native td:first-child {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--n-txt-main);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+ * §14  TOAST / SONNER OVERRIDE
+ *      Sonner toasts are hidden on native; snackbar.ts is used instead.
+ * ══════════════════════════════════════════════════════════════════════════════ */
+
+html.capacitor-native [data-sonner-toaster] {
+    display: none !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+ * §15  KEYBOARD SAFE AREA
+ *      When the soft keyboard is open on Android/iOS, we push content up.
+ *      This is handled by the Capacitor Keyboard plugin in the provider,
+ *      but these helpers ensure scrollable views adjust correctly.
+ * ══════════════════════════════════════════════════════════════════════════════ */
+
+html.capacitor-native.keyboard-open main {
+    padding-bottom: 8px !important;
+}
+
+html.capacitor-native.keyboard-open .mobile-bottom-nav {
+    display: none !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+ * §16  OFFLINE INDICATOR
+ * ══════════════════════════════════════════════════════════════════════════════ */
+
+html.capacitor-native .offline-indicator {
+    position: fixed;
+    top: calc(var(--top-bar-h) + env(safe-area-inset-top) + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    background: #1A1A2E;
+    color: white;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 6px 16px;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+ * §17  PULL-TO-REFRESH INDICATOR
+ * ══════════════════════════════════════════════════════════════════════════════ */
+
+html.capacitor-native .ptr-indicator {
+    position: fixed;
+    top: calc(var(--top-bar-h) + env(safe-area-inset-top) + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 200;
+    background: white;
+    border-radius: 999px;
+    padding: 6px 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--n-primary);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+    pointer-events: none;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+ * §18  SEGMENTED CONTROL (pill tabs)
+ * ══════════════════════════════════════════════════════════════════════════════ */
+
+html.capacitor-native .segment-bar {
+    display: flex;
+    overflow-x: auto;
+    gap: 8px;
+    padding: 8px 16px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+
+html.capacitor-native .segment-bar::-webkit-scrollbar {
+    display: none;
+}
+
+html.capacitor-native .segment-pill {
+    flex-shrink: 0;
+    height: 36px;
+    padding: 0 16px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    border: 1px solid var(--n-divider);
+    background: white;
+    color: var(--n-txt-muted);
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+html.capacitor-native .segment-pill.active {
+    background: var(--n-primary);
+    color: white;
+    border-color: var(--n-primary);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+ * §19  FAB (Floating Action Button)
+ * ══════════════════════════════════════════════════════════════════════════════ */
+
+html.capacitor-native .fab-btn {
+    width: 56px;
+    height: 56px;
+    border-radius: 28px;
+    background: var(--n-secondary);
+    box-shadow: 0 4px 16px rgba(249, 115, 22, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+html.capacitor-native .fab-btn:active {
+    transform: scale(0.9);
+    background: #EA6C0A;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+ * §20  PRINT — disable native print styles
+ * ══════════════════════════════════════════════════════════════════════════════ */
+
+html.capacitor-native .print-only {
+    display: none !important;
+}
+
+@media print {
+    html.capacitor-native * {
+        display: none !important;
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+ * §21  HAPTIC FEEDBACK VISUAL HINT
+ *      Adds a subtle ring flash on elements with data-haptic attribute
+ *      to visually mirror the haptic feedback pulse.
+ * ══════════════════════════════════════════════════════════════════════════════ */
+
+html.capacitor-native [data-haptic]:active::after {
+    content: "";
+    position: absolute;
+    inset: -4px;
+    border-radius: inherit;
+    border: 2px solid rgba(26, 107, 60, 0.3);
+    pointer-events: none;
+    animation: haptic-ring 0.3s ease-out forwards;
+}
+
+@keyframes haptic-ring {
+    from { opacity: 1; transform: scale(1); }
+    to   { opacity: 0; transform: scale(1.1); }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+ * §22  SHIMMER SKELETON (native loading state)
+ *      Defined here to ensure it's available even if globals.css is
+ *      not yet fully applied in the Capacitor WebView.
+ * ══════════════════════════════════════════════════════════════════════════════ */
+
+@keyframes native-shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+html.capacitor-native .skeleton {
+    background: linear-gradient(
+        90deg,
+        #e9ecef 0%,
+        #f8f9fa 45%,
+        #e9ecef 100%
+    ) !important;
+    background-size: 200% 100% !important;
+    animation: native-shimmer 1.4s ease-in-out infinite !important;
+    border-radius: 8px;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+ * §23  iOS RUBBER-BAND PREVENTION
+ * ══════════════════════════════════════════════════════════════════════════════ */
+
+html.capacitor-native body {
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+html.capacitor-native #__next {
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+ * §24  ShadCN COMPONENT RESETS ON NATIVE
+ * ══════════════════════════════════════════════════════════════════════════════ */
+
+/* Sheet side=right (More menu) */
+html.capacitor-native [data-vaul-drawer] {
+    border-radius: 0 !important;
+}
+
+/* Reduce motion for battery */
+@media (prefers-reduced-motion: reduce) {
+    html.capacitor-native * {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+    }
+}
