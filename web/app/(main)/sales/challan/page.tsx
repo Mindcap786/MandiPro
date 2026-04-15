@@ -44,7 +44,7 @@ export default function DeliveryChallanPage() {
     useEffect(() => {
         if (profile?.organization_id) {
             fetchChallans()
-            supabase.schema('mandi').from('contacts').select('id,name').eq('organization_id', profile.organization_id).eq('type', 'buyer').order('name').then(({ data }) => setBuyers(data || []))
+            supabase.schema('mandi').from('contacts').select('id,name').eq('organization_id', profile.organization_id).eq('contact_type', 'buyer').order('name').then(({ data }) => setBuyers(data || []))
             supabase.schema('mandi').from('sales_orders').select('id,order_number,buyer_id').eq('organization_id', profile.organization_id).neq('status', 'cancelled').then(({ data }) => setOrders(data || []))
             supabase.schema('mandi').from('commodities').select('id,name').eq('organization_id', profile.organization_id).order('name').then(({ data }) => setItemsList(data || []))
         }

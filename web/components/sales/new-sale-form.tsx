@@ -341,7 +341,7 @@ function NewSaleForm() {
                     .from('contacts')
                     .select('id, name, type, city, status')
                     .eq('organization_id', orgId)
-                    .eq('type', 'buyer')
+                    .eq('contact_type', 'buyer')
                     .or('status.is.null,status.eq.active')
                     .order('name'),
                 supabase.schema('mandi').from('accounts').select('id, name, is_default, code, description').eq('organization_id', orgId).eq('account_sub_type', 'bank').eq('type', 'asset').eq('is_active', true),

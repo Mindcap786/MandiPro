@@ -33,7 +33,7 @@ export default function FarmersPage() {
             .schema('mandi')
             .from('contacts')
             .select('*')
-            .eq('type', 'supplier')
+            .eq('contact_type', 'supplier')
             .order('created_at', { ascending: false })
 
         if (data) setFarmers(data)

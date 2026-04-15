@@ -54,7 +54,7 @@ export default function SalesOrdersPage() {
     useEffect(() => {
         if (profile?.organization_id) {
             fetchOrders()
-            supabase.schema('mandi').from('contacts').select('id,name').eq('organization_id', profile.organization_id).eq('type', 'buyer').order('name').then(({ data }) => setBuyers(data || []))
+            supabase.schema('mandi').from('contacts').select('id,name').eq('organization_id', profile.organization_id).eq('contact_type', 'buyer').order('name').then(({ data }) => setBuyers(data || []))
             supabase.schema('mandi').from('commodities').select('id,name,gst_rate').eq('organization_id', profile.organization_id).order('name').then(({ data }) => setItemsList(data || []))
         }
     }, [profile?.organization_id])

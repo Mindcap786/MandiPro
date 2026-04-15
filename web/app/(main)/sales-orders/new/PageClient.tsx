@@ -71,7 +71,7 @@ export default function SalesOrdersNewPageClient() {
             .from('contacts')
             .select('id, name, city')
             .eq('organization_id', profile?.organization_id)
-            .eq('type', 'buyer');
+            .eq('contact_type', 'buyer');
         if (buyerData) setBuyers(buyerData);
 
         // Items

@@ -45,7 +45,7 @@ export default function SaleReturnsPage() {
     useEffect(() => {
         if (profile?.organization_id) {
             fetchReturns()
-            supabase.schema('mandi').from('contacts').select('id,name').eq('organization_id', profile.organization_id).eq('type', 'buyer').order('name').then(({ data }) => setBuyers(data || []))
+            supabase.schema('mandi').from('contacts').select('id,name').eq('organization_id', profile.organization_id).eq('contact_type', 'buyer').order('name').then(({ data }) => setBuyers(data || []))
             supabase.schema('mandi').from('sales').select('id,bill_no,buyer_id').eq('organization_id', profile.organization_id).eq('payment_status', 'confirmed').then(({ data }) => setSales(data || []))
             supabase.schema('mandi').from('commodities').select('id,name,gst_rate').eq('organization_id', profile.organization_id).order('name').then(({ data }) => setItemsList(data || []))
         }

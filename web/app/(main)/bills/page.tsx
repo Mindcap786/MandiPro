@@ -40,7 +40,7 @@ export default function BillsPage() {
             .schema('mandi')
             .from('contacts')
             .select('id, name, shop_name')
-            .eq('type', 'buyer')
+            .eq('contact_type', 'buyer')
             .order('name')
         if (data) setBuyers(data)
         setLoading(false)
