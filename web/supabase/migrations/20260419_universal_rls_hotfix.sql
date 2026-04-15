@@ -15,12 +15,16 @@ AS $$
 DECLARE
     v_org_id uuid;
 BEGIN
-    -- 1. Try native Auth JWT helper (Safest)
+    -- 1. Try native Auth JWT (Highest Performance)
+    -- We check app_metadata (Server Set), user_metadata (Client Sync), and claims (Custom)
     BEGIN
-        v_org_id := (auth.jwt() -> 'claims' ->> 'organization_id')::uuid;
+        v_org_id := (auth.jwt() -> 'app_metadata' ->> 'organization_id')::uuid;
         IF v_org_id IS NOT NULL THEN RETURN v_org_id; END IF;
         
-        v_org_id := (auth.jwt() -> 'app_metadata' ->> 'organization_id')::uuid;
+        v_org_id := (auth.jwt() -> 'user_metadata' ->> 'organization_id')::uuid;
+        IF v_org_id IS NOT NULL THEN RETURN v_org_id; END IF;
+
+        v_org_id := (auth.jwt() -> 'claims' ->> 'organization_id')::uuid;
         IF v_org_id IS NOT NULL THEN RETURN v_org_id; END IF;
         
         v_org_id := (auth.jwt() ->> 'organization_id')::uuid;
@@ -29,14 +33,15 @@ BEGIN
 
     -- 2. Try REST request setting (PostgREST environment)
     BEGIN
-        v_org_id := (nullif(current_setting('request.jwt.claims', true), '')::jsonb -> 'claims' ->> 'organization_id')::uuid;
-        IF v_org_id IS NOT NULL THEN RETURN v_org_id; END IF;
-        
         v_org_id := (nullif(current_setting('request.jwt.claims', true), '')::jsonb -> 'app_metadata' ->> 'organization_id')::uuid;
+        IF v_org_id IS NOT NULL THEN RETURN v_org_id; END IF;
+
+        v_org_id := (nullif(current_setting('request.jwt.claims', true), '')::jsonb -> 'user_metadata' ->> 'organization_id')::uuid;
         IF v_org_id IS NOT NULL THEN RETURN v_org_id; END IF;
     EXCEPTION WHEN OTHERS THEN END;
 
-    -- 3. FINAL SAFE FALLBACK (Runs ONLY if token is 100% missing, like in RPC)
+    -- 3. FINAL SAFE FALLBACK (Recursive Bootstrapping)
+    -- This succeeds because the 'tenant_isolation_profiles' policy permits the user to see their own row.
     SELECT organization_id INTO v_org_id FROM core.profiles WHERE id = auth.uid() LIMIT 1;
     RETURN v_org_id;
 END;
@@ -56,11 +61,12 @@ CREATE POLICY "tenant_isolation_accounts" ON core.accounts
     FOR ALL USING (organization_id = core.get_my_org_id())
     WITH CHECK (organization_id = core.get_my_org_id());
 
--- core.profiles
+-- core.profiles (BOOTSTRAPPER)
+-- MUST allow user to see their own record independently of the org check to break the helper recursion.
 DROP POLICY IF EXISTS "Users can view profiles in their organization" ON core.profiles;
 DROP POLICY IF EXISTS "tenant_isolation_profiles" ON core.profiles;
 CREATE POLICY "tenant_isolation_profiles" ON core.profiles
-    FOR ALL USING (organization_id = core.get_my_org_id());
+    FOR ALL USING (id = auth.uid() OR organization_id = core.get_my_org_id());
 
 -- mandi.ledger_entries (CRITICAL PERFORMANCE)
 DROP POLICY IF EXISTS "tenant_isolation_ledger_entries" ON mandi.ledger_entries;
@@ -101,6 +107,12 @@ CREATE POLICY "tenant_isolation_lots" ON mandi.lots
 DROP POLICY IF EXISTS "tenant_isolation_contacts" ON mandi.contacts;
 DROP POLICY IF EXISTS "Enable all for users based on organization_id" ON mandi.contacts;
 CREATE POLICY "tenant_isolation_contacts" ON mandi.contacts
+    FOR ALL USING (organization_id = core.get_my_org_id())
+    WITH CHECK (organization_id = core.get_my_org_id());
+
+-- mandi.mandi_settings
+DROP POLICY IF EXISTS "tenant_isolation_mandi_settings" ON mandi.mandi_settings;
+CREATE POLICY "tenant_isolation_mandi_settings" ON mandi.mandi_settings
     FOR ALL USING (organization_id = core.get_my_org_id())
     WITH CHECK (organization_id = core.get_my_org_id());
 
