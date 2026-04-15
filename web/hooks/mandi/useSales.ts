@@ -13,6 +13,7 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useAuth } from "@/components/auth/auth-provider"
 import { useToast } from "@/hooks/use-toast"
+import { CreateSaleDTO } from "@mandi-pro/validation"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -41,25 +42,6 @@ export interface SalesListFilters {
   buyer_id?: string
   date_from?: string
   date_to?: string
-}
-
-export interface CreateSalePayload {
-  sale_date: string
-  buyer_id: string
-  items: Array<{
-    lot_id: string
-    quantity: number
-    rate_per_unit: number
-    discount_amount?: number
-  }>
-  header_discount?: number
-  payment_mode: 'cash' | 'bank_transfer' | 'cheque' | 'upi' | 'udhaar'
-  narration?: string
-  cheque_number?: string
-  cheque_date?: string
-  cheque_bank?: string
-  bank_account_id?: string
-  gst_enabled?: boolean
 }
 
 // ── useSalesList ──────────────────────────────────────────────────────────────
@@ -107,7 +89,7 @@ export function useCreateSale(onSuccess?: (result: Record<string, unknown>) => v
   const [error, setError] = useState<string | null>(null)
   const { toast } = useToast()
 
-  const createSale = useCallback(async (payload: CreateSalePayload): Promise<Record<string, unknown> | null> => {
+  const createSale = useCallback(async (payload: CreateSaleDTO): Promise<Record<string, unknown> | null> => {
     setLoading(true)
     setError(null)
     try {
