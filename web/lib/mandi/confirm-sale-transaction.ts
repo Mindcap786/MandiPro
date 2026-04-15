@@ -35,6 +35,7 @@ type ConfirmSaleTransactionParams = {
 type ConfirmSaleTransactionResult = {
     data: any;
     error: any;
+    warning?: string;
 };
 
 export async function confirmSaleTransactionWithFallback(
@@ -81,12 +82,27 @@ export async function confirmSaleTransactionWithFallback(
         p_is_igst: params.isIgst || false,
     };
 
-    const response = await supabase
-        .schema("mandi")
-        .rpc("confirm_sale_transaction", payload);
+    // 15-second timeout guard — prevents infinite spinners if DB hangs
+    const timeoutPromise = new Promise<ConfirmSaleTransactionResult>((_, reject) =>
+        setTimeout(() => reject(new Error('Sale request timed out after 15 seconds. Please retry.')), 15000)
+    );
 
-    return {
-        data: response.data,
-        error: response.error
-    };
+    const rpcPromise = supabase
+        .schema("mandi")
+        .rpc("confirm_sale_transaction", payload)
+        .then(response => {
+            // CRITICAL: Handle application-level errors returned inside data.error
+            // (e.g. { success: false, error: "No items provided" })
+            if (response.error) {
+                return { data: null, error: response.error };
+            }
+            if (response.data && response.data.success === false) {
+                return { data: null, error: { message: response.data.error || 'Transaction failed on the server.' } };
+            }
+            // Extract warning if present (e.g. partial stock)
+            const warning = response.data?.warning || undefined;
+            return { data: response.data, error: null, warning };
+        });
+
+    return Promise.race([rpcPromise, timeoutPromise]);
 }
