@@ -99,13 +99,7 @@ export default function ArrivalsHistory() {
     }, [profile, page, dateRange])
 
     const fetchArrivals = async (isManualRefresh = false) => {
-        // Always revalidate in background on mount
-        // if (_orgId && !cacheIsStale('arrivals_history', _orgId) && !isManualRefresh) {
-        //     setLoading(false);
-        //     return;
-        // }
-
-        // Only show spinner if we have no data
+        // Non-blocking fetch: show cached data immediately if available
         const isBackgroundRefresh = arrivals.length > 0 && !isManualRefresh;
         if (!isBackgroundRefresh) {
             setLoading(true);
@@ -115,16 +109,15 @@ export default function ArrivalsHistory() {
             if (!profile?.organization_id) return;
 
             const schema = 'mandi';
+            
+            // Try fast view first (non-blocking, indexed query)
             let query = supabase
                 .schema(schema)
-                .from('arrivals')
-                .select(`
-                    *,
-                    contacts:party_id (name, city, type)
-                `, { count: 'exact' })
+                .from('v_arrivals_fast')
+                .select(`*`, { count: 'exact' })
                 .eq('organization_id', profile.organization_id)
                 .order('created_at', { ascending: false })
-                .range((page - 1) * limit, page * limit - 1)
+                .range((page - 1) * limit, page * limit - 1);
 
             // Apply Date Range Filter
             if (dateRange?.from) {
@@ -134,20 +127,62 @@ export default function ArrivalsHistory() {
                 query = query.lte('created_at', endOfDay(dateRange.to).toISOString())
             }
 
-            const { data, error, count } = await query
+            // Set timeout for fetch (5 seconds max)
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            
+            try {
+                const { data, error, count } = await query;
+                clearTimeout(timeoutId);
 
-            if (error) throw error
-            setArrivals(data || [])
-            setTotalCount(count || 0)
+                if (error) {
+                    console.warn("v_arrivals_fast failed, falling back to base table:", error);
+                    // Fallback to base table without contacts join
+                    const fallbackQuery = supabase
+                        .schema(schema)
+                        .from('arrivals')
+                        .select(`*, party_id`, { count: 'exact' })
+                        .eq('organization_id', profile.organization_id)
+                        .order('created_at', { ascending: false })
+                        .range((page - 1) * limit, page * limit - 1);
 
-            // Save to cache
-            if (_orgId) {
-                cacheSet('arrivals_history', _orgId, { data: data || [], count: count || 0 });
+                    if (dateRange?.from) fallbackQuery.gte('created_at', startOfDay(dateRange.from).toISOString());
+                    if (dateRange?.to) fallbackQuery.lte('created_at', endOfDay(dateRange.to).toISOString());
+
+                    const { data: fallbackData, error: fallbackError, count: fallbackCount } = await fallbackQuery;
+                    if (fallbackError) throw fallbackError;
+
+                    setArrivals(fallbackData || []);
+                    setTotalCount(fallbackCount || 0);
+                } else {
+                    setArrivals(data || []);
+                    setTotalCount(count || 0);
+                }
+
+                // Save to cache for offline
+                if (_orgId) {
+                    cacheSet('arrivals_history', _orgId, { data: data || [], count: count || 0 });
+                }
+            } catch (timeoutErr) {
+                clearTimeout(timeoutId);
+                console.error("Fetch timeout - using cached data:", timeoutErr);
+                // Use cached data if fetch times out
+                const cached = cacheGet<any>('arrivals_history', profile.organization_id);
+                if (cached?.data) {
+                    setArrivals(cached.data);
+                    setTotalCount(cached.count || 0);
+                }
             }
         } catch (err) {
-            console.error("Fetch Arrivals Error:", err)
+            console.error("Fetch Arrivals Error:", err);
+            // Non-blocking: show toast but don't prevent UI
+            const cached = cacheGet<any>('arrivals_history', profile?.organization_id);
+            if (cached?.data) {
+                setArrivals(cached.data);
+                setTotalCount(cached.count || 0);
+            }
         } finally {
-            setLoading(false)
+            setLoading(false);
         }
     }
 
