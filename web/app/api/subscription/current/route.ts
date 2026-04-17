@@ -1,6 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
+export const dynamic = 'force-dynamic';
+
 // GET /api/subscription/current
 // Returns the full subscription state for the authenticated tenant
 // Used by hooks/use-subscription.ts and billing screen
