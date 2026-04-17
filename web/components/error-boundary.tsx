@@ -25,11 +25,13 @@ export class ErrorBoundary extends React.Component<Props, State> {
     componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
         console.error("CAUGHT_BY_BOUNDARY:", error);
 
-        // Auto-report to our local debug server
+        /* 
+        // Debug server deactivated for production stability
         fetch('http://localhost:3001', {
             method: 'POST',
             body: error.stack || error.message,
         }).catch(err => console.error("Could not send debug info", err));
+        */
 
         // Log to Sentry
         Sentry.captureException(error, {
