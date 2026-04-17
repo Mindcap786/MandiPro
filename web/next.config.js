@@ -44,9 +44,23 @@ const nextConfig = {
         ],
     },
 
+    // ── Shared Package Transpilation ────────────────────────────────────────
+    // Next.js needs to be told to transpile code from sibling directories.
+    transpilePackages: ['@mandi-pro/validation', '@mandi-pro/domain'],
+
     // Project lives under ~/Desktop which is synced by iCloud; the filesystem
     // webpack cache races with iCloud and corrupts .next. Use memory cache in dev.
     webpack: (config, { dev, isServer }) => {
+        const path = require('path');
+
+        // Force webpack to look for dependencies (like 'zod') in the web app's 
+        // node_modules, even when resolving imports from sibling /packages folders.
+        config.resolve.modules = [
+            path.resolve(__dirname, 'node_modules'),
+            'node_modules',
+            ...(config.resolve.modules || []),
+        ];
+
         // Dev: use memory cache to avoid iCloud corruption
         if (dev) {
             config.cache = { type: 'memory' }
