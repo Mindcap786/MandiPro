@@ -304,10 +304,6 @@ export default function ArrivalsEntryForm() {
         return Math.max(0, Math.round(totalNetBill));
     };
 
-    useEffect(() => {
-        const timer = setTimeout(() => setShowUnlock(true), 3000);
-        return () => clearTimeout(timer);
-    }, []);
 
     const currentArrivalType = form.watch('arrival_type');
 
@@ -362,7 +358,7 @@ export default function ArrivalsEntryForm() {
             const uniqueId = Math.random().toString(36).substring(7);
             const subscription = supabase
                 .channel(`arrivals-realtime-${uniqueId}`)
-                .on('postgres_changes', { event: '*', schema: schema, table: 'arrivals', filter: `organization_id=eq.${profile.organization_id}` }, () => fetchMasterData())
+                .on('postgres_changes', { event: '*', schema: schema, table: 'arrivals', filter: `organization_id=eq.${profile.organization_id}` }, () => refetchMaster())
                 .subscribe();
 
             return () => {
