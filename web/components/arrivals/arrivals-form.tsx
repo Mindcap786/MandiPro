@@ -140,6 +140,15 @@ export default function ArrivalsEntryForm() {
 
     const [arrivalType, setArrivalType] = useState<"direct" | "commission" | "commission_supplier">("direct");
     const [showUnlock, setShowUnlock] = useState(false);
+    const [qrLots, setQrLots] = useState<any[]>([]);
+    const [qrSlipsOpen, setQrSlipsOpen] = useState(false);
+    const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+    const [dialogConfig, setDialogConfig] = useState<{ title: string; message: string; type: 'success' | 'error' }>({
+        title: '',
+        message: '',
+        type: 'success'
+    });
+    const [isSubmitting, setIsSubmitting] = useState(false);
     
     const { isVisible, isMandatory, getLabel, getDefaultValue } = useFieldGovernance(
         arrivalType === 'direct' ? 'arrivals_direct' :
@@ -334,7 +343,6 @@ export default function ArrivalsEntryForm() {
     }, [profile, refetchMaster]);
 
 
-    const isSubmitting = isCreating;
 
     if (authLoading || masterLoading) {
         return (

@@ -52,6 +52,12 @@ export const supabase = isNative()
             detectSessionInUrl: true,
             persistSession: true,
             autoRefreshToken: true,
+            // V4 Fix: Prevent 'lock stole' errors by using a non-blocking lock.
+            // This is safe because AuthProvider now coalesces all getUser/getSession calls.
+            lock: {
+                acquire: () => Promise.resolve({ error: null, release: () => {} }),
+                release: () => Promise.resolve()
+            } as any
         },
     })
 
