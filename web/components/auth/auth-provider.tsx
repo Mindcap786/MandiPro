@@ -329,6 +329,80 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             } catch (ignore) {}
         };
 
+        // ── SINGLE onAuthStateChange subscription ────────────────────────────
+        // CRITICAL: Only ONE subscription is allowed. Multiple subscriptions cause
+        // Supabase GoTrue's internal lock to fail with 'this.lock is not a function',
+        // which crashes initAuth() and makes the user appear immediately logged out.
+        // Polling management is merged here to eliminate the second subscription.
+        // ────────────────────────────────────────────────────────────────────────
+        let pollIntervalId: ReturnType<typeof setInterval> | null = null;
+        // Tracks when the last SIGNED_IN event fired — prevents premature eviction
+        let lastSignInAt = 0;
+
+        const stopPolling = () => {
+            if (pollIntervalId) { clearInterval(pollIntervalId); pollIntervalId = null; }
+        };
+
+        // Shared eviction handler — shows toast then signs the user out
+        const handleSessionEviction = (reason: 'replaced' | 'revoked') => {
+            if (!isMounted) return;
+            const isReplaced = reason === 'replaced';
+            console.error(`[Auth] *** CRITICAL: Session ${reason} — signing out. ***`, { timestamp: new Date().toISOString(), reason });
+            console.trace('[Auth] Session eviction stack trace');
+            toast({
+                title: 'Signed Out',
+                description: isReplaced
+                    ? 'Your account was signed in on another device. This session has ended.'
+                    : 'Your session was ended remotely.',
+                variant: 'destructive',
+                duration: 6000,
+            });
+            // Small delay so the toast is visible before redirect
+            setTimeout(() => {
+                if (!isMounted) return;
+                stopPolling();
+                setActiveCacheUser(null);
+                prevUserIdRef.current = null;
+                cacheClearForSession();
+                localStorage.removeItem('mandi_active_token');
+                localStorage.removeItem('mandi_profile_cache');
+                supabase.auth.signOut().then(() => {
+                    router.push('/login?reason=session_replaced');
+                });
+            }, 800);
+        };
+
+        const startPollingEvictionCheck = () => {
+            stopPolling();
+            lastSignInAt = Date.now();
+
+            pollIntervalId = setInterval(async () => {
+                const localToken = localStorage.getItem('mandi_active_token');
+                // Guard 1: No enforcement token — skip.
+                if (!localToken) return;
+                // Guard 2: Within 10 seconds of sign-in — skip. Auth is still settling.
+                if (Date.now() - lastSignInAt < 10_000) return;
+
+                try {
+                    // Verify JWT is still valid via a lightweight DB query.
+                    // Avoids calling getUser() which causes GoTrue lock contention.
+                    const { error } = await supabase.schema('core')
+                        .from('profiles')
+                        .select('id', { count: 'exact' })
+                        .limit(1);
+
+                    if (error) {
+                        console.warn('[Auth] Session invalid detected by polling:', error.message);
+                        stopPolling();
+                        handleSessionEviction('revoked');
+                    }
+                } catch (err: any) {
+                    // Network error OR timeout — skip this tick, try again in 30s
+                    console.warn('[Auth] Polling check error (will retry):', err?.message);
+                }
+            }, 30_000); // Every 30 seconds
+        };
+
         const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
             if (!isMounted) return;
             setSession(newSession);
@@ -348,9 +422,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         localStorage.removeItem('mandi_profile_cache');
                     }
 
+                    // CRITICAL: Clear any stale active_token from a prior session.
+                    // Without this, the polling check immediately starts comparing
+                    // the old token and may falsely evict the freshly-logged-in user.
+                    localStorage.removeItem('mandi_active_token');
+
                     // Bind the new user to the cache module
                     setActiveCacheUser(incomingUserId);
                     prevUserIdRef.current = incomingUserId;
+
+                    // Start polling AFTER profile fetch (10s grace built into startPollingEvictionCheck)
+                    startPollingEvictionCheck();
 
                     const fresh = await fetchProfile(incomingUserId);
                     if (isMounted && fresh) {
@@ -387,6 +469,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 // Wipe ALL cached data and unbind the user. The user will see
                 // a fresh state when they log in again — no cache clearing needed.
                 console.log('[Auth] SIGNED_OUT detected — clearing entire session cache.');
+                stopPolling();
                 setActiveCacheUser(null);
                 prevUserIdRef.current = null;
                 cacheClearForSession();
@@ -399,98 +482,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         initAuth();
 
-        // ── Single-Session Enforcement (MIGRATION-FREE) ────────────────────────
-        // Uses Supabase Auth's built-in user_metadata — NO custom DB column needed.
-        //
-        // Mechanism A (JWT revocation): When a new login fires /api/auth/new-session,
-        //   admin.signOut(userId, 'others') physically invalidates the old refresh
-        //   tokens. The next time the old session calls getUser(), it gets an auth
-        //   error → we sign it out immediately.
-        //
-        // Mechanism B (token comparison): /api/auth/new-session also writes a new UUID
-        //   to user_metadata.active_session_token. The old session's polling check
-        //   reads this and sees a mismatch → signs out with a clear message.
-        //
-        // Both mechanisms work together. Polling runs every 30 seconds.
-        // ────────────────────────────────────────────────────────────────────────
-
-        let pollIntervalId: ReturnType<typeof setInterval> | null = null;
-
-        // Shared eviction handler — redirects to login with reason
-        const handleSessionEviction = (reason: 'replaced' | 'revoked') => {
-            if (!isMounted) return;
-            const isReplaced = reason === 'replaced';
-            console.error(`[Auth] *** CRITICAL: Session ${reason} — signing out. ***`, {timestamp: new Date().toISOString(), reason});
-            console.trace('[Auth] Session eviction stack trace');
-            toast({
-                title: 'Signed Out',
-                description: isReplaced
-                    ? 'Your account was signed in on another device. This session has ended.'
-                    : 'Your session was ended remotely.',
-                variant: 'destructive',
-                duration: 6000,
-            });
-            // Small delay so toast is visible
-            setTimeout(() => {
-                if (!isMounted) return;
-                setActiveCacheUser(null);
-                prevUserIdRef.current = null;
-                cacheClearForSession();
-                localStorage.removeItem('mandi_active_token');
-                localStorage.removeItem('mandi_profile_cache');
-                supabase.auth.signOut().then(() => {
-                    router.push('/login?reason=session_replaced');
-                });
-            }, 800);
-        };
-
-        // ── Polling Check (every 30 seconds) ─────────────────────────────────
-        // Uses getUser() which hits the Supabase Auth server directly, making it
-        // the most reliable check possible. No DB column required.
-        // Reduced from 15s to 30s to balance eviction detection vs performance.
-        const startPollingEvictionCheck = () => {
-            if (pollIntervalId) clearInterval(pollIntervalId);
-
-            pollIntervalId = setInterval(async () => {
-                const localToken = localStorage.getItem('mandi_active_token');
-                if (!localToken) return; // This session doesn't have enforcement active yet
-
-                try {
-                    // CRITICAL: Don't call getUser() here - it causes Supabase lock contention
-                    // Instead, use a simple query to verify JWT is still valid
-                    const { error } = await supabase.schema('core')
-                        .from('profiles')
-                        .select('id', { count: 'exact' })
-                        .limit(1);
-                    
-                    if (error) {
-                        console.warn('[Auth] Session invalid detected:', error.message);
-                        clearInterval(pollIntervalId!);
-                        pollIntervalId = null;
-                        handleSessionEviction('revoked');
-                        return;
-                    }
-                } catch (err: any) {
-                    // Network error OR timeout — skip this tick, try again in 30s
-                    console.warn('[Auth] Polling check error (will retry):', err?.message);
-            }, 30_000); // Every 30 seconds
-        };
-
-        // ── Wire polling to auth state ────────────────────────────────────────
-        const unsubAuthForRealtime = supabase.auth.onAuthStateChange((event, newSess) => {
-            if (event === 'SIGNED_IN' && newSess?.user) {
-                startPollingEvictionCheck();
-            } else if (event === 'SIGNED_OUT') {
-                if (pollIntervalId) { clearInterval(pollIntervalId); pollIntervalId = null; }
-            }
-        });
-        // ── End Single-Session Enforcement ────────────────────────────────────
-
         return () => {
             isMounted = false;
             authSub.unsubscribe();
-            unsubAuthForRealtime.data.subscription.unsubscribe();
-            if (pollIntervalId) clearInterval(pollIntervalId);
+            stopPolling();
         };
     }, []); // Run ONLY once on mount
 
