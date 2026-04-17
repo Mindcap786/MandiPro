@@ -120,9 +120,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setFetchingProf(true);
 
         try {
-            const { data: context, error } = await supabase.rpc('get_full_user_context', {
-                p_user_id: userId
-            });
+            // CRITICAL FIX: Add timeout to prevent RPC from hanging indefinitely
+            const rpcController = new AbortController();
+            const rpcTimeoutId = setTimeout(() => rpcController.abort(), 8000); // 8-second timeout
+
+            let context: any = null;
+            let error: any = null;
+
+            try {
+                const result = await supabase.rpc('get_full_user_context', {
+                    p_user_id: userId
+                });
+                context = result.data;
+                error = result.error;
+                clearTimeout(rpcTimeoutId);
+            } catch (timeoutErr: any) {
+                clearTimeout(rpcTimeoutId);
+                console.warn("[Auth] RPC timeout after 8s, falling back to direct lookup:", timeoutErr.message);
+                error = timeoutErr;
+            }
 
             if (error) {
                 console.warn("[Auth] Context bundle fetch failed:", error.message);
@@ -132,34 +148,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 console.log("[Auth] No context via RPC. Falling back to direct Profile lookup...");
 
                 // FALLBACK 1: Direct Table Query (Bypass RPC complexity, single query)
-                const { data: directProfile, error: directError } = await supabase
-                    .schema('core')
-                    .from('profiles')
-                    .select('*, organization:organization_id(*)')
-                    .eq('id', userId)
-                    .maybeSingle();
+                // ALSO ADD TIMEOUT here
+                const directController = new AbortController();
+                const directTimeoutId = setTimeout(() => directController.abort(), 5000);
 
-                if (directProfile && !directError) {
-                    console.log("[Auth] Recovered profile via Direct Lookup.");
-                    setProfileNotFound(false);
-                    return directProfile as unknown as Profile;
+                try {
+                    const { data: directProfile, error: directError } = await supabase
+                        .schema('core')
+                        .from('profiles')
+                        .select('*, organization:organization_id(*)')
+                        .eq('id', userId)
+                        .maybeSingle();
+
+                    clearTimeout(directTimeoutId);
+
+                    if (directProfile && !directError) {
+                        console.log("[Auth] Recovered profile via Direct Lookup.");
+                        setProfileNotFound(false);
+                        return directProfile as unknown as Profile;
+                    }
+                } catch (directTimeoutErr: any) {
+                    clearTimeout(directTimeoutId);
+                    console.warn("[Auth] Direct profile lookup timed out:", directTimeoutErr.message);
                 }
 
                 // If direct lookup fails and this is first retry, try metadata healing ONCE
                 if (!isRetry) {
-                    const { data: { user } } = await supabase.auth.getUser();
-                    const metadataOrg = user?.user_metadata?.organization_id;
+                    try {
+                        const { data: { user } } = await supabase.auth.getUser();
+                        const metadataOrg = user?.user_metadata?.organization_id;
 
-                    if (metadataOrg) {
-                        console.log("[Auth] Auto-healing link from Admin Metadata:", metadataOrg);
-                        const { error: repairError } = await supabase.schema('core').from('profiles').insert({
-                            id: userId,
-                            organization_id: metadataOrg,
-                            role: user?.user_metadata?.role || 'staff',
-                            full_name: user?.email?.split('@')[0] || 'Member'
-                        });
+                        if (metadataOrg) {
+                            console.log("[Auth] Auto-healing link from Admin Metadata:", metadataOrg);
+                            const { error: repairError } = await supabase.schema('core').from('profiles').insert({
+                                id: userId,
+                                organization_id: metadataOrg,
+                                role: user?.user_metadata?.role || 'staff',
+                                full_name: user?.email?.split('@')[0] || 'Member'
+                            });
 
-                        if (!repairError) return fetchProfile(userId, true);
+                            if (!repairError) return fetchProfile(userId, true);
+                        }
+                    } catch (healErr: any) {
+                        console.warn("[Auth] Metadata healing failed:", healErr.message);
                     }
                 }
 
@@ -171,10 +202,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // V3 Patch: The RPC may omit organization.rbac_matrix, so we explicitly fetch it to ensure the UI enforces Tenant Subscriptions
             if (context && context.organization) {
                 if (context.organization.rbac_matrix === undefined) {
-                    const { data: orgExtra } = await supabase.schema('core').from('organizations')
-                        .select('rbac_matrix').eq('id', context.organization.id).maybeSingle();
-                    if (orgExtra) {
-                        context.organization.rbac_matrix = orgExtra.rbac_matrix || {};
+                    try {
+                        const { data: orgExtra } = await supabase.schema('core').from('organizations')
+                            .select('rbac_matrix').eq('id', context.organization.id).maybeSingle();
+                        if (orgExtra) {
+                            context.organization.rbac_matrix = orgExtra.rbac_matrix || {};
+                        }
+                    } catch (orgErr: any) {
+                        console.warn("[Auth] Failed to fetch rbac_matrix:", orgErr.message);
+                        // Continue with what we have
                     }
                 }
             }

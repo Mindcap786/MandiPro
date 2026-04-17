@@ -31,8 +31,12 @@ import { cacheGet, cacheSet, cacheIsStale } from "@/lib/data-cache"
 export default function ArrivalsHistory() {
     const { profile } = useAuth()
     
-    // Cache loading
+    // CRITICAL FIX: Validate profile data before using it
     const _orgId = profile?.organization_id;
+    if (!_orgId) {
+        console.warn("[ArrivalsHistory] Profile not loaded or missing organization_id");
+    }
+    
     const _cached = _orgId ? cacheGet<any>('arrivals_history', _orgId) : null;
 
     const [arrivals, setArrivals] = useState<any[]>(_cached?.data || [])

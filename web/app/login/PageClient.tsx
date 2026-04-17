@@ -332,40 +332,66 @@ export default function LoginClient() {
             }
         }
 
-        // ── Single-Session Enforcement (Rotate Token & Revoke Others) ─────────
-        try {
-            const { data: { session: currentSession } } = await supabase.auth.getSession();
-            if (currentSession?.access_token) {
-                const sessionRes = await fetch('/api/auth/new-session', {
-                    method: 'POST',
-                    headers: { Authorization: `Bearer ${currentSession.access_token}` },
-                });
-                if (sessionRes.ok) {
-                    const { session_token } = await sessionRes.json();
-                    if (session_token) {
-                        localStorage.setItem('mandi_active_token', session_token);
-                        logDebug('Single-session enforced. Other sessions revoked.');
-                    }
-                } else {
-                    logDebug('Single-session API returned non-ok — continuing safely.');
-                }
-            }
-        } catch (sessionErr: any) {
-            logDebug(`Session enforcement skipped: ${sessionErr.message}`);
-        }
+        // ── Single-Session Enforcement (Non-blocking, fire-and-forget) ─────────
+        // CRITICAL FIX: This must not block the redirect. Use timeout + background execution.
+        const enforceSession = async () => {
+            try {
+                const { data: { session: currentSession } } = await supabase.auth.getSession();
+                if (currentSession?.access_token) {
+                    // Add 5-second timeout to prevent hanging
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 5000);
 
+                    try {
+                        const sessionRes = await fetch('/api/auth/new-session', {
+                            method: 'POST',
+                            headers: { Authorization: `Bearer ${currentSession.access_token}` },
+                            signal: controller.signal,
+                        });
+                        clearTimeout(timeoutId);
+
+                        if (sessionRes.ok) {
+                            const { session_token } = await sessionRes.json();
+                            if (session_token) {
+                                localStorage.setItem('mandi_active_token', session_token);
+                                logDebug('✅ Single-session enforced. Other sessions revoked.');
+                            }
+                        } else {
+                            logDebug('⚠️ Single-session API returned non-ok — continuing safely.');
+                        }
+                    } catch (timeoutErr: any) {
+                        clearTimeout(timeoutId);
+                        logDebug(`⚠️ Session enforcement timed out (${timeoutErr.message}). Proceeding with redirect.`);
+                        // Continue safely without blocking
+                    }
+                }
+            } catch (sessionErr: any) {
+                logDebug(`⚠️ Session enforcement skipped: ${sessionErr.message}. Proceeding with redirect.`);
+            }
+        };
+
+        // Fire session enforcement in background (don't await)
+        enforceSession().catch(err => logDebug(`Background session error (safe to ignore): ${err.message}`));
+
+        // Validation before redirect
         if (profile && profile.role !== 'super_admin' && profile.business_domain && profile.business_domain !== 'mandi') {
             await supabase.auth.signOut();
             throw new Error(t('auth.errors.decommissioned'));
         }
 
         const redirectTo = searchParams.get('redirectedFrom') || (profile?.role === 'super_admin' ? '/admin' : '/dashboard');
-        logDebug(`Redirecting to: ${redirectTo}`);
+        logDebug(`✅ Login successful. Redirecting to: ${redirectTo}`);
+        
+        // CRITICAL FIX: Set loading to false BEFORE redirect so UI updates immediately
+        setLoading(false);
         
         if (isNative()) {
             router.replace(redirectTo);
         } else {
-            window.location.href = redirectTo;
+            // Use setTimeout to ensure state updates are flushed before navigation
+            setTimeout(() => {
+                window.location.href = redirectTo;
+            }, 100);
         }
     }
 
