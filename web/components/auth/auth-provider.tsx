@@ -192,63 +192,83 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         let isMounted = true;
 
         const initAuth = async () => {
-            // 1. Immediate cache hydration (Safe because it's in useEffect)
-            const cached = localStorage.getItem('mandi_profile_cache');
-            if (cached && isMounted) {
-                try { 
-                    const p = JSON.parse(cached);
-                    setProfile(p);
-                    setLoading(false);
-                } catch (e) {}
-            }
+            try {
+                // 1. Immediate cache hydration (Safe because it's in useEffect)
+                const cached = localStorage.getItem('mandi_profile_cache');
+                if (cached && isMounted) {
+                    try { 
+                        const p = JSON.parse(cached);
+                        setProfile(p);
+                        setLoading(false);
+                    } catch (e) {}
+                }
 
-            // 2. Refresh session and profile
-            const { data: { session: initialSession } } = await supabase.auth.getSession();
-            if (!isMounted) return;
+                // 2. Refresh session and profile
+                const { data: { session: initialSession }, error: sessionError } = await supabase.auth.getSession();
+                if (!isMounted) return;
 
-            // Validate the user object with getUser() instead of trusting getSession()
-            // getUser() authenticates against the Supabase server for accuracy
-            const { data: { user: authenticatedUser } } = await supabase.auth.getUser();
+                // Attempt to validate user via server, catch Auth Lock Throws
+                let authenticatedUser = null;
+                try {
+                    const { data: { user }, error: userError } = await supabase.auth.getUser();
+                    authenticatedUser = user;
+                } catch (e) {
+                    console.warn("[Auth] getUser() threw an exception (Lock timeout?), falling back to session user.", e);
+                    authenticatedUser = initialSession?.user ?? null;
+                }
 
-            setSession(initialSession);
-            setUser(authenticatedUser);
+                setSession(initialSession);
+                setUser(authenticatedUser);
 
-            if (authenticatedUser) {
-                // Bind the active user to the cache module so all reads/writes are user-scoped
-                setActiveCacheUser(authenticatedUser.id);
-                prevUserIdRef.current = authenticatedUser.id;
+                if (authenticatedUser) {
+                    // Bind the active user to the cache module so all reads/writes are user-scoped
+                    setActiveCacheUser(authenticatedUser.id);
+                    prevUserIdRef.current = authenticatedUser.id;
 
-                const freshProfile = await fetchProfile(authenticatedUser.id);
-                if (isMounted && freshProfile) {
-                    const profileToCache = { ...freshProfile, _fetchedAt: Date.now() };
-                    setProfile(profileToCache);
-                    localStorage.setItem('mandi_profile_cache', JSON.stringify(profileToCache));
-                    localStorage.setItem('mandi_profile_cache_org_id', freshProfile.organization_id);
-                    if (freshProfile.session_version) {
-                        localStorage.setItem('mandi_session_v', freshProfile.session_version.toString());
+                    const freshProfile = await fetchProfile(authenticatedUser.id);
+                    if (isMounted && freshProfile) {
+                        const profileToCache = { ...freshProfile, _fetchedAt: Date.now() };
+                        setProfile(profileToCache);
+                        localStorage.setItem('mandi_profile_cache', JSON.stringify(profileToCache));
+                        localStorage.setItem('mandi_profile_cache_org_id', freshProfile.organization_id);
+                        if (freshProfile.session_version) {
+                            localStorage.setItem('mandi_session_v', freshProfile.session_version.toString());
+                        }
+                    } else if (isMounted && profileNotFound === true) {
+                        // User has no profile whatsoever
+                        setProfile(null);
+                    }
+                } else {
+                    if (isMounted) {
+                        // No authenticated session — clear any leftover cache from a previous user
+                        setActiveCacheUser(null);
+                        cacheClearForSession();
+                        setProfile(null);
+                        localStorage.removeItem('mandi_profile_cache');
+                        // Edge case: Bad session token causing invalid auth state
+                        if (initialSession) {
+                             supabase.auth.signOut().catch(() => {});
+                        }
                     }
                 }
-            } else {
-                if (isMounted) {
-                    // No authenticated session — clear any leftover cache from a previous user
-                    setActiveCacheUser(null);
-                    cacheClearForSession();
-                    setProfile(null);
-                    localStorage.removeItem('mandi_profile_cache');
-                }
-            }
 
-            if (isMounted) setLoading(false);
+            } catch (err) {
+                 console.error("[Auth] Fatal initialization error:", err);
+            } finally {
+                if (isMounted) setLoading(false);
+            }
 
             // 3. Background branding fetch
-            const { data } = await supabase.schema('core')
-                .from('platform_branding_settings')
-                .select('is_compliance_visible_to_tenants')
-                .maybeSingle();
-            
-            if (isMounted) {
-                setIsComplianceVisible(!!data?.is_compliance_visible_to_tenants);
-            }
+            try {
+                const { data } = await supabase.schema('core')
+                    .from('platform_branding_settings')
+                    .select('is_compliance_visible_to_tenants')
+                    .maybeSingle();
+                
+                if (isMounted) {
+                    setIsComplianceVisible(!!data?.is_compliance_visible_to_tenants);
+                }
+            } catch (ignore) {}
         };
 
         const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
