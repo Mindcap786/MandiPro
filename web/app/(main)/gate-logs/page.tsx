@@ -1,6 +1,6 @@
-
 import { GateEntryTable } from '@/components/gate/gate-entry-table'
-import { supabase } from '@/lib/supabaseClient'
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
+import { cookies } from 'next/headers'
 import { Truck } from 'lucide-react'
 
 // Since this is a server component, we can fetch data directly (in Next.js App Router)
@@ -8,6 +8,7 @@ import { Truck } from 'lucide-react'
 export const dynamic = 'force-static'
 
 async function getGateEntries() {
+    const supabase = createServerComponentClient({ cookies })
     const { data, error } = await supabase
         .schema('mandi')
         .from('lots')
