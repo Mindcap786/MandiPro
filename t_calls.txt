@@ -1,0 +1,303 @@
+web/app/(main)/settings/page.tsx:226:                                        {(NativeCard as any).Row({ icon: <UserPlus className="w-4 h-4 text-[#2563EB]" />, label: t("nav.team_access") || "Team Access", showChevron: true })}
+web/app/(main)/settings/page.tsx:233:                                        {(NativeCard as any).Row({ icon: <ShieldCheck className="w-4 h-4 text-[#16A34A]" />, label: t("nav.field_governance") || "Field Rules", showChevron: true })}
+web/app/(main)/settings/page.tsx:274:                            <p className="text-slate-500 font-bold mt-1">{t("settings.subtitle") || "Configure global rates, team permissions, and financial security."}</p>
+web/app/(main)/settings/page.tsx:277:                            {can("nav.employees") && <Button asChild variant="outline" className="bg-white border-slate-200 text-black hover:bg-slate-50 rounded-xl h-12 font-bold shadow-sm"><Link href="/settings/team"><UserPlus className="w-4 h-4 mr-2 text-blue-600" /> {t("nav.team_access")}</Link></Button>}
+web/app/(main)/settings/page.tsx:278:                            {can("nav.field_governance") && <Button asChild variant="outline" className="bg-white border-slate-200 text-black hover:bg-slate-50 rounded-xl h-12 font-bold shadow-sm"><Link href="/settings/fields"><ShieldCheck className="w-4 h-4 mr-2 text-emerald-600" /> {t("nav.field_governance")}</Link></Button>}
+web/app/(main)/sales/PageClient.tsx:203:                            placeholder={t("sales.search_placeholder") || "Search buyer, bill no…"}
+web/app/(main)/sales/PageClient.tsx:389:                    <h1 className="text-4xl font-[1000] text-black tracking-tighter uppercase mb-2">{t("sales.title") || "SALES INVOICES"}</h1>
+web/app/(main)/sales/PageClient.tsx:390:                    <p className="text-slate-500 font-bold text-lg flex items-center gap-2"><Wallet className="w-5 h-5 text-[#0C831F]" />{t("sales.subtitle") || "Create, Track, and Manage Revenue."}</p>
+web/app/(main)/sales/PageClient.tsx:394:                    <Link href="/sales/new"><Button className="h-12 px-8 bg-[#0C831F] text-white hover:bg-[#0A6C1A] font-black text-lg rounded-xl shadow-lg shadow-emerald-200 hover:scale-105 transition-all"><Plus className="mr-2 h-5 w-5" /> {t("sales.new_invoice")}</Button></Link>
+web/app/(main)/sales/PageClient.tsx:399:                <div className="md:col-span-2"><StatsCard title={t("stats.revenue")} value={`₹ ${totalRevenue.toLocaleString()}`} trend="+12.5%" icon={<TrendingUp className="w-8 h-8 text-black/40" />} color="lime" textColor="black" /></div>
+web/app/(main)/sales/PageClient.tsx:407:                    <Input placeholder={t("sales.search_placeholder")} className="pl-12 bg-white border-slate-200 text-black h-12 rounded-xl focus:ring-0 focus:border-[#0C831F] text-lg font-black transition-all shadow-sm placeholder:text-slate-300" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); const params = new URLSearchParams(searchParams.toString()); if (e.target.value) params.set("search", e.target.value); else params.delete("search"); router.replace(`/sales?${params.toString()}`); }} />
+web/app/(main)/sales/PageClient.tsx:410:                    <Button variant="ghost" onClick={() => setViewMode("invoices")} className={cn("h-10 rounded-lg px-4 font-bold transition-all text-xs uppercase tracking-wider", viewMode === "invoices" ? "bg-white text-black shadow-sm" : "text-slate-400 hover:text-black")}><List className="w-4 h-4 mr-2" /> {t("sales.all_invoices")}</Button>
+web/app/(main)/sales/PageClient.tsx:411:                    <Button variant="ghost" onClick={() => setViewMode("buyers")} className={cn("h-10 rounded-lg px-4 font-bold transition-all text-xs uppercase tracking-wider", viewMode === "buyers" ? "bg-white text-black shadow-sm" : "text-slate-400 hover:text-black")}><LayoutGrid className="w-4 h-4 mr-2" /> {t("sales.by_buyer")}</Button>
+web/app/(main)/sales/PageClient.tsx:445:                                    <Button variant="destructive" onClick={clearFilters} className="w-full h-10 rounded-lg font-black uppercase tracking-widest bg-red-50 text-red-600 hover:bg-red-600 hover:text-white transition-all shadow-sm text-xs"><X className="w-3 h-3 mr-2" /> {t("common.clear_filters")}</Button>
+web/app/(main)/sales/PageClient.tsx:458:                            <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">{t("common.pagination_info", { page, totalPages: Math.ceil(totalCount / pageSize), total: totalCount })}</span>
+web/app/(main)/sales/PageClient.tsx:460:                                <Button variant="outline" disabled={page === 1 || loading} onClick={() => setPage((p) => Math.max(1, p - 1))} className="h-10 px-6 rounded-xl bg-white hover:bg-slate-50 text-black font-bold border-slate-200 disabled:opacity-50 shadow-sm"><ChevronLeft className="w-4 h-4 mr-2" /> {t("common.previous")}</Button>
+web/app/(main)/sales/PageClient.tsx:461:                                <Button variant="outline" disabled={page >= Math.ceil(totalCount / pageSize) || loading} onClick={() => setPage((p) => p + 1)} className="h-10 px-6 rounded-xl bg-black hover:bg-slate-800 text-white font-bold border-0 disabled:opacity-50 shadow-md">{t("common.next")} <ChevronRight className="w-4 h-4 ml-2" /></Button>
+web/app/(main)/sales/new/SalesNewPageClient.tsx:16:    const titleText = t('sales.new_invoice') || "New Invoice";
+web/app/(main)/sales/new/SalesNewPageClient.tsx:32:                        {t('sales.new_invoice_subtitle') || "Create new invoice receipt"}
+web/app/(main)/sales/new-invoice/page.tsx:16:    const titleText = t('nav.bulk_lot_sale') || "Bulk Lot Sale";
+web/app/(main)/sales/new-invoice/page.tsx:32:                        {t('sales.bulk_lot_sale_subtitle') || "Normal sale process for bulk buyers at once"}
+web/app/(main)/dashboard/page.tsx:200:                    totalLabel={t('stats.revenue') || 'Total Revenue'}
+web/app/(main)/dashboard/page.tsx:204:                            label: t('stats.collections') || 'Receivable',
+web/app/(main)/dashboard/page.tsx:230:                        {t('common.live_feed') || 'Recent Activity'}
+web/app/(main)/dashboard/page.tsx:237:                                <p className="text-sm font-medium">{t('dashboard.no_activity') || 'No activity yet'}</p>
+web/app/(main)/dashboard/page.tsx:295:                            {t('dashboard.revenue_velocity') || 'Revenue Trend'}
+web/app/(main)/dashboard/page.tsx:320:                        {t('dashboard.command_center')}
+web/app/(main)/dashboard/page.tsx:324:                        {t('dashboard.live_auction')}
+web/app/(main)/dashboard/page.tsx:330:                        <span className="text-[10px] uppercase font-bold text-slate-400 tracking-widest">{t('dashboard.market_status')}</span>
+web/app/(main)/dashboard/page.tsx:336:                            {t('dashboard.live_trading')}
+web/app/(main)/dashboard/page.tsx:350:                    title={t('stats.revenue')}
+web/app/(main)/dashboard/page.tsx:361:                    title={t('stats.inventory')}
+web/app/(main)/dashboard/page.tsx:366:                    subtext={t('stats.lots_in_yard')}
+web/app/(main)/dashboard/page.tsx:371:                    title={t('stats.collections')}
+web/app/(main)/dashboard/page.tsx:376:                    trend={t('stats.action_required')}
+web/app/(main)/dashboard/page.tsx:382:                    title={t('stats.network')}
+web/app/(main)/dashboard/page.tsx:387:                    subtext={t('stats.farmers_registered')}
+web/app/(main)/dashboard/page.tsx:398:                            <h3 className="text-xl font-black text-slate-900">{t('dashboard.revenue_velocity')}</h3>
+web/app/(main)/dashboard/page.tsx:399:                            <p className="text-xs text-slate-500 mt-1 font-black">{t('dashboard.transaction_volume')}</p>
+web/app/(main)/dashboard/page.tsx:402:                            {t('dashboard.real_time')}
+web/app/(main)/dashboard/page.tsx:411:                        <Activity className="w-5 h-5 text-purple-600" /> {t('common.live_feed')}
+web/app/(main)/dashboard/page.tsx:418:                                <p className="text-sm font-bold">{t('dashboard.no_activity')}</p>
+web/app/(main)/dashboard/page.tsx:436:                                                    {t(
+web/app/(main)/dashboard/page.tsx:440:                                                        { item: txn.lot?.item_type || t('dashboard.activity.item') }
+web/app/(main)/dashboard/page.tsx:444:                                                    {t('dashboard.activity.lot', { code: txn.lot?.lot_code })}
+web/app/(main)/dashboard/page.tsx:453:                                                {txn.type === 'sale' ? t('common.currency_symbol') : ''}{txn.amount?.toLocaleString()}{txn.type !== 'sale' ? ' ' + t('dashboard.activity.units') : ''}
+web/app/(main)/gate/page.tsx:266:                    <h1 className="text-4xl font-black text-[#2E7D32] tracking-tighter uppercase">{t('gate.title').split(' ')[0]} <span className="text-[#43A047]">{t('gate.title').split(' ').slice(1).join(' ')}</span></h1>
+web/app/(main)/gate/page.tsx:268:                        <Truck className="w-5 h-5 text-[#43A047]" /> {t('gate.subtitle')}
+web/app/(main)/gate/page.tsx:279:                        placeholder={t('Search Vehicle No or Driver...')}
+web/app/(main)/gate/page.tsx:305:                                <span>{t('Filter by Date')}</span>
+web/app/(main)/gate/page.tsx:397:                                                            {entry.status === 'stock_loaded' ? 'STOCK LOADED' : t(`gate.status_${entry.status}`) || entry.status}
+web/app/(main)/gate/page.tsx:408:                                                        <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-1">{t('gate.vehicle')}</p>
+web/app/(main)/gate/page.tsx:412:                                                        <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-1">{t('gate.commodity')}</p>
+web/app/(main)/gate/page.tsx:416:                                                        <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-1">{t('gate.driver')}</p>
+web/app/(main)/gate/page.tsx:420:                                                        <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-1">{t('gate.source')}</p>
+web/app/(main)/gate/page.tsx:432:                                                            {t('gate.mark_arrived')}
+web/app/(main)/gate/page.tsx:487:                    {t('Showing')} {entries.length} {t('of')} {totalCount} {t('entries')}
+web/app/(main)/gate/page.tsx:502:                        {t('Previous')}
+web/app/(main)/gate/page.tsx:510:                        {t('Next')}
+web/app/(main)/gate/page.tsx:522:                    <p className="text-slate-400 font-black uppercase tracking-widest">{t('gate.no_entries')}</p>
+web/app/(main)/sales-orders/PageClient.tsx:150:                        {t('sales_orders.title') || 'SALES ORDERS'}
+web/app/(main)/sales-orders/PageClient.tsx:154:                        {t('sales_orders.subtitle') || 'Manage Customer Orders & Quotations.'}
+web/app/(main)/sales-orders/PageClient.tsx:163:                            <Plus className="mr-2 h-5 w-5" /> {t('sales_orders.new_order') || 'NEW ORDER'}
+web/app/(main)/sales-orders/PageClient.tsx:172:                        title={t('stats.order_value') || "TOTAL ORDER VALUE"}
+web/app/(main)/sales-orders/PageClient.tsx:192:                        placeholder={t('sales_orders.search_placeholder') || 'Search orders...'}
+web/app/(main)/sales-orders/PageClient.tsx:283:                                <X className="w-3 h-3 mr-2" /> {t('common.clear_filters') || 'Clear Filters'}
+web/app/(main)/sales-orders/PageClient.tsx:299:                        {t('common.pagination_info', { page, totalPages: Math.ceil(totalCount / pageSize) || 1, total: totalCount })}
+web/app/(main)/sales-orders/PageClient.tsx:308:                            <ChevronLeft className="w-4 h-4 mr-2" /> {t('common.previous') || 'Previous'}
+web/app/(main)/sales-orders/PageClient.tsx:316:                            {t('common.next') || 'Next'} <ChevronRight className="w-4 h-4 ml-2" />
+web/app/(main)/sales-orders/new/PageClient.tsx:151:                        {t('sales_orders.new_order') || 'Create Sales Order'}
+web/app/(main)/stock/page.tsx:76:                    {t(`stock.${colors.label}`) || colors.label}
+web/app/(main)/stock/page.tsx:209:                                {item.arrival_type === 'commission' ? t('stock.farmer_comm') : item.arrival_type === 'commission_supplier' ? t('stock.supplier_comm') : (item.arrival_type === 'direct' ? 'DIRECT PURCHASE' : item.arrival_type)}
+web/app/(main)/stock/page.tsx:216:                        {Number(item.critical_stock) > 0 && (<div className="flex items-center gap-1.5 px-2 py-0.5 mt-2 rounded-lg border border-red-200 bg-red-50 text-red-600 animate-pulse w-fit"><AlertTriangle className="w-3 h-3" /><span className="text-[9px] font-black uppercase tracking-widest">{t('stock.critical')} ({Number(item.critical_stock)} {item.unit})</span></div>)}
+web/app/(main)/stock/page.tsx:217:                        {Number(item.aging_stock) > 0 && (<div className="flex items-center gap-1.5 px-2 py-0.5 mt-2 rounded-lg border border-amber-200 bg-amber-50 text-amber-600 w-fit"><Clock className="w-3 h-3" /><span className="text-[9px] font-black uppercase tracking-widest">{t('stock.aging')} ({Number(item.aging_stock)} {item.unit})</span></div>)}
+web/app/(main)/stock/page.tsx:220:                        <div className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${colors.border} ${colors.bg} ${colors.text}`}>{t(`stock.${colors.label}`)}</div>
+web/app/(main)/stock/page.tsx:231:                        <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest">{t('stock.total_holding')}</span>
+web/app/(main)/stock/page.tsx:448:                            placeholder={t('stock.search_placeholder') || 'Search commodities…'}
+web/app/(main)/stock/page.tsx:471:                            <p className="text-[10px] font-bold uppercase tracking-widest text-[#9CA3AF]">{t('stock.total_holding') || 'Total Stock'}</p>
+web/app/(main)/stock/page.tsx:506:                            <p className="text-sm font-medium">{t('stock.no_stock') || 'No stock found'}</p>
+web/app/(main)/stock/page.tsx:541:                            <div className="h-[2px] w-8 bg-blue-600" />{t('stock.inventory_mgmt')}
+web/app/(main)/stock/page.tsx:544:                            {t('stock.title').split(' ')[0]} <span className="text-blue-600">{t('stock.title').split(' ').slice(1).join(' ')}</span>
+web/app/(main)/stock/page.tsx:556:                                <div className="text-[8px] font-black text-slate-700 tracking-widest uppercase mb-0.5">{t('stock.total_holding')}</div>
+web/app/(main)/stock/page.tsx:557:                                <div className="text-4xl font-black text-black tabular-nums tracking-tighter leading-none">{totalHolding.toLocaleString()}<span className="text-[10px] text-blue-700 ml-2 tracking-widest font-black">{t('stock.units')}</span></div>
+web/app/(main)/stock/page.tsx:568:                                {auditPrinting ? 'Generating...' : t('stock.audit_print')}
+web/app/(main)/stock/page.tsx:590:                        <Input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder={t('stock.search_placeholder')} className="h-14 pl-14 bg-white border-slate-200 rounded-2xl text-lg font-black text-black placeholder:text-slate-400 transition-all focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 shadow-sm" />
+web/app/(main)/stock/page.tsx:624:                            <div className="col-span-full py-20 text-center opacity-50"><Package className="w-16 h-16 mx-auto mb-4 text-slate-300" /><h3 className="text-xl font-black uppercase text-slate-400">{t('stock.no_stock')}</h3><p className="text-sm text-slate-500 font-medium">Try adjusting your filters or check Inward Logs.</p></div>
+web/app/(main)/arrivals/page.tsx:52:    const titleParts = t("arrivals.title")?.split(" ") || ["Arrivals", "Entry"]
+web/app/(main)/arrivals/page.tsx:65:                            <Truck className="w-5 h-5 text-[#43A047]" /> {t("arrivals.subtitle") || "Manage and track inbound inventory"}
+web/app/page.tsx:35:                    <span>{t('auth.enterprise_live')}</span>
+web/app/page.tsx:46:                        <a href="#features" className="hover:text-emerald-800 transition-colors">{t('landing.nav_features')}</a>
+web/app/page.tsx:47:                        <a href="#solutions" className="hover:text-emerald-800 transition-colors">{t('landing.nav_solutions')}</a>
+web/app/page.tsx:48:                        <Link href="/subscribe" className="hover:text-emerald-800 transition-colors font-bold text-emerald-800">{t('nav.subscription_billing')}</Link>
+web/app/page.tsx:49:                        <a href="#compliance" className="hover:text-emerald-800 transition-colors">{t('nav.compliance')}</a>
+web/app/page.tsx:54:                            {t('auth.sign_in_btn')}
+web/app/page.tsx:57:                            {t('landing.get_started')} <ArrowRight className="w-4 h-4" />
+web/app/page.tsx:74:                    {t('auth.enterprise_live')}
+web/app/page.tsx:78:                    text={t('auth.hero_title')} 
+web/app/page.tsx:83:                    {t('auth.hero_description')}
+web/app/page.tsx:88:                        {t('nav.subscription_billing')} <ArrowRight className="w-5 h-5" />
+web/app/page.tsx:96:                        {t('auth.have_account')}
+web/app/page.tsx:105:                        <h2 className="text-4xl md:text-5xl font-black tracking-tighter mb-4 text-gray-900">{t('landing.enterprise_title')}</h2>
+web/app/page.tsx:106:                        <p className="text-gray-700 text-lg font-medium">{t('landing.enterprise_subtitle')}</p>
+web/app/page.tsx:115:                            <h3 className="text-2xl font-bold mb-3 text-gray-900">{t('landing.feature_logistics_title')}</h3>
+web/app/page.tsx:116:                            <p className="text-gray-600 leading-relaxed font-medium">{t('landing.feature_logistics_desc')}</p>
+web/app/page.tsx:124:                            <h3 className="text-2xl font-bold mb-3 text-gray-900">{t('landing.feature_fintech_title')}</h3>
+web/app/page.tsx:125:                            <p className="text-gray-600 leading-relaxed font-medium">{t('landing.feature_fintech_desc')}</p>
+web/app/page.tsx:133:                            <h3 className="text-2xl font-bold mb-3 text-gray-900">{t('landing.feature_compliance_title')}</h3>
+web/app/page.tsx:134:                            <p className="text-gray-600 leading-relaxed font-medium">{t('landing.feature_compliance_desc')}</p>
+web/app/page.tsx:144:                        <h2 className="text-4xl md:text-5xl font-black tracking-tighter mb-4 text-gray-900">{t('landing.solutions_title')}</h2>
+web/app/page.tsx:145:                        <p className="text-gray-700 text-lg font-medium max-w-2xl mx-auto">{t('landing.solutions_subtitle')}</p>
+web/app/page.tsx:152:                                <h3 className="text-3xl font-black mb-4">{t('landing.solution_commission_title')}</h3>
+web/app/page.tsx:153:                                <p className="text-emerald-200 font-medium mb-8">{t('landing.solution_commission_desc')}</p>
+web/app/page.tsx:156:                                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400" /> {t('landing.feature_fintech_title')}</li>
+web/app/page.tsx:157:                                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400" /> {t('landing.feature_logistics_title')}</li>
+web/app/page.tsx:158:                                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400" /> {t('landing.feature_compliance_title')}</li>
+web/app/page.tsx:164:                                <h3 className="text-3xl font-black mb-4 text-gray-900">{t('landing.solution_wholesaler_title')}</h3>
+web/app/page.tsx:165:                                <p className="text-gray-600 font-medium mb-8">{t('landing.solution_wholesaler_desc')}</p>
+web/app/page.tsx:168:                                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-600" /> {t('sales.title')}</li>
+web/app/page.tsx:169:                                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-600" /> {t('purchase.title')}</li>
+web/app/page.tsx:170:                                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-600" /> {t('nav.gst_compliance')}</li>
+web/app/page.tsx:182:                            <h2 className="text-4xl md:text-5xl font-black tracking-tighter mb-8 text-gray-900">{t('landing.compliance_title')}</h2>
+web/app/page.tsx:189:                                        <h4 className="text-lg font-bold text-gray-900 mb-1">{t('landing.feature_compliance_title')}</h4>
+web/app/page.tsx:190:                                        <p className="text-gray-600 font-medium">{t('landing.trust_security_desc')}</p>
+web/app/page.tsx:198:                                        <h4 className="text-lg font-bold text-gray-900 mb-1">{t('nav.gst_compliance')}</h4>
+web/app/page.tsx:199:                                        <p className="text-gray-600 font-medium">{t('landing.feature_compliance_desc')}</p>
+web/app/page.tsx:207:                                        <h4 className="text-lg font-bold text-gray-900 mb-1">{t('landing.trust_audit_desc')}</h4>
+web/app/page.tsx:208:                                        <p className="text-gray-600 font-medium">{t('auth.secure_connection')}</p>
+web/app/page.tsx:216:                                    <div className="font-black text-xl tracking-tighter">{t('landing.compliance_health')}</div>
+web/app/page.tsx:217:                                    <div className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-black uppercase">{t('landing.status_secure')}</div>
+web/app/page.tsx:226:                                            <div className="text-[10px] font-black text-slate-400">{t('landing.status_active')}</div>
+web/app/page.tsx:241:                        <span className="font-bold text-emerald-800">{t('landing.copyright')}</span>
+web/app/page.tsx:249:                        <Link href="/privacy" className="hover:text-emerald-900 transition-colors">{t('landing.privacy_policy')}</Link>
+web/app/page.tsx:250:                        <Link href="/terms" className="hover:text-emerald-900 transition-colors">{t('landing.terms_of_service')}</Link>
+web/app/page.tsx:251:                        <Link href="/contact" className="hover:text-emerald-900 transition-colors">{t('landing.footer_contact')}</Link>
+web/app/login/PageClient.tsx:177:            setError(err?.message || (typeof err === 'string' ? err : null) || t('auth.errors.generic'))
+web/app/login/PageClient.tsx:214:                    throw new Error(t('auth.errors.account_locked'));
+web/app/login/PageClient.tsx:346:            throw new Error(t('auth.errors.decommissioned'));
+web/app/login/PageClient.tsx:535:        if (error) throw new Error(t('auth.errors.invalid_otp') || 'Invalid OTP');
+web/app/login/PageClient.tsx:577:                        {t('auth.enterprise_live')}
+web/app/login/PageClient.tsx:580:                    <HeroTitle text={t('auth.hero_title')} className="mb-6" />
+web/app/login/PageClient.tsx:582:                        {t('auth.hero_description')}
+web/app/login/PageClient.tsx:588:                    <span>{t('auth.security_certified')}</span>
+web/app/login/PageClient.tsx:616:                            {mode === 'forgot_password' ? 'Reset Password' : mode === 'unlock' ? t('auth.unlock_title') : authStep === 'otp' ? t('auth.verify_otp_title') : authStep === 'reset' ? 'Set New Password' : (mode === 'login' ? t('auth.login_welcome') : 'Create Your Account')}
+web/app/login/PageClient.tsx:619:                            {authStep === 'otp' ? `${t('auth.verify_otp_subtitle')} ${actualEmail}` : authStep === 'reset' ? 'Choose a strong new password.' : mode === 'forgot_password' ? 'Enter your email or username to get a reset OTP.' : (mode === 'login' ? t('auth.login_subtitle') : 'Register with your email and pick a plan')}
+web/app/login/PageClient.tsx:627:                                    {t('auth.sign_in_btn')}
+web/app/login/PageClient.tsx:630:                                    {t('auth.sign_up_btn')}
+web/app/login/PageClient.tsx:735:                                                <span>{t('auth.password_label')}</span>
+web/app/login/PageClient.tsx:817:                                            {t('auth.resend_code')}
+web/app/login/PageClient.tsx:892:                                            {authStep === 'otp' ? t('auth.verify_btn') : authStep === 'reset' ? 'Update Password' : (mode === 'unlock' ? t('auth.unlock_btn') : (mode === 'forgot_password' ? 'Send OTP' : (mode === 'login' ? t('auth.sign_in_btn') : 'Create Free Account')))}
+web/app/login/PageClient.tsx:911:                                    {t('auth.back_to_login')}
+web/app/login/PageClient.tsx:918:                        {t('auth.security_warning') || "Unauthorized access attempts are logged for audit."}
+web/node_modules/zod/src/v4/core/schemas.ts:2408:  // const aType = parse.t(a);
+web/node_modules/zod/src/v4/core/schemas.ts:2409:  // const bType = parse.t(b);
+web/node_modules/xml2js/node_modules/xmlbuilder/typings/index.d.ts:83:        t(value: string): XMLElementOrXMLNode;
+web/node_modules/xmlbuilder/typings/index.d.ts:869:        t(value: string): XMLElement;
+web/node_modules/xmlbuilder/typings/index.d.ts:1581:        t(value: string): XMLDocumentCB;
+web/components/rbac/permission-matrix.tsx:141:                                        {t(item.tKey)}
+web/components/rbac/permission-matrix.tsx:177:                                            {t(sub.tKey)}
+web/components/sales/sales-table.tsx:84:        return <div className="p-12 text-center text-gray-500 animate-pulse">{t('common.loading')}</div>;
+web/components/sales/sales-table.tsx:104:                                {t('sales.invoice_no')} <ArrowUpDown className="inline w-3 h-3 ml-1 opacity-50" />
+web/components/sales/sales-table.tsx:107:                                {t('sales.date')}
+web/components/sales/sales-table.tsx:110:                                {t('sales.buyer')}
+web/components/sales/sales-table.tsx:113:                                {t('sales.amount')}
+web/components/sales/sales-table.tsx:116:                                {t('sales.profit')}
+web/components/sales/sales-table.tsx:118:                            <th className="py-5 text-center w-[120px] text-black font-black uppercase tracking-widest text-xs">{t('sales.status')}</th>
+web/components/sales/sales-table.tsx:119:                            <th className="py-5 text-right pr-6 text-black font-black uppercase tracking-widest text-xs">{t('sales.actions')}</th>
+web/components/sales/sales-table.tsx:126:                                    {t('sales.no_records')}
+web/components/sales/sales-table.tsx:218:                                                            <span className="mr-1">⚙️</span> {t('sales.adjusted') || 'ADJUSTED'}
+web/components/sales/sales-table.tsx:232:                                                            <><span className="mr-1">🕒</span> {t('sales.status_pending') || 'PENDING'} CHEQUE</>
+web/components/sales/sales-table.tsx:234:                                                            <><CheckCircle2 className="w-3 h-3 mr-1" /> {t('sales.status_paid') || 'PAID'}</>
+web/components/sales/sales-table.tsx:240:                                                            <><XCircle className="w-3 h-3 mr-1" /> {t('sales.status_pending') || 'PENDING'}</>
+web/components/sales/sales-table.tsx:255:                                                <DropdownMenuLabel className="uppercase text-[10px] tracking-widest text-slate-400">{t('sales.actions')}</DropdownMenuLabel>
+web/components/sales/sales-table.tsx:260:                                                        <Eye className="w-4 h-4 mr-2 text-blue-600" /> {t('sales.view_invoice')}
+web/components/sales/sales-table.tsx:311:                                                                {t('sales.record_payment')}
+web/components/sales/buyer-receivables-table.tsx:126:                        <div className="text-xs font-bold text-slate-500 uppercase tracking-widest">{t('sales.total_receivables')}</div>
+web/components/sales/buyer-receivables-table.tsx:184:                            <th className="pl-6 py-5 text-left text-slate-500 font-bold uppercase tracking-widest text-xs">{t('sales.buyer_name')}</th>
+web/components/sales/buyer-receivables-table.tsx:185:                            <th className="py-5 text-left text-slate-500 font-bold uppercase tracking-widest text-xs">{t('sales.city')}</th>
+web/components/sales/buyer-receivables-table.tsx:186:                            <th className="py-5 text-right pr-6 text-slate-500 font-bold uppercase tracking-widest text-xs">{t('sales.total_pending')}</th>
+web/components/sales/buyer-receivables-table.tsx:191:                            <tr><td colSpan={3} className="p-12 text-center text-slate-500 animate-pulse font-bold">{t('common.loading')}</td></tr>
+web/components/sales/buyer-receivables-table.tsx:193:                            <tr><td colSpan={3} className="p-12 text-center text-slate-500 font-bold">{t('sales.no_receivables')}</td></tr>
+web/components/auth/auth-provider.tsx:621:                                {isLoggingOut ? t('common.signing_out') : t('common.logout') + '?'}
+web/components/auth/auth-provider.tsx:625:                                    ? t('common.please_wait_signing_out') 
+web/components/auth/auth-provider.tsx:639:                                            <span>{t('common.processing')}...</span>
+web/components/layout/command-palette.tsx:44:            <CommandInput placeholder={t('common.command_placeholder')} />
+web/components/layout/command-palette.tsx:46:                <CommandEmpty>{t('common.no_data')}</CommandEmpty>
+web/components/layout/command-palette.tsx:47:                <CommandGroup heading={t('common.suggestions')}>
+web/components/layout/command-palette.tsx:50:                        <span>{t('nav.dashboard')}</span>
+web/components/layout/command-palette.tsx:54:                        <span>{t('common.new_sale')}</span>
+web/components/layout/command-palette.tsx:58:                        <span>{t('common.new_arrival')}</span>
+web/components/layout/command-palette.tsx:62:                <CommandGroup heading={t('nav.settings')}>
+web/components/layout/command-palette.tsx:65:                        <span>{t('common.profile')}</span>
+web/components/layout/command-palette.tsx:70:                        <span>{t('common.billing')}</span>
+web/components/layout/command-palette.tsx:75:                        <span>{t('nav.settings')}</span>
+web/components/layout/sidebar.tsx:95:                                        return `Free Trial ${t('nav.edition')}`;
+web/components/layout/sidebar.tsx:99:                                        return `Custom Plan ${t('nav.edition')}`;
+web/components/layout/sidebar.tsx:103:                                    const planLabel = t(planKey);
+web/components/layout/sidebar.tsx:108:                                    return `${displayTier} ${t('nav.edition')}`;
+web/components/layout/sidebar.tsx:134:                        {!collapsed && <span className="text-sm font-black tracking-widest relative z-10 uppercase">{t('nav.hq_portal')}</span>}
+web/components/layout/sidebar.tsx:176:                            {!collapsed && <span className={cn("text-sm tracking-wide relative z-10 uppercase font-black")}>{t(item.tKey)}</span>}
+web/components/layout/sidebar.tsx:189:                                {t('nav.system_online')}
+web/components/layout/sidebar.tsx:191:                            {t('common.version')} {t('common.copyright_short')}
+web/components/layout/sidebar.tsx:207:                        {!collapsed && <span>{t('common.logout')}</span>}
+web/components/layout/sidebar.tsx:241:                        <span className={cn("text-xs font-black tracking-widest relative z-10 uppercase flex-1", dir === 'rtl' ? "text-right" : "text-left")} style={isGroupActive ? { color: profile?.organization?.brand_color || "#4f46e5" } : {}}>{t(item.tKey)}</span>
+web/components/layout/sidebar.tsx:265:                                <span>{t(sub.tKey)}</span>
+web/components/layout/mobile-nav.tsx:18:        { href: "/dashboard", icon: Home, label: t('nav.home') || 'Home' },
+web/components/layout/mobile-nav.tsx:19:        { href: "/sales", icon: IndianRupee, label: t('nav.sales') || 'Sales' },
+web/components/layout/mobile-nav.tsx:20:        { href: "/arrivals", icon: Truck, label: t('nav.inward') || 'Inward' },
+web/components/layout/mobile-nav.tsx:21:        { href: "/finance", icon: Wallet, label: t('nav.money') || 'Finance' },
+web/components/layout/mobile-nav.tsx:22:        { href: "/menu", icon: LayoutGrid, label: t('nav.menu') || 'Menu' },
+web/components/navigation/mobile-bottom-nav.tsx:34:        { href: "/dashboard", icon: Home,      label: t("nav.home") !== "nav.home" ? t("nav.home") : "Home" },
+web/components/navigation/mobile-bottom-nav.tsx:35:        { href: "/stock",     icon: Package,   label: t("nav.stock") !== "nav.stock" ? t("nav.stock") : "Stock" },
+web/components/navigation/mobile-bottom-nav.tsx:36:        { href: "/finance",   icon: BarChart3, label: t("nav.finance") !== "nav.finance" ? t("nav.finance") : "Finance" },
+web/components/mobile/QuickActionRow.tsx:54:                {t('nav.quick_actions')}
+web/components/mobile/QuickActionRow.tsx:81:                            {t(action.tKey)}
+web/components/delivery-challans/delivery-challans-table.tsx:53:        return <div className="p-12 text-center text-gray-500 animate-pulse">{t('common.loading') || 'Loading...'}</div>;
+web/components/finance/day-book.tsx:525:    if (!firstLeg) return t('daybook.scenarios.other');
+web/components/finance/day-book.tsx:533:            if (isFullyCash) return t('daybook.scenarios.purchase_full');
+web/components/finance/day-book.tsx:534:            if (isFullyUdhaar) return t('daybook.scenarios.purchase_udhaar');
+web/components/finance/day-book.tsx:535:            if (isPartial) return t('daybook.scenarios.purchase_partial');
+web/components/finance/day-book.tsx:538:            if (hasAnyCashLeg) return t('daybook.scenarios.purchase_full');
+web/components/finance/day-book.tsx:540:            return t('daybook.scenarios.purchase_udhaar');
+web/components/finance/day-book.tsx:553:            if (paidTotal >= saleTotal - AMOUNT_EPSILON) return t('daybook.scenarios.sale_full');
+web/components/finance/day-book.tsx:554:            if (paidTotal <= AMOUNT_EPSILON) return t('daybook.scenarios.sale_udhaar');
+web/components/finance/day-book.tsx:555:            return t('daybook.scenarios.sale_partial');
+web/components/finance/day-book.tsx:558:        if (flowType === 'sale_payment') return t('daybook.scenarios.sale_payment');
+web/components/finance/day-book.tsx:559:        if (flowType === 'sale') return t('daybook.scenarios.sale_entry');
+web/components/finance/day-book.tsx:567:        return t('daybook.scenarios.receipt');
+web/components/finance/day-book.tsx:574:        return t('daybook.scenarios.payment');
+web/components/finance/day-book.tsx:578:    return t(`daybook.labels.${flowType}`) || flowType.charAt(0).toUpperCase() + flowType.slice(1);
+web/components/finance/day-book.tsx:592:    const baseDescription = entry.description || entry.voucher?.narration || t('daybook.descriptions.no_description');
+web/components/finance/day-book.tsx:655:            return t('daybook.descriptions.cash_paid_to', { name: counterpartyName || t('common.unknown') });
+web/components/finance/day-book.tsx:657:            return t('daybook.descriptions.items_received', { name: counterpartyName || t('common.unknown') });
+web/components/finance/day-book.tsx:683:            return t('daybook.descriptions.cash_received', { name: counterpartyName || t('common.unknown') });
+web/components/finance/day-book.tsx:687:            if (!saleInfo) return t('daybook.descriptions.items_sold', { name: counterpartyName || t('common.unknown') });
+web/components/finance/day-book.tsx:704:            return `Settlement Write-off for ${counterpartyName || t('common.unknown')}`;
+web/components/finance/day-book.tsx:710:            return `Settlement Gain from ${counterpartyName || t('common.unknown')}`;
+web/components/finance/day-book.tsx:715:        return t('daybook.descriptions.cash_paid_to', { name: counterpartyName || t('common.unknown') });
+web/components/finance/day-book.tsx:719:        return t('daybook.descriptions.expense', { desc: baseDescription });
+web/components/finance/day-book.tsx:723:        return `Initial Opening Balance set for ${counterpartyName || t('common.unknown')}`;
+web/components/finance/day-book.tsx:730:        return t('daybook.descriptions.advance_paid_purchase', { label: purchaseLotLabel });
+web/components/finance/day-book.tsx:739:        return t('daybook.descriptions.advance_paid_from', { name: sourceName });
+web/components/finance/day-book.tsx:743:        return t('daybook.descriptions.advance_paid_to', { name: groupCounterpartyName, source: entry.account?.name || sourceName || t('daybook.descriptions.settlement_account') });
+web/components/finance/day-book.tsx:1200:                        displayLabel: t('daybook.labels.purchase'),
+web/components/finance/day-book.tsx:1217:                        displayLabel: t('daybook.labels.sale'),
+web/components/finance/day-book.tsx:1617:                        {t('daybook.title')}
+web/components/finance/day-book.tsx:1621:                        {t('daybook.subtitle')}
+web/components/finance/day-book.tsx:1634:                            {isBalanced ? "✅ " + t('daybook.verified') : "⚖️ " + t('daybook.imbalanced')}
+web/components/finance/day-book.tsx:1637:                            {t('daybook.engine_version')}
+web/components/finance/day-book.tsx:1650:                            {t('daybook.cash_book')}
+web/components/finance/day-book.tsx:1658:                            {t('daybook.all_ledger')}
+web/components/finance/day-book.tsx:1728:                        <span className="text-xs font-black uppercase tracking-widest text-slate-400">📊 {t('daybook.sales_summary')}</span>
+web/components/finance/day-book.tsx:1731:                    <div className="text-3xl font-[1000] text-slate-800 tracking-tighter mb-4 print:text-xl print:mb-2">{t('common.currency_symbol')}{summary.sales.total.toLocaleString()}</div>
+web/components/finance/day-book.tsx:1734:                            <span className="text-slate-400 font-bold">🟢 {t('daybook.sales_cash')}</span>
+web/components/finance/day-book.tsx:1735:                            <span className="font-black text-emerald-600">{t('common.currency_symbol')}{(summary.sales.cash || 0).toLocaleString()}</span>
+web/components/finance/day-book.tsx:1738:                            <span className="text-slate-400 font-bold">🔴 {t('daybook.sales_udhaar')}</span>
+web/components/finance/day-book.tsx:1739:                            <span className="font-black text-rose-600">{t('common.currency_symbol')}{(summary.sales.credit || 0).toLocaleString()}</span>
+web/components/finance/day-book.tsx:1747:                        <span className="text-xs font-black uppercase tracking-widest text-slate-400">📦 {t('daybook.purchase_insights')}</span>
+web/components/finance/day-book.tsx:1750:                    <div className="text-3xl font-[1000] text-slate-800 tracking-tighter mb-4 print:text-xl print:mb-2">{t('common.currency_symbol')}{summary.purchases.total.toLocaleString()}</div>
+web/components/finance/day-book.tsx:1753:                            <span className="text-slate-400 font-bold">🟢 {t('daybook.purchase_cash')}</span>
+web/components/finance/day-book.tsx:1754:                            <span className="font-black text-emerald-600">{t('common.currency_symbol')}{(summary.purchases.cash || 0).toLocaleString()}</span>
+web/components/finance/day-book.tsx:1757:                            <span className="text-slate-400 font-bold">🔴 {t('daybook.purchase_udhaar')}</span>
+web/components/finance/day-book.tsx:1758:                            <span className="font-black text-rose-600">{t('common.currency_symbol')}{(summary.purchases.credit || 0).toLocaleString()}</span>
+web/components/finance/day-book.tsx:1766:                        <span className="text-xs font-black uppercase tracking-widest text-slate-400">💰 {t('daybook.liquid_assets')}</span>
+web/components/finance/day-book.tsx:1769:                    <div className="text-3xl font-[1000] text-slate-800 tracking-tighter mb-4 print:text-xl print:mb-2">{t('common.currency_symbol')}{(summary.cash.inflow - summary.cash.outflow + summary.digital.inflow - summary.digital.outflow).toLocaleString()}</div>
+web/components/finance/day-book.tsx:1772:                            <span className="text-slate-400 font-bold">🟢 {t('daybook.inflow')}</span>
+web/components/finance/day-book.tsx:1773:                            <span className="font-black text-emerald-600">{t('common.currency_symbol')}{(summary.cash.inflow + summary.digital.inflow).toLocaleString()}</span>
+web/components/finance/day-book.tsx:1776:                            <span className="text-slate-400 font-bold">🔴 {t('daybook.outflow')}</span>
+web/components/finance/day-book.tsx:1777:                            <span className="font-black text-rose-600">{t('common.currency_symbol')}{(summary.cash.outflow + summary.digital.outflow).toLocaleString()}</span>
+web/components/finance/day-book.tsx:1785:                        <span className="text-xs font-black uppercase tracking-widest text-slate-400">🛠️ {t('daybook.daily_expenses')}</span>
+web/components/finance/day-book.tsx:1788:                    <div className="text-3xl font-[1000] text-slate-800 tracking-tighter mb-4 print:text-xl print:mb-2">{t('common.currency_symbol')}{summary.expenses.toLocaleString()}</div>
+web/components/finance/day-book.tsx:1790:                        <p className="text-[10px] text-slate-400 leading-tight">{t('daybook.expenses_desc')}</p>
+web/components/finance/day-book.tsx:1847:                                <th className="p-6 pl-8 flex items-center gap-2"><Clock className="w-3 h-3" /> {t('daybook.table.time')}</th>
+web/components/finance/day-book.tsx:1848:                                <th className="p-6"><Hash className="w-3 h-3 inline mr-1" /> {t('daybook.table.ref')}</th>
+web/components/finance/day-book.tsx:1849:                                <th className="p-6">{t('daybook.table.scenario')}</th>
+web/components/finance/day-book.tsx:1850:                                <th className="p-6"><Tag className="w-3 h-3 inline mr-1" /> {t('daybook.table.type')}</th>
+web/components/finance/day-book.tsx:1871:                                            <p className="font-black uppercase tracking-[0.3em] text-sm">{t('daybook.no_transactions')}</p>
+web/components/finance/day-book.tsx:1939:                                                                {e.status === 'reversed' && <span className="text-rose-500 mr-2 uppercase text-[10px] bg-rose-50 px-2 py-0.5 rounded-sm inline-block no-underline align-middle mb-1">{t('daybook.labels.reversed')}</span>}
+web/components/finance/day-book.tsx:1948:                                                                <span>{e.contact?.name || e.account?.name || t('daybook.descriptions.unknown')}</span>
+web/components/finance/day-book.tsx:1956:                                                                {(e.displayDescription || e.description || e.voucher?.narration || t('daybook.descriptions.no_description')).replace(/(\d+)\.0+(?=\s|[A-Za-z]|$)/g, '$1')}
+web/components/finance/day-book.tsx:1992:                                                                <span>{t('common.currency_symbol')}{(e.displayDebit).toLocaleString()}</span>
+web/components/finance/day-book.tsx:2008:                                                                <span>{t('common.currency_symbol')}{(e.displayCredit).toLocaleString()}</span>
+web/components/finance/day-book.tsx:2026:                                    <td colSpan={4} className="p-6 pl-8 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">{t('daybook.total_volume_for')} {format(date, 'PPP')}</td>
+web/components/finance/day-book.tsx:2030:                                            <span>{t('common.currency_symbol')}{totalDebit.toLocaleString()}</span>
+web/components/finance/day-book.tsx:2036:                                            <span>{t('common.currency_symbol')}{totalCredit.toLocaleString()}</span>
+web/components/finance/day-book.tsx:2051:                                            {Math.abs(summary.rawDebit - summary.rawCredit) < 1 ? '✓ Balanced' : `⚠️ Off by ${t('common.currency_symbol')}${Math.round(Math.abs(summary.rawDebit - summary.rawCredit)).toLocaleString()}`}
+web/components/finance/day-book.tsx:2055:                                        {t('common.currency_symbol')}{Math.round(summary.rawDebit).toLocaleString()}
+web/components/finance/day-book.tsx:2058:                                        {t('common.currency_symbol')}{Math.round(summary.rawCredit).toLocaleString()}
+web/components/sales-orders/sales-orders-table.tsx:68:        return <div className="p-12 text-center text-gray-500 animate-pulse">{t('common.loading') || 'Loading orders...'}</div>;
+web/components/sales-orders/sales-orders-table.tsx:79:                                {t('sales_orders.order_no') || 'Order No'} <ArrowUpDown className="inline w-3 h-3 ml-1 opacity-50" />
+web/components/sales-orders/sales-orders-table.tsx:82:                                {t('sales_orders.date') || 'Date'}
+web/components/sales-orders/sales-orders-table.tsx:85:                                {t('sales_orders.buyer') || 'Buyer'}
+web/components/sales-orders/sales-orders-table.tsx:88:                                {t('sales_orders.amount') || 'Amount'}
+web/components/sales-orders/sales-orders-table.tsx:90:                            <th className="py-5 text-center w-[160px] text-black font-black uppercase tracking-widest text-xs">{t('sales_orders.status') || 'Status'}</th>
+web/components/sales-orders/sales-orders-table.tsx:91:                            <th className="py-5 text-right pr-6 text-black font-black uppercase tracking-widest text-xs">{t('sales.actions') || 'Actions'}</th>
+web/components/sales-orders/sales-orders-table.tsx:98:                                    {t('sales_orders.no_records') || 'No sales orders found.'}
+web/components/sales-orders/sales-orders-table.tsx:161:                                                <DropdownMenuLabel className="uppercase text-[10px] tracking-widest text-slate-400 px-2 py-1.5">{t('sales_orders.actions') || 'Actions'}</DropdownMenuLabel>
+web/components/credit-notes/credit-notes-table.tsx:35:        return <div className="p-12 text-center text-gray-500 animate-pulse">{t('common.loading') || 'Loading...'}</div>;
+web/components/billing/share-invoice-whatsapp.tsx:98:                    {isLoading ? 'Generating...' : t('common.share')}
+web/components/billing/share-invoice-whatsapp.tsx:115:                            : t('common.share')}
+web/components/billing/download-invoice-button.tsx:49:                {isGenerating ? t('common.loading') : t('common.download')}
+web/components/billing/smart-share-button.tsx:123:                {isLoading ? t('common.loading') : t('common.share')}
+web/components/billing/smart-share-button.tsx:143:                            : t('common.loading'))
+web/components/billing/smart-share-button.tsx:144:                        : t('common.share')}

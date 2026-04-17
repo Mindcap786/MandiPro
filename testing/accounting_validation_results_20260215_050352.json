@@ -1,0 +1,45 @@
+{
+  "timestamp": "2026-02-15T05:03:51.106069",
+  "tests": [
+    {
+      "test": "Ledger Balance Integrity",
+      "status": "FAIL",
+      "details": "Unable to fetch data",
+      "timestamp": "2026-02-15T05:03:51.537251"
+    },
+    {
+      "test": "Double-Entry Validation",
+      "status": "FAIL",
+      "details": "Unable to fetch ledger",
+      "timestamp": "2026-02-15T05:03:51.705451"
+    },
+    {
+      "test": "Orphan Entry Detection",
+      "status": "PASS",
+      "details": "No ledger entries with vouchers",
+      "timestamp": "2026-02-15T05:03:52.049739"
+    },
+    {
+      "test": "Negative Balance Check",
+      "status": "FAIL",
+      "details": "Unable to fetch data",
+      "timestamp": "2026-02-15T05:03:52.558006"
+    },
+    {
+      "test": "Duplicate Invoice Check",
+      "status": "PASS",
+      "details": "No sales data",
+      "timestamp": "2026-02-15T05:03:52.751431"
+    }
+  ],
+  "issues_found": [],
+  "summary": {
+    "total_tests": 5,
+    "passed": 2,
+    "failed": 3,
+    "pass_rate": 40.0,
+    "total_issues": 0,
+    "high_severity": 0,
+    "medium_severity": 0
+  }
+}

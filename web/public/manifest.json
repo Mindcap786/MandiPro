@@ -1,0 +1,38 @@
+{
+    "name": "MandiGrow — Mandi ERP for Fruits & Vegetable Traders",
+    "short_name": "MandiGrow",
+    "description": "India's #1 mandi ERP software for fruits and vegetable merchants. GST billing, mandi khata, commission, stock and reports — in Hindi and English.",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#050510",
+    "theme_color": "#39FF14",
+    "orientation": "portrait",
+    "icons": [
+        {
+            "src": "/icons/icon.svg",
+            "sizes": "192x192",
+            "type": "image/svg+xml"
+        },
+        {
+            "src": "/icons/icon.svg",
+            "sizes": "512x512",
+            "type": "image/svg+xml"
+        }
+    ],
+    "screenshots": [],
+    "shortcuts": [
+        {
+            "name": "New Sale",
+            "short_name": "Sale",
+            "description": "Create a new sale entry",
+            "url": "/sales",
+            "icons": [
+                {
+                    "src": "/icons/icon.svg",
+                    "sizes": "192x192",
+                    "type": "image/svg+xml"
+                }
+            ]
+        }
+    ]
+}
