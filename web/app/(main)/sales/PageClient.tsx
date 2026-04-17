@@ -131,20 +131,35 @@ export default function Sales() {
                 return q;
             };
 
-            const [statsRes, debtorsRes, creditorsRes] = await Promise.all([
+            // Stats + peripheral views run in parallel with the table fetch, but their
+            // failure MUST NOT hide the sales list. A single rejected promise in a
+            // Promise.all used to empty the whole page.
+            const [statsRes, debtorsRes, creditorsRes] = await Promise.allSettled([
                 buildQuery("total_amount, payment_status, market_fee, nirashrit, misc_fee, loading_charges, unloading_charges, other_expenses, buyer_id, gst_total, total_amount_inc_tax"),
                 supabase.schema("mandi").from("view_party_balances").select("*", { count: "exact", head: true }).eq("organization_id", profile.organization_id).eq("contact_type", "buyer").gt("net_balance", 0),
                 supabase.schema("mandi").from("view_party_balances").select("*", { count: "exact", head: true }).eq("organization_id", profile.organization_id).eq("contact_type", "buyer").lt("net_balance", 0),
             ]);
 
-            const statsData = statsRes.data;
-            setActiveDebtorsCount(debtorsRes.count || 0);
-            setActiveCreditorsCount(creditorsRes.count || 0);
+            const statsData = statsRes.status === "fulfilled" ? (statsRes.value as any).data : [];
+            if (statsRes.status === "rejected") console.warn("[sales] stats query failed:", statsRes.reason);
+            const debtorsCount = debtorsRes.status === "fulfilled" ? (((debtorsRes.value as unknown) as { count: number | null }).count || 0) : 0;
+            const creditorsCount = creditorsRes.status === "fulfilled" ? (((creditorsRes.value as unknown) as { count: number | null }).count || 0) : 0;
+            if (debtorsRes.status === "rejected") console.warn("[sales] debtors view failed:", debtorsRes.reason);
+            if (creditorsRes.status === "rejected") console.warn("[sales] creditors view failed:", creditorsRes.reason);
+
+            setActiveDebtorsCount(debtorsCount);
+            setActiveCreditorsCount(creditorsCount);
             setTotalRevenue(calculateGrossRevenue((statsData as any) || []));
             setTotalCount(statsData?.length || 0);
 
             const startIdx = (page - 1) * pageSize;
-            let tableQuery = buildQuery("*, contact:contacts!sales_buyer_id_fkey(id, name), sale_items(id, sale_id, lot_id, quantity, rate, total_price, qty, amount, unit, item_id, gst_rate, tax_amount, hsn_code, lot:lots(lot_code, arrival_type, supplier_rate, commission_percent, grade, variety, item:commodities(name))), sale_adjustments(id), vouchers(amount, discount_amount, type, cheque_status, is_cleared, payment_mode)", { count: "exact" }).order("created_at", { ascending: false });
+            // Slim default select: only what SalesTable actually renders. The heavy
+            // sale_items / vouchers / sale_adjustments joins are re-fetched lazily
+            // on the invoice detail screen, which is where they belong.
+            let tableQuery = buildQuery(
+                "id, sale_date, bill_no, contact_bill_no, invoice_no, status, payment_status, payment_mode, subtotal, discount_amount, gst_amount, total_amount, paid_amount, balance_due, due_date, buyer_id, organization_id, created_at, contact:contacts!sales_buyer_id_fkey(id, name, phone)",
+                { count: "exact" }
+            ).order("created_at", { ascending: false });
 
             if (debouncedSearch) {
                 const { data: matchingBuyers } = await supabase.schema("mandi").from("contacts").select("id").eq("organization_id", profile.organization_id).ilike("name", `%${debouncedSearch}%`);

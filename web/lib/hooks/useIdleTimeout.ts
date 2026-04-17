@@ -54,6 +54,19 @@ export function useIdleTimeout({
     const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null)
     const warningActiveRef = useRef(false)
 
+    // Ref-latched callbacks so the effect below depends only on primitives.
+    // Without this, callers passing inline arrow functions (AuthProvider does)
+    // would rebuild resetTimer on every render, which tore down and restarted
+    // the timer every time — meaning the 10-minute idle window effectively
+    // never elapsed, and the 1-second countdown state update inside onWarning
+    // killed its own interval. See ROOT_CAUSE_REPORT (CRITICAL #5).
+    const onTimeoutRef = useRef(onTimeout)
+    const onWarningRef = useRef(onWarning)
+    const onResetRef = useRef(onReset)
+    useEffect(() => { onTimeoutRef.current = onTimeout }, [onTimeout])
+    useEffect(() => { onWarningRef.current = onWarning }, [onWarning])
+    useEffect(() => { onResetRef.current = onReset }, [onReset])
+
     const clearAll = useCallback(() => {
         if (timeoutRef.current) clearTimeout(timeoutRef.current)
         if (warningTimeoutRef.current) clearTimeout(warningTimeoutRef.current)
@@ -63,45 +76,6 @@ export function useIdleTimeout({
         countdownRef.current = null
     }, [])
 
-    const startCountdown = useCallback((secondsLeft: number) => {
-        onWarning(secondsLeft)
-        let remaining = secondsLeft
-        countdownRef.current = setInterval(() => {
-            remaining -= 1
-            if (remaining <= 0) {
-                if (countdownRef.current) clearInterval(countdownRef.current)
-                return
-            }
-            onWarning(remaining)
-        }, 1000)
-    }, [onWarning])
-
-    const resetTimer = useCallback(() => {
-        if (!enabled) return
-
-        clearAll()
-
-        // If we were in warning state, notify the caller so the UI can dismiss the warning
-        if (warningActiveRef.current) {
-            warningActiveRef.current = false
-            onReset()
-        }
-
-        // Schedule the warning (fires idleMs - warningMs after last activity)
-        const warningDelay = idleMs - warningMs
-        warningTimeoutRef.current = setTimeout(() => {
-            warningActiveRef.current = true
-            startCountdown(Math.ceil(warningMs / 1000))
-        }, warningDelay)
-
-        // Schedule the actual logout (fires idleMs after last activity)
-        timeoutRef.current = setTimeout(() => {
-            clearAll()
-            warningActiveRef.current = false
-            onTimeout()
-        }, idleMs)
-    }, [enabled, idleMs, warningMs, clearAll, startCountdown, onTimeout, onReset])
-
     useEffect(() => {
         if (!enabled) {
             clearAll()
@@ -109,10 +83,43 @@ export function useIdleTimeout({
             return
         }
 
+        const startCountdown = (secondsLeft: number) => {
+            onWarningRef.current(secondsLeft)
+            let remaining = secondsLeft
+            countdownRef.current = setInterval(() => {
+                remaining -= 1
+                if (remaining <= 0) {
+                    if (countdownRef.current) clearInterval(countdownRef.current)
+                    return
+                }
+                onWarningRef.current(remaining)
+            }, 1000)
+        }
+
+        const resetTimer = () => {
+            clearAll()
+
+            if (warningActiveRef.current) {
+                warningActiveRef.current = false
+                onResetRef.current()
+            }
+
+            const warningDelay = idleMs - warningMs
+            warningTimeoutRef.current = setTimeout(() => {
+                warningActiveRef.current = true
+                startCountdown(Math.ceil(warningMs / 1000))
+            }, warningDelay)
+
+            timeoutRef.current = setTimeout(() => {
+                clearAll()
+                warningActiveRef.current = false
+                onTimeoutRef.current()
+            }, idleMs)
+        }
+
         // Start the timer immediately on mount / when enabled becomes true
         resetTimer()
 
-        // Attach all activity listeners to the document
         const handleActivity = () => resetTimer()
 
         ACTIVITY_EVENTS.forEach(event => {
@@ -125,5 +132,5 @@ export function useIdleTimeout({
             })
             clearAll()
         }
-    }, [enabled, resetTimer, clearAll])
+    }, [enabled, idleMs, warningMs, clearAll])
 }
