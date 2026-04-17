@@ -172,22 +172,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     console.warn("[Auth] Direct profile lookup timed out:", directTimeoutErr.message);
                 }
 
-                // If direct lookup fails and this is first retry, try metadata healing ONCE
-                if (!isRetry) {
-                    try {
-                        const { data: { user } } = await supabase.auth.getUser();
-                        const metadataOrg = user?.user_metadata?.organization_id;
-
-                        if (metadataOrg) {
-                            console.log("[Auth] Auto-healing link from Admin Metadata:", metadataOrg);
-                            // Don't try to auto-create profile - this causes lock contention
-                            // Let onboarding flow handle new profile creation properly
-                            console.log("[Auth] Profile not found - user will need to complete setup");
-                        }
-                    } catch (healErr: any) {
-                        console.warn("[Auth] Metadata check skipped:", healErr.message);
-                    }
-                }
+                // If direct lookup fails, user simply doesn't have a profile yet
+                // This is OK - they'll go through onboarding to create one
+                console.log("[Auth] Profile not found - user will complete onboarding setup");
+                return null;
 
                 // Give up on aggressive fallbacks after one retry - they're too expensive
                 setProfileNotFound(true);
