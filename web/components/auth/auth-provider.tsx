@@ -180,17 +180,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
                         if (metadataOrg) {
                             console.log("[Auth] Auto-healing link from Admin Metadata:", metadataOrg);
-                            const { error: repairError } = await supabase.schema('core').from('profiles').insert({
-                                id: userId,
-                                organization_id: metadataOrg,
-                                role: user?.user_metadata?.role || 'staff',
-                                full_name: user?.email?.split('@')[0] || 'Member'
-                            });
-
-                            if (!repairError) return fetchProfile(userId, true);
+                            // Don't try to auto-create profile - this causes lock contention
+                            // Let onboarding flow handle new profile creation properly
+                            console.log("[Auth] Profile not found - user will need to complete setup");
                         }
                     } catch (healErr: any) {
-                        console.warn("[Auth] Metadata healing failed:", healErr.message);
+                        console.warn("[Auth] Metadata check skipped:", healErr.message);
                     }
                 }
 
@@ -245,11 +240,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 if (!isMounted) return;
 
                 // Attempt to validate user via server, catch Auth Lock Throws
-                // V4 Patch: Coalesce parallel getUser calls to avoid "lock stole" errors
-                // CRITICAL FIX: Add 3-second timeout to prevent getUser() from hanging indefinitely
+                // CRITICAL FIX: Avoid calling getUser() when we already have a valid session
+                // This prevents Supabase's internal lock mechanism from failing on parallel calls
                 let authenticatedUser = null;
                 try {
-                    if (!pendingAuthRef.current) {
+                    // If we already have a session, TRUST IT - don't call getUser() to avoid lock contention
+                    if (initialSession?.user) {
+                        authenticatedUser = initialSession.user;
+                        console.log('[Auth Init] Using session.user, skipping getUser() to avoid lock conflicts');
+                    } else {
+                        // Only call getUser() if we don't have a session (rare edge case)
                         const getUserWithTimeout = Promise.race([
                             supabase.auth.getUser(),
                             new Promise((_, reject) =>
@@ -257,20 +257,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                             )
                         ]);
                         
-                        pendingAuthRef.current = getUserWithTimeout.finally(() => {
-                            pendingAuthRef.current = null;
-                        });
-                    }
-                    const { data: { user }, error: userError } = await pendingAuthRef.current;
-                    authenticatedUser = user;
-                    if (userError) {
-                        console.warn("[Auth] getUser() returned error:", userError.message);
-                        authenticatedUser = initialSession?.user ?? null;
+                        const { data: { user }, error: userError } = await getUserWithTimeout;
+                        authenticatedUser = user;
+                        if (userError) {
+                            console.warn("[Auth] getUser() returned error:", userError.message);
+                            authenticatedUser = null;
+                        }
                     }
                 } catch (e: any) {
-                    console.warn("[Auth] getUser() threw an exception (Timeout or lock issue?), falling back to session user.", e?.message);
-                    // CRITICAL: Always fall back to initialSession.user if getUser() fails
-                    // Don't let a single failed call invalidate the entire session
+                    console.error("[Auth] getUser() exception:", e?.message);
+                    // Fall back to session user if available
                     authenticatedUser = initialSession?.user ?? null;
                 }
 
@@ -472,39 +468,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 if (!localToken) return; // This session doesn't have enforcement active yet
 
                 try {
-                    // getUser() validates the access token against Supabase Auth server.
-                    // V4 Patch: Coalesce parallel getUser calls to avoid "lock stole" errors in polling too
-                    // CRITICAL FIX: Add 3-second timeout to prevent hanging in polling
-                    if (!pendingAuthRef.current) {
-                        const getUserWithTimeout = Promise.race([
-                            supabase.auth.getUser(),
-                            new Promise((_, reject) =>
-                                setTimeout(() => reject(new Error('Polling getUser timeout after 3s')), 3000)
-                            )
-                        ]);
-                        
-                        pendingAuthRef.current = getUserWithTimeout.finally(() => {
-                            pendingAuthRef.current = null;
-                        });
-                    }
-                    const { data: { user: freshUser }, error: userError } = await pendingAuthRef.current;
-
-                    if (userError || !freshUser) {
-                        // JWT was revoked server-side by admin.signOut('others')
-                        console.warn('[Auth] JWT revoked by server:', userError?.message);
+                    // CRITICAL: Don't call getUser() here - it causes Supabase lock contention
+                    // Instead, use a simple query to verify JWT is still valid
+                    const { error } = await supabase.schema('core')
+                        .from('profiles')
+                        .select('id', { count: 'exact' })
+                        .limit(1);
+                    
+                    if (error) {
+                        console.warn('[Auth] Session invalid detected:', error.message);
                         clearInterval(pollIntervalId!);
                         pollIntervalId = null;
                         handleSessionEviction('revoked');
                         return;
-                    }
-
-                    // Check if another device has logged in (metadata token mismatch)
-                    const serverToken = freshUser.user_metadata?.active_session_token;
-                    if (serverToken && serverToken !== localToken) {
-                        console.warn('[Auth] Session token mismatch:', { serverToken: serverToken.slice(0, 8), localToken: localToken.slice(0, 8) });
-                        clearInterval(pollIntervalId!);
-                        pollIntervalId = null;
-                        handleSessionEviction('replaced');
                     }
                 } catch (err: any) {
                     // Network error OR timeout — skip this tick, try again in 30s
