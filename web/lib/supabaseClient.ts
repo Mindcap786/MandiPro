@@ -52,12 +52,14 @@ export const supabase = isNative()
             detectSessionInUrl: true,
             persistSession: true,
             autoRefreshToken: true,
-            // V4 Fix: Prevent 'lock stole' errors by using a non-blocking lock.
-            // This is safe because AuthProvider now coalesces all getUser/getSession calls.
-            lock: {
-                acquire: () => Promise.resolve({ error: null, release: () => {} }),
-                release: () => Promise.resolve()
-            } as any
+            // CRITICAL FIX: The lock option must be a FUNCTION with signature:
+            //   (name: string, acquireTimeout: number, fn: () => Promise<T>) => Promise<T>
+            // Using an object { acquire, release } is WRONG and causes:
+            //   "TypeError: this.lock is not a function" at rD._acquireLock
+            // This crashes auth init both in the browser and during Next.js SSG.
+            // The passthrough function simply runs fn() immediately (no real locking needed
+            // since AuthProvider now serializes all auth calls itself).
+            lock: async (_name: string, _acquireTimeout: number, fn: () => Promise<unknown>) => fn(),
         },
     })
 
