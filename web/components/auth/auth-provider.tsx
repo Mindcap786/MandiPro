@@ -97,7 +97,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Track the previous user so we can flush their cache when a different user signs in
     // (shared device / multi-account scenario)
-    const prevUserIdRef = { current: null as string | null };
+    const prevUserIdRef = useRef<string | null>(null);
+    const pendingAuthRef = useRef<Promise<any> | null>(null);
 
     // Idle logout warning state — shown 1 minute before auto-logout fires
     const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
@@ -208,9 +209,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 if (!isMounted) return;
 
                 // Attempt to validate user via server, catch Auth Lock Throws
+                // V4 Patch: Coalesce parallel getUser calls to avoid "lock stole" errors
                 let authenticatedUser = null;
                 try {
-                    const { data: { user }, error: userError } = await supabase.auth.getUser();
+                    if (!pendingAuthRef.current) {
+                        pendingAuthRef.current = supabase.auth.getUser().finally(() => {
+                            pendingAuthRef.current = null;
+                        });
+                    }
+                    const { data: { user }, error: userError } = await pendingAuthRef.current;
                     authenticatedUser = user;
                 } catch (e) {
                     console.warn("[Auth] getUser() threw an exception (Lock timeout?), falling back to session user.", e);
@@ -398,9 +405,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
                 try {
                     // getUser() validates the access token against Supabase Auth server.
-                    // If our refresh token was revoked by admin.signOut('others'), this
-                    // call will return an error — we catch it and sign out.
-                    const { data: { user: freshUser }, error: userError } = await supabase.auth.getUser();
+                    // V4 Patch: Coalesce parallel getUser calls to avoid "lock stole" errors in polling too
+                    if (!pendingAuthRef.current) {
+                        pendingAuthRef.current = supabase.auth.getUser().finally(() => {
+                            pendingAuthRef.current = null;
+                        });
+                    }
+                    const { data: { user: freshUser }, error: userError } = await pendingAuthRef.current;
 
                     if (userError || !freshUser) {
                         // JWT was revoked server-side by admin.signOut('others')

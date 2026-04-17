@@ -318,6 +318,22 @@ export default function ArrivalsEntryForm() {
         }
     }, [currentArrivalType, defaultCommissionRate, form]);
 
+    useEffect(() => {
+        if (profile?.organization_id) {
+            const schema = 'mandi';
+            const uniqueId = Math.random().toString(36).substring(7);
+            const subscription = supabase
+                .channel(`arrivals-realtime-${uniqueId}`)
+                .on('postgres_changes', { event: '*', schema: schema, table: 'arrivals', filter: `organization_id=eq.${profile.organization_id}` }, () => refetchMaster())
+                .subscribe();
+
+            return () => {
+                supabase.removeChannel(subscription);
+            };
+        }
+    }, [profile, refetchMaster]);
+
+
     const isSubmitting = isCreating;
 
     if (authLoading || masterLoading) {
@@ -352,20 +368,6 @@ export default function ArrivalsEntryForm() {
     if (!profile) return null;
     // ──────────────────────────────────────────────────────────────────────────
 
-    useEffect(() => {
-        if (profile?.organization_id) {
-            const schema = 'mandi';
-            const uniqueId = Math.random().toString(36).substring(7);
-            const subscription = supabase
-                .channel(`arrivals-realtime-${uniqueId}`)
-                .on('postgres_changes', { event: '*', schema: schema, table: 'arrivals', filter: `organization_id=eq.${profile.organization_id}` }, () => refetchMaster())
-                .subscribe();
-
-            return () => {
-                supabase.removeChannel(subscription);
-            };
-        }
-    }, [profile]);
 
 
     const onInvalid = (errors: any) => {
