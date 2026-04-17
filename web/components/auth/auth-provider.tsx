@@ -300,7 +300,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                             const localV = localStorage.getItem('mandi_session_v');
                             if (!localV) {
                                 localStorage.setItem('mandi_session_v', freshProfile.session_version.toString());
+                                localStorage.setItem('mandi_session_v_set_at', Date.now().toString());
+                                console.log('[Auth Init] Set session_version in localStorage:', freshProfile.session_version);
+                            } else {
+                                console.log('[Auth Init] session_version already in localStorage:', localV, 'remote:', freshProfile.session_version);
                             }
+                        } else {
+                            console.warn('[Auth Init] Profile loaded but session_version is undefined!');
                         }
                     } else if (isMounted && profileNotFound === true) {
                         // User has no profile whatsoever
@@ -430,7 +436,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const handleSessionEviction = (reason: 'replaced' | 'revoked') => {
             if (!isMounted) return;
             const isReplaced = reason === 'replaced';
-            console.warn(`[Auth] Session ${reason} — signing out.`);
+            console.error(`[Auth] *** CRITICAL: Session ${reason} — signing out. ***`, {timestamp: new Date().toISOString(), reason});
+            console.trace('[Auth] Session eviction stack trace');
             toast({
                 title: 'Signed Out',
                 description: isReplaced
@@ -502,7 +509,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 } catch (err: any) {
                     // Network error OR timeout — skip this tick, try again in 30s
                     console.warn('[Auth] Polling check error (will retry):', err?.message);
-                }
             }, 30_000); // Every 30 seconds
         };
 
@@ -533,6 +539,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (isLoggingOut) return;
         setIsLoggingOut(true);
 
+        console.error('[Auth] *** signOut() called ***', { timestamp: new Date().toISOString() });
+        console.trace('[Auth] SignOut stack trace - finding caller');
+
         // ATOMIC LOCAL CLEANUP: Execute local state wiping immediately
         // This ensures the user is "logged out" in their browser even if the network hangs.
         const cleanupLocalState = () => {
@@ -547,6 +556,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
              localStorage.removeItem('mandi_active_token');
              localStorage.removeItem('mandi_impersonation_mode');
              localStorage.removeItem('mandi_session_v');
+             localStorage.removeItem('mandi_session_v_set_at');
              
              // Clear session storage if any
              sessionStorage.clear();
@@ -658,15 +668,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         // Versioning check — Forces logout if a security bump was triggered on the backend
-        if (profile?.session_version && !isPublicPath) {
+        if (profile?.session_version !== undefined && !isPublicPath) {
              const v = localStorage.getItem('mandi_session_v');
-             const currentV = v ? parseInt(v) : 0;
-             if (currentV > 0 && currentV < profile.session_version) {
-                 console.warn(`[Auth] Session version mismatch (local:${currentV} < remote:${profile.session_version}). Logging out.`);
-                 signOut();
+             const currentV = v ? parseInt(v, 10) : 0;
+             const remoteV = profile.session_version || 0;
+             
+             // DIAGNOSTIC: Log the comparison
+             console.log('[Auth] Version Check:', { localV: v, currentV, remoteV, hasProfile: !!profile, pathname });
+             
+             // CRITICAL FIX: Only trigger logout if there's a CONFIRMED version bump
+             // AND at least 5 seconds have passed since initialization (to prevent race conditions)
+             if (currentV > 0 && currentV < remoteV) {
+                 // This is only a logout trigger if we're SURE this is a real security bump
+                 // Check: has localStorage been populated for at least 1 second?
+                 const cachedAt = localStorage.getItem('mandi_session_v_set_at');
+                 const now = Date.now();
+                 
+                 if (cachedAt) {
+                    const timeSinceSet = now - parseInt(cachedAt, 10);
+                    console.warn(`[Auth] Session version mismatch (local:${currentV} < remote:${remoteV}). Time since set: ${timeSinceSet}ms`);
+                    
+                    // Only logout if enough time has passed (prevents race condition on initial load)
+                    if (timeSinceSet > 2000) {
+                        console.warn(`[Auth] CONFIRMED version mismatch - logging out after ${timeSinceSet}ms`);
+                        signOut();
+                    } else {
+                        console.log(`[Auth] Version mismatch detected but too soon - likely race condition. Skipping logout.`);
+                    }
+                 }
              } else if (!v && profile.session_version) {
                  // No local version found but remote has one - initialize it instead of logging out
                  localStorage.setItem('mandi_session_v', profile.session_version.toString());
+                 localStorage.setItem('mandi_session_v_set_at', Date.now().toString());
+                 console.log('[Auth] Initialized session_version in localStorage:', profile.session_version);
              }
         }
     }, [loading, session, profile, pathname, router, isPublicPath]);
