@@ -246,29 +246,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
                 // Attempt to validate user via server, catch Auth Lock Throws
                 // V4 Patch: Coalesce parallel getUser calls to avoid "lock stole" errors
+                // CRITICAL FIX: Add 3-second timeout to prevent getUser() from hanging indefinitely
                 let authenticatedUser = null;
                 try {
                     if (!pendingAuthRef.current) {
-                        pendingAuthRef.current = supabase.auth.getUser().finally(() => {
+                        const getUserWithTimeout = Promise.race([
+                            supabase.auth.getUser(),
+                            new Promise((_, reject) =>
+                                setTimeout(() => reject(new Error('getUser timeout after 3s')), 3000)
+                            )
+                        ]);
+                        
+                        pendingAuthRef.current = getUserWithTimeout.finally(() => {
                             pendingAuthRef.current = null;
                         });
                     }
                     const { data: { user }, error: userError } = await pendingAuthRef.current;
                     authenticatedUser = user;
-                } catch (e) {
-                    console.warn("[Auth] getUser() threw an exception (Lock timeout?), falling back to session user.", e);
+                    if (userError) {
+                        console.warn("[Auth] getUser() returned error:", userError.message);
+                        authenticatedUser = initialSession?.user ?? null;
+                    }
+                } catch (e: any) {
+                    console.warn("[Auth] getUser() threw an exception (Timeout or lock issue?), falling back to session user.", e?.message);
+                    // CRITICAL: Always fall back to initialSession.user if getUser() fails
+                    // Don't let a single failed call invalidate the entire session
                     authenticatedUser = initialSession?.user ?? null;
                 }
 
                 setSession(initialSession);
                 setUser(authenticatedUser);
 
-                if (authenticatedUser) {
+                if (authenticatedUser || (initialSession && initialSession.user)) {
+                    // Use whichever is available - prefer authenticatedUser, fall back to initialSession.user
+                    const actualUser = authenticatedUser || initialSession?.user;
+                    if (!actualUser) {
+                        // Safety check (shouldn't reach here due to condition above)
+                        setProfile(null);
+                        return;
+                    }
+                    
                     // Bind the active user to the cache module so all reads/writes are user-scoped
-                    setActiveCacheUser(authenticatedUser.id);
-                    prevUserIdRef.current = authenticatedUser.id;
+                    setActiveCacheUser(actualUser.id);
+                    prevUserIdRef.current = actualUser.id;
 
-                    const freshProfile = await fetchProfile(authenticatedUser.id);
+                    const freshProfile = await fetchProfile(actualUser.id);
                     if (isMounted && freshProfile) {
                         const profileToCache = { ...freshProfile, _fetchedAt: Date.now() };
                         setProfile(profileToCache);
@@ -445,8 +467,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 try {
                     // getUser() validates the access token against Supabase Auth server.
                     // V4 Patch: Coalesce parallel getUser calls to avoid "lock stole" errors in polling too
+                    // CRITICAL FIX: Add 3-second timeout to prevent hanging in polling
                     if (!pendingAuthRef.current) {
-                        pendingAuthRef.current = supabase.auth.getUser().finally(() => {
+                        const getUserWithTimeout = Promise.race([
+                            supabase.auth.getUser(),
+                            new Promise((_, reject) =>
+                                setTimeout(() => reject(new Error('Polling getUser timeout after 3s')), 3000)
+                            )
+                        ]);
+                        
+                        pendingAuthRef.current = getUserWithTimeout.finally(() => {
                             pendingAuthRef.current = null;
                         });
                     }
@@ -469,8 +499,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         pollIntervalId = null;
                         handleSessionEviction('replaced');
                     }
-                } catch {
-                    // Network error — skip this tick, try again in 30s
+                } catch (err: any) {
+                    // Network error OR timeout — skip this tick, try again in 30s
+                    console.warn('[Auth] Polling check error (will retry):', err?.message);
                 }
             }, 30_000); // Every 30 seconds
         };
