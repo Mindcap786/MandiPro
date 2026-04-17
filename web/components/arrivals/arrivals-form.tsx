@@ -778,7 +778,7 @@ export default function ArrivalsEntryForm() {
                                                             className="h-10 text-slate-900 font-semibold bg-white border-slate-300"
                                                         />
                                                     </div>
-                                                    <ContactDialog onSuccess={fetchMasterData}>
+                                                    <ContactDialog onSuccess={refetchMaster}>
                                                         <Button type="button" size="icon" className="h-10 w-10 rounded-lg bg-slate-900 text-white hover:bg-blue-600 transition-all shadow-sm">
                                                             <Plus className="w-4 h-4" />
                                                         </Button>
@@ -1116,7 +1116,7 @@ export default function ArrivalsEntryForm() {
                                                                 <FormItem>
                                                                     <div className="flex items-center justify-between mb-1">
                                                                         <FormLabel className="text-[10px] font-bold text-slate-700 uppercase tracking-wide">{getLabel('item_id', 'Commodity')}</FormLabel>
-                                                                        <ItemDialog onSuccess={fetchMasterData}>
+                                                                        <ItemDialog onSuccess={refetchMaster}>
                                                                             <Button type="button" variant="link" className="h-auto p-0 text-blue-600 text-[9px] font-bold uppercase tracking-widest hover:text-blue-800 transition-colors">
                                                                                 + ADD
                                                                             </Button>

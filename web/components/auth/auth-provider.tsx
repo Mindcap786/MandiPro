@@ -239,7 +239,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         localStorage.setItem('mandi_profile_cache', JSON.stringify(profileToCache));
                         localStorage.setItem('mandi_profile_cache_org_id', freshProfile.organization_id);
                         if (freshProfile.session_version) {
-                            localStorage.setItem('mandi_session_v', freshProfile.session_version.toString());
+                            const localV = localStorage.getItem('mandi_session_v');
+                            if (!localV) {
+                                localStorage.setItem('mandi_session_v', freshProfile.session_version.toString());
+                            }
                         }
                     } else if (isMounted && profileNotFound === true) {
                         // User has no profile whatsoever
