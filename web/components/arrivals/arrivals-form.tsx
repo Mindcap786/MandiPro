@@ -139,11 +139,18 @@ export default function ArrivalsEntryForm() {
     // QR Code State
 
     const [arrivalType, setArrivalType] = useState<"direct" | "commission" | "commission_supplier">("direct");
+    const [showUnlock, setShowUnlock] = useState(false);
+    
     const { isVisible, isMandatory, getLabel, getDefaultValue } = useFieldGovernance(
         arrivalType === 'direct' ? 'arrivals_direct' :
             arrivalType === 'commission' ? 'arrivals_farmer' :
                 'arrivals_supplier'
     );
+
+    useEffect(() => {
+        const timer = setTimeout(() => setShowUnlock(true), 5000);
+        return () => clearTimeout(timer);
+    }, []);
     const [showPreview, setShowPreview] = useState(false);
     const [search, setSearch] = useState("");
     const [openFarmer, setOpenFarmer] = useState(false);
