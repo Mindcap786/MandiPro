@@ -4,8 +4,8 @@ import { cookies } from 'next/headers'
 import { Truck } from 'lucide-react'
 
 // Since this is a server component, we can fetch data directly (in Next.js App Router)
-// For static export (Capacitor), this must be force-static.
-export const dynamic = 'force-static'
+// For static export (Capacitor), this would be force-static, but for Web (with auth) it MUST be force-dynamic
+export const dynamic = 'force-dynamic'
 
 async function getGateEntries() {
     const cookieStore = cookies()
