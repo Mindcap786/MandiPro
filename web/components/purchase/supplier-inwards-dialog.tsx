@@ -118,6 +118,11 @@ export function SupplierInwardsDialog({ supplier, isOpen, onClose, onEditLot, on
             // Balance to pay = total amount - what's already paid via advance
             const balanceToPay = totalAmount - totalAdvance;
 
+            // Log for debugging if needed
+            if (balanceToPay > AMOUNT_EPSILON) {
+                console.log(`Bill ${group.bill_no} has balance: ${balanceToPay} (Total: ${totalAmount}, Paid: ${totalAdvance})`);
+            }
+
             if (Math.abs(balanceToPay) < AMOUNT_EPSILON) {
                 // Balance essentially zero -> PAID
                 group.paymentStatus = 'paid';

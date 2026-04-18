@@ -349,7 +349,7 @@ function NewSaleForm() {
                 supabase.schema('core').from('organizations').select('name, settings').eq('id', orgId).single(),
                 supabase.schema('mandi').from('commodities').select('id, name, local_name, sku_code, custom_attributes, gst_rate').eq('organization_id', orgId),
                 supabase.schema('mandi').from('accounts').select('*').eq('organization_id', orgId),
-                supabase.schema('mandi').from('lots').select('*, contact:contacts(name)').eq('organization_id', orgId).gt('current_qty', 0).eq('status', 'active'),
+                supabase.schema('mandi').from('lots').select('*, contact:contacts(name)').eq('organization_id', orgId).gt('current_qty', 0).in('status', ['active', 'available']),
                 supabase.schema('mandi').from('mandi_settings' as any).select('market_fee_percent, nirashrit_percent, misc_fee_percent, default_credit_days, state_code, gst_enabled, gst_type, cgst_percent, sgst_percent, igst_percent').eq('organization_id', orgId).maybeSingle()
             ]);
 

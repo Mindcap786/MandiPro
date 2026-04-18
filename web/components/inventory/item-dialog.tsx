@@ -210,29 +210,6 @@ export function ItemDialog({ children, onSuccess, initialItem }: ItemDialogProps
         }
     }
 
-    const onSubmit = async (data: any) => {
-        if (idConflict) {
-            toast({
-                title: "ID Allocation Error",
-                description: idConflict,
-                variant: "destructive"
-            })
-            return
-        }
-        // [Existing onSubmit logic...]
-            .schema('mandi')
-            .from('commodities')
-            .select('name')
-            .eq('organization_id', profile.organization_id)
-            .eq('internal_id', id)
-            .maybeSingle()
-        
-        if (data && data.name !== form.getValues('name')) {
-            setIdConflict(`This ID is already allocated to ${data.name}. Please use a different ID.`)
-        } else {
-            setIdConflict(null)
-        }
-    }
 
     // Reset form when dialog opens/closes or initialItem changes
     useEffect(() => {

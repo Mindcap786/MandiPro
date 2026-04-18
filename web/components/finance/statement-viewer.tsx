@@ -194,7 +194,16 @@ export default function StatementViewer({ contactId, contactName, contactType, o
             }).abortSignal(signal);
 
             if (signal.aborted) return;
-            if (error) throw error;
+            
+            if (error) {
+                console.error("RPC Error (get_ledger_statement):", error);
+                toast({
+                    title: "Ledger Loading Failed",
+                    description: error.message || "Failed to retrieve transactions from database.",
+                    variant: "destructive"
+                });
+                throw error;
+            }
 
             if (rpcData && Array.isArray(rpcData.transactions)) {
                 let transactions = [...rpcData.transactions];
