@@ -1,5 +1,4 @@
-'use client'
-
+import { useEffect, useState } from 'react'
 import {
     Area,
     AreaChart,
@@ -14,6 +13,11 @@ interface SalesChartProps {
 }
 
 export function SalesChart({ data }: SalesChartProps) {
+    const [mounted, setMounted] = useState(false)
+    useEffect(() => { setMounted(true) }, [])
+
+    if (!mounted) return <div className="h-[300px] w-full bg-slate-50/50 animate-pulse rounded-xl" />
+
     if (!data || data.length === 0) {
         return <div className="text-slate-400 font-bold text-center py-10 uppercase text-xs tracking-widest">No sales data available.</div>
     }

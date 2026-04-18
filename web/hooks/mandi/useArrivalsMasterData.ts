@@ -14,7 +14,8 @@ import { useState, useEffect, useCallback } from "react"
 import { supabase } from "@/lib/supabaseClient"
 import { cacheGet, cacheSet, cacheIsStale } from "@/lib/data-cache"
 
-const CACHE_KEY = 'arrivals_form_master'
+const CACHE_KEY = 'arrivals_form_master_v2'
+const CACHE_TTL = 1000 * 60 * 15 // 15 minutes cache
 const SCHEMA = 'mandi'
 
 export interface ArrivalContact {
@@ -143,7 +144,13 @@ export function useArrivalsMasterData(organizationId: string | undefined): Arriv
     }
   }, [organizationId])
 
-  useEffect(() => { fetch() }, [fetch])
+  useEffect(() => { 
+    fetch() 
+    
+    // Auto-refresh every 10 minutes if the tab stays open
+    const interval = setInterval(fetch, 1000 * 60 * 10)
+    return () => clearInterval(interval)
+  }, [fetch])
 
   return {
     contacts, commodities, storageLocations, bankAccounts,

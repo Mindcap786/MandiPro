@@ -180,11 +180,12 @@ BEGIN
     FOR v_lot IN SELECT value FROM jsonb_array_elements(p_arrival->'items')
     LOOP
         INSERT INTO mandi.lots (
-            organization_id, arrival_id, item_id, supplier_id,
-            initial_qty, current_qty, unit, supplier_rate,
+            organization_id, arrival_id, item_id, contact_id,
+            lot_code, initial_qty, current_qty, unit, supplier_rate,
             commission_percent, status, created_by
         ) VALUES (
             v_organization_id, v_arrival_id, (v_lot.value->>'item_id')::UUID, v_party_id,
+            COALESCE(v_lot.value->>'lot_code', 'LOT-' || COALESCE(p_arrival->>'reference_no', '') || '-' || substr(gen_random_uuid()::text, 1, 4)),
             (v_lot.value->>'qty')::NUMERIC, (v_lot.value->>'qty')::NUMERIC, COALESCE(v_lot.value->>'unit', 'Box'), 
             COALESCE((v_lot.value->>'supplier_rate')::NUMERIC, 0),
             COALESCE((v_lot.value->>'commission_percent')::NUMERIC, 0), 'Available', p_created_by

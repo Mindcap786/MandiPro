@@ -46,6 +46,34 @@ export default function ContactsPage() {
         if (profile?.organization_id) fetchContacts()
     }, [profile])
 
+    // ──────────────────────────────────────────────────────────────────────────
+    // REALTIME: Instant updates when contacts are added/changed
+    // ──────────────────────────────────────────────────────────────────────────
+    useEffect(() => {
+        if (!profile?.organization_id) return
+
+        const channel = supabase
+            .channel('contacts-realtime')
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: schema,
+                    table: 'contacts',
+                    filter: `organization_id=eq.${profile.organization_id}`
+                },
+                () => {
+                    console.log("Realtime update: Refetching contacts...")
+                    fetchContacts()
+                }
+            )
+            .subscribe()
+
+        return () => {
+            supabase.removeChannel(channel)
+        }
+    }, [profile?.organization_id])
+
     const fetchContacts = async () => {
         if (!profile?.organization_id) return
         setLoading(true)
@@ -58,9 +86,21 @@ export default function ContactsPage() {
     const toggleStatus = async (id: string, currentStatus: string) => {
         setIsUpdating(id)
         const newStatus = currentStatus === 'inactive' ? 'active' : 'inactive'
+        
+        // Optimistic Update
+        const previousContacts = [...contacts]
+        setContacts(prev => prev.map(c => c.id === id ? { ...c, status: newStatus } : c))
+
         const { error } = await supabase.schema(schema).from('contacts').update({ status: newStatus }).eq('id', id)
-        if (error) { toast.error("Error updating status"); console.error("Error updating status:", error) }
-        else fetchContacts()
+        
+        if (error) { 
+            toast.error("Error updating status")
+            console.error("Error updating status:", error)
+            setContacts(previousContacts) // Rollback
+        } else {
+            // Realtime will handle the refetch, but we can verify here if needed
+            toast.success(`Status updated to ${newStatus}`)
+        }
         setIsUpdating(null)
     }
 

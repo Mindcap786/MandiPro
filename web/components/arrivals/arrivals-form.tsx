@@ -157,7 +157,7 @@ export default function ArrivalsEntryForm() {
     );
 
     useEffect(() => {
-        const timer = setTimeout(() => setShowUnlock(true), 5000);
+        const timer = setTimeout(() => setShowUnlock(true), 12000);
         return () => clearTimeout(timer);
     }, []);
     const [showPreview, setShowPreview] = useState(false);
