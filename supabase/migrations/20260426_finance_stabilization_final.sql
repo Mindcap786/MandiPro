@@ -9,18 +9,10 @@ BEGIN;
 -- ----------------------------------------------------------------------------
 -- 1. BASE GRANTS (The "Zero Balance" Fix)
 --    The dashboard queries views like v_arrivals_fast and view_party_balances.
---    In Supabase, for a view to work with RLS on underlying tables, the caller
---    MUST have SELECT permissions on those base tables.
+--    We grant access to all tables in mandi to ensure reporting works.
 -- ----------------------------------------------------------------------------
-DO $$
-DECLARE
-    tbl text;
-BEGIN
-    FOR tbl IN ARRAY ARRAY['ledger_entries', 'vouchers', 'accounts', 'contacts', 'commodities', 'lots', 'sale_items', 'arrival_items']
-    LOOP
-        EXECUTE format('GRANT SELECT ON mandi.%I TO authenticated, anon', tbl);
-    END LOOP;
-END $$;
+GRANT SELECT ON ALL TABLES IN SCHEMA mandi TO authenticated, anon;
+ALTER DEFAULT PRIVILEGES IN SCHEMA mandi GRANT SELECT ON TABLES TO authenticated, anon;
 
 -- ----------------------------------------------------------------------------
 -- 2. REBUILD: get_financial_summary (The "Spinner" & "Accuracy" Fix)
@@ -154,13 +146,13 @@ BEGIN
                 WHEN le.transaction_type = 'arrival' OR le.transaction_type = 'purchase' THEN
                     (SELECT jsonb_agg(jsonb_build_object(
                         'name', c.name,
-                        'qty', ai.qty,
-                        'unit', ai.unit,
-                        'rate', ai.rate,
-                        'amount', (ai.qty * ai.rate)
-                    )) FROM mandi.arrival_items ai
-                      JOIN mandi.commodities c ON c.id = ai.commodity_id
-                     WHERE ai.arrival_id = le.reference_id)
+                        'qty', l.initial_qty,
+                        'unit', l.unit,
+                        'rate', l.supplier_rate,
+                        'amount', (l.initial_qty * l.supplier_rate)
+                    )) FROM mandi.lots l
+                      JOIN mandi.commodities c ON c.id = l.item_id
+                     WHERE l.arrival_id = le.reference_id)
                 ELSE NULL
             END as products,
             -- Running Balance Calculation (window function)
