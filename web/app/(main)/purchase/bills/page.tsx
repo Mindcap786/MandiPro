@@ -15,7 +15,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DateRange } from "react-day-picker";
 import { cacheGet, cacheSet, cacheIsStale } from "@/lib/data-cache";
-import { calculateArrivalLevelExpenses, calculateLotSettlementAmount } from "@/lib/purchase-payables";
+import { calculateArrivalLevelExpenses, calculateLotSettlementAmount, calculateLotGrossValue } from "@/lib/purchase-payables";
 
 const AMOUNT_EPSILON = 0.01;
 const DATE_FORMAT = 'yyyy-MM-dd';
