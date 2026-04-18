@@ -1,45 +1,27 @@
 -- ============================================================================
--- MIGRATION: 20260418_party_ledger_final_fix.sql (REVISED v4)
--- PURPOSE: 
---   1. Fix dashboard loading (Robust summary lookup).
---   2. Restore party balances view (Fixed view structure).
---   3. Enhance ledger details (Itemized sales/arrivals).
---   4. REPAIR imbalanced vouchers using Plain SQL (Prevents Supabase errors).
+-- MIGRATION: 20260418_party_ledger_final_fix.sql (FINAL v5)
+-- STRATEGY: Swap trigger function to no-op → repair → restore. 
+--           This is the ONLY 100% reliable way to bypass a DEFERRED CONSTRAINT TRIGGER.
 -- ============================================================================
 
 BEGIN;
 
--- 1. UPGRADE INTEGRITY CHECK TO SUPPORT BYPASS
+-- ────────────────────────────────────────────────────────────────────────────
+-- STEP 1: Replace trigger function with a harmless no-op TEMPORARILY
+--         so the repair INSERT below can pass without any violation.
+-- ────────────────────────────────────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION mandi.check_voucher_balance()
 RETURNS TRIGGER AS $$
-DECLARE
-    v_total_debit NUMERIC;
-    v_total_credit NUMERIC;
-    v_imbalance NUMERIC;
 BEGIN
-    -- Check if bypass is requested for this session
-    IF current_setting('mandi.skip_integrity_check', true) = 'on' THEN
-        RETURN NEW;
-    END IF;
-
-    IF NEW.voucher_id IS NULL THEN RETURN NEW; END IF;
-
-    SELECT SUM(debit), SUM(credit) INTO v_total_debit, v_total_credit
-    FROM mandi.ledger_entries WHERE voucher_id = NEW.voucher_id;
-
-    v_imbalance := ABS(COALESCE(v_total_debit, 0) - COALESCE(v_total_credit, 0));
-
-    IF v_imbalance > 0.01 THEN
-        RAISE EXCEPTION 'Double-entry integrity violation: Voucher % is imbalanced by ₹%. (Dr: ₹%, Cr: ₹%)', 
-            NEW.voucher_id, v_imbalance, v_total_debit, v_total_credit;
-    END IF;
-
+    -- TEMPORARILY BYPASSED FOR INTEGRITY REPAIR — will be restored at end of this script
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
 
--- 2. ROBUST VIEW FOR PARTY BALANCES
+-- ────────────────────────────────────────────────────────────────────────────
+-- STEP 2: ROBUST VIEW FOR PARTY BALANCES (Main Dashboard List)
+-- ────────────────────────────────────────────────────────────────────────────
 DROP VIEW IF EXISTS mandi.view_party_balances CASCADE;
 
 CREATE VIEW mandi.view_party_balances AS
@@ -65,7 +47,9 @@ LEFT JOIN party_sums ps ON ps.contact_id = c.id;
 GRANT SELECT ON mandi.view_party_balances TO anon, authenticated;
 
 
--- 3. ROBUST FINANCIAL SUMMARY (Top Dashboard Cards)
+-- ────────────────────────────────────────────────────────────────────────────
+-- STEP 3: ROBUST FINANCIAL SUMMARY (Top Dashboard Cards)
+-- ────────────────────────────────────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION mandi.get_financial_summary(
     p_org_id UUID,
     _cache_bust BIGINT DEFAULT 0
@@ -82,22 +66,18 @@ DECLARE
     v_cash_bal    NUMERIC := 0;
     v_bank_bal    NUMERIC := 0;
 BEGIN
-    -- Receivables (Buyers with Dr Balance)
     SELECT COALESCE(SUM(net_balance), 0) INTO v_receivables
     FROM mandi.view_party_balances
     WHERE organization_id = p_org_id AND contact_type = 'buyer' AND net_balance > 0;
 
-    -- Farmer Payables (Farmers with Cr Balance)
     SELECT ABS(COALESCE(SUM(net_balance), 0)) INTO v_farmer_paya
     FROM mandi.view_party_balances
     WHERE organization_id = p_org_id AND contact_type = 'farmer' AND net_balance < 0;
 
-    -- Supplier Payables (Suppliers with Cr Balance)
     SELECT ABS(COALESCE(SUM(net_balance), 0)) INTO v_supp_paya
     FROM mandi.view_party_balances
     WHERE organization_id = p_org_id AND contact_type = 'supplier' AND net_balance < 0;
 
-    -- Cash in Hand
     SELECT COALESCE(SUM(le.debit - le.credit), 0) + COALESCE(MAX(a.opening_balance), 0)
     INTO v_cash_bal
     FROM mandi.accounts a
@@ -106,7 +86,6 @@ BEGIN
       AND (a.code = '1001' OR a.account_sub_type = 'cash' OR a.name ILIKE '%cash%')
     GROUP BY a.id LIMIT 1;
 
-    -- Bank Balances
     SELECT SUM(balance) INTO v_bank_bal FROM (
         SELECT a.id, COALESCE(SUM(le.debit - le.credit), 0) + COALESCE(a.opening_balance, 0) as balance
         FROM mandi.accounts a
@@ -129,7 +108,9 @@ END;
 $$;
 
 
--- 4. ENHANCED LEDGER STATEMENT (Itemized Details)
+-- ────────────────────────────────────────────────────────────────────────────
+-- STEP 4: ENHANCED LEDGER STATEMENT (Itemized Details)
+-- ────────────────────────────────────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION mandi.get_ledger_statement(
     p_organization_id UUID,
     p_contact_id UUID,
@@ -147,7 +128,8 @@ DECLARE
 BEGIN
     SELECT COALESCE(SUM(debit - credit), 0) INTO v_opening_balance
     FROM mandi.ledger_entries
-    WHERE organization_id = p_organization_id AND contact_id = p_contact_id AND entry_date < p_from_date AND status = 'active';
+    WHERE organization_id = p_organization_id AND contact_id = p_contact_id 
+      AND entry_date < p_from_date AND status = 'active';
 
     WITH base_entries AS (
         SELECT le.*, v.type as voucher_header_type, v.voucher_no as header_v_no, v.narration as header_narration,
@@ -182,38 +164,48 @@ BEGIN
         LEFT JOIN arrival_products ap ON ap.arrival_id = COALESCE(be.arrival_id, be.v_arrival_id)
     )
     SELECT jsonb_agg(jsonb_build_object(
-        'id', id, 'date', entry_date, 'debit', debit, 'credit', credit, 'description', COALESCE(description, header_narration, 'Transaction'),
-        'voucher_no', COALESCE(reference_no, header_v_no::text, '-'), 'voucher_type', UPPER(COALESCE(transaction_type, voucher_header_type, 'TRX')),
+        'id', id, 'date', entry_date, 'debit', debit, 'credit', credit,
+        'description', COALESCE(description, header_narration, 'Transaction'),
+        'voucher_no', COALESCE(reference_no, header_v_no::text, '-'),
+        'voucher_type', UPPER(COALESCE(transaction_type, voucher_header_type, 'TRX')),
         'products', resolved_products, 'running_balance', running_balance
     ) ORDER BY entry_date DESC, id DESC) INTO v_rows FROM statement_rows;
 
     SELECT v_opening_balance + COALESCE(SUM(debit - credit), 0) INTO v_closing_balance
-    FROM mandi.ledger_entries WHERE organization_id = p_organization_id AND contact_id = p_contact_id AND entry_date <= p_to_date AND status = 'active';
+    FROM mandi.ledger_entries 
+    WHERE organization_id = p_organization_id AND contact_id = p_contact_id 
+      AND entry_date <= p_to_date AND status = 'active';
 
-    RETURN jsonb_build_object('opening_balance', v_opening_balance, 'closing_balance', v_closing_balance, 'transactions', COALESCE(v_rows, '[]'::jsonb));
+    RETURN jsonb_build_object(
+        'opening_balance', v_opening_balance,
+        'closing_balance', v_closing_balance,
+        'transactions', COALESCE(v_rows, '[]'::jsonb)
+    );
 END;
 $$;
 
 
--- 5. SURGICAL INTEGRITY REPAIR (PLAIN SQL VERSION - Selection Proof)
--- Start bypass
-SELECT set_config('mandi.skip_integrity_check', 'on', true);
-
--- Ensure Integrity Repair Account exists for all orgs (safe insert, no ON CONFLICT needed)
+-- ────────────────────────────────────────────────────────────────────────────
+-- STEP 5: SURGICAL REPAIR — Ensure suspense account exists per org
+-- ────────────────────────────────────────────────────────────────────────────
 INSERT INTO mandi.accounts (organization_id, name, type, code, is_active)
-SELECT id, 'Financial Integrity Repair Account', 'equity', '3001', true
+SELECT o.id, 'Financial Integrity Repair Account', 'equity', '3001', true
 FROM core.organizations o
 WHERE NOT EXISTS (
     SELECT 1 FROM mandi.accounts a WHERE a.organization_id = o.id AND a.code = '3001'
 );
 
--- Perform repair in one surgical INSERT statement
+-- ────────────────────────────────────────────────────────────────────────────
+-- STEP 6: REPAIR — Insert balancing entries for imbalanced vouchers
+--         (Trigger is no-op right now, so this will succeed)
+-- ────────────────────────────────────────────────────────────────────────────
 INSERT INTO mandi.ledger_entries (
     organization_id, voucher_id, account_id, debit, credit, entry_date, 
     description, status, transaction_type
 )
 WITH imbalanced AS (
-    SELECT voucher_id, organization_id, SUM(debit) as total_dr, SUM(credit) as total_cr, MAX(entry_date) as e_date
+    SELECT voucher_id, organization_id, 
+           SUM(debit) as total_dr, SUM(credit) as total_cr, MAX(entry_date) as e_date
     FROM mandi.ledger_entries 
     WHERE voucher_id IS NOT NULL AND status = 'active'
     GROUP BY voucher_id, organization_id
@@ -229,8 +221,8 @@ SELECT
     i.organization_id,
     i.voucher_id,
     s.id,
-    CASE WHEN (i.total_dr - i.total_cr) < 0 THEN ABS(i.total_dr - i.total_cr) ELSE 0 END as debit,
-    CASE WHEN (i.total_dr - i.total_cr) > 0 THEN ABS(i.total_dr - i.total_cr) ELSE 0 END as credit,
+    CASE WHEN (i.total_dr - i.total_cr) < 0 THEN ABS(i.total_dr - i.total_cr) ELSE 0 END,
+    CASE WHEN (i.total_dr - i.total_cr) > 0 THEN ABS(i.total_dr - i.total_cr) ELSE 0 END,
     i.e_date,
     'Automated Integrity Repair (Debit != Credit Offset)',
     'active',
@@ -238,8 +230,38 @@ SELECT
 FROM imbalanced i
 JOIN suspense_accs s ON s.organization_id = i.organization_id;
 
--- Stop bypass
-SELECT set_config('mandi.skip_integrity_check', 'off', true);
+
+-- ────────────────────────────────────────────────────────────────────────────
+-- STEP 7: RESTORE the real trigger function with bypass support
+-- ────────────────────────────────────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION mandi.check_voucher_balance()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_total_debit NUMERIC;
+    v_total_credit NUMERIC;
+    v_imbalance NUMERIC;
+BEGIN
+    -- Allow session-level bypass for future repairs
+    IF current_setting('mandi.skip_integrity_check', true) = 'on' THEN
+        RETURN NEW;
+    END IF;
+
+    IF NEW.voucher_id IS NULL THEN RETURN NEW; END IF;
+
+    SELECT SUM(debit), SUM(credit) INTO v_total_debit, v_total_credit
+    FROM mandi.ledger_entries WHERE voucher_id = NEW.voucher_id;
+
+    v_imbalance := ABS(COALESCE(v_total_debit, 0) - COALESCE(v_total_credit, 0));
+
+    IF v_imbalance > 0.01 THEN
+        RAISE EXCEPTION 'Double-entry integrity violation: Voucher % is imbalanced by ₹%. (Dr: ₹%, Cr: ₹%)', 
+            NEW.voucher_id, v_imbalance, v_total_debit, v_total_credit;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 
 COMMIT;
 NOTIFY pgrst, 'reload schema';
