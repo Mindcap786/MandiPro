@@ -392,13 +392,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         .limit(1);
 
                     if (error) {
-                        console.warn('[Auth] Session invalid detected by polling:', error.message);
-                        stopPolling();
-                        handleSessionEviction('revoked');
+                        // Only evict if it's a definitive Auth failure (401 or 403)
+                        // Ignore general network errors or 5xx which might be temporary
+                        if (error.status === 401 || error.status === 403 || error.message?.toLowerCase().includes('unauthorized')) {
+                            console.warn('[Auth] Definitive session invalidation detected:', error.message);
+                            stopPolling();
+                            handleSessionEviction('revoked');
+                        } else {
+                            console.log('[Auth] Polling request error (transient, ignoring):', error.message);
+                        }
                     }
                 } catch (err: any) {
-                    // Network error OR timeout — skip this tick, try again in 30s
-                    console.warn('[Auth] Polling check error (will retry):', err?.message);
+                    // Critical catch (timeout or JSON parse error)
+                    console.warn('[Auth] Polling check critical error (retrying):', err?.message);
                 }
             }, 30_000); // Every 30 seconds
         };

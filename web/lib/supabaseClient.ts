@@ -59,7 +59,7 @@ export const supabase = isNative()
             // This crashes auth init both in the browser and during Next.js SSG.
             // The passthrough function simply runs fn() immediately (no real locking needed
             // since AuthProvider now serializes all auth calls itself).
-            lock: async (_name: string, _acquireTimeout: number, fn: () => Promise<unknown>) => fn(),
+            lock: (name: string, acquireTimeout: number, fn: () => Promise<any>) => fn(),
         },
     })
 

@@ -125,7 +125,7 @@ export default function ArrivalsEntryForm() {
     // Domain Hooks
     const { 
         contacts, 
-        commodities, 
+        commodities: availableItems, 
         storageLocations, 
         bankAccounts, 
         defaultCommissionRate,
@@ -632,7 +632,7 @@ export default function ArrivalsEntryForm() {
             if (result.lot_codes && result.lot_codes.length > 0) {
                  const createdLotsForQr = result.lot_codes.map((code: string, idx: number) => {
                      const item = values.items[idx];
-                     const itemName = commodities?.find(i => i.id === item.item_id)?.name || 'Unknown Item';
+                     const itemName = availableItems?.find(i => i.id === item.item_id)?.name || 'Unknown Item';
                      const partyName = contacts?.find(c => c.id === values.contact_id)?.name || 'Unknown Party';
                      return {
                         qrNumber: `MANDI_LOT:{"orgId":"${profile.organization_id}","lotCode":"${code}","type":"${values.arrival_type}"}`,
