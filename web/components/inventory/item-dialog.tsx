@@ -293,6 +293,9 @@ export function ItemDialog({ children, onSuccess, initialItem }: ItemDialogProps
 
         try {
         const dbSchema = 'mandi'
+        // Empty/whitespace internal_id → null so the DB trigger auto-generates a code.
+        // (Sending "" would collide across rows on legacy indexes; null is safe.)
+        const normalizedInternalId = data.internal_id?.trim() ? data.internal_id.trim() : null
         console.log('[ItemDialog] Submitting. schema:', dbSchema, 'initialItem.id:', initialItem?.id, 'data:', data)
 
             if (initialItem?.id) {
@@ -324,7 +327,7 @@ export function ItemDialog({ children, onSuccess, initialItem }: ItemDialogProps
                         dealer_price: data.dealer_price,
                         average_cost: data.average_cost,
                         min_stock_level: data.min_stock_level,
-                        internal_id: data.internal_id,
+                        internal_id: normalizedInternalId,
                     })
                     .eq("id", initialItem.id) as any)
                     .abortSignal(controller.signal)
@@ -361,7 +364,7 @@ export function ItemDialog({ children, onSuccess, initialItem }: ItemDialogProps
                         dealer_price: data.dealer_price || 0,
                         average_cost: data.average_cost || 0,
                         min_stock_level: data.min_stock_level || 0,
-                        internal_id: data.internal_id,
+                        internal_id: normalizedInternalId,
                     })
                     .select('id')
                     .single() as any)
@@ -381,6 +384,12 @@ export function ItemDialog({ children, onSuccess, initialItem }: ItemDialogProps
             let errorMessage = error.message
             if (error.name === 'AbortError') {
                 errorMessage = "Connection timed out. Please try again."
+            } else if (error?.code === '23505') {
+                // Postgres unique violation — surface a human-readable hint.
+                const attemptedId = data.internal_id?.trim()
+                errorMessage = attemptedId
+                    ? `Internal ID "${attemptedId}" is already in use. Try another, or leave blank to auto-generate.`
+                    : "This item conflicts with an existing record. Please review and try again."
             }
             toast({
                 title: "Save Failed",
@@ -583,7 +592,7 @@ export function ItemDialog({ children, onSuccess, initialItem }: ItemDialogProps
                                     <div className="space-y-2">
                                         <Label className="text-[10px] font-black uppercase tracking-widest text-gray-700">Internal ID / Code</Label>
                                         <Input
-                                            placeholder="e.g. ITM-007"
+                                            placeholder="Auto-generate (e.g. ITM-00042)"
                                             className={cn(
                                                 "w-full bg-blue-50/30 border-gray-300 text-gray-900 font-bold h-12 rounded-xl focus:border-blue-500 transition-all font-mono",
                                                 idConflict && "border-red-500 focus:border-red-600"
@@ -591,6 +600,7 @@ export function ItemDialog({ children, onSuccess, initialItem }: ItemDialogProps
                                             {...form.register("internal_id")}
                                             onBlur={(e) => checkIdUniqueness(e.target.value)}
                                         />
+                                        <p className="text-[9px] text-gray-500 font-medium pl-1">Leave blank — system will assign one.</p>
                                         {idConflict && (
                                             <p className="text-[9px] text-red-600 font-bold uppercase tracking-tight">{idConflict}</p>
                                         )}
