@@ -111,8 +111,41 @@ export default function PurchaseBillsPage() {
 
             console.log(`[PurchaseBills] Fetched ${data?.length || 0} lots for org ${orgId}`);
 
-            // CORRECTED LOGIC: Only count bills where you OWE money (not fully paid upfront)
-            // CASH bills (fully paid with advance) should NOT reduce UDHAAR bill balances
+            // Collect contact ids so we can fetch subsequent payments in one round-trip.
+            const contactIds = Array.from(
+                new Set((data || []).map((l: any) => l.contact_id).filter(Boolean))
+            );
+
+            // Source of truth for money already paid = the ledger. Query cleared payment
+            // vouchers for these suppliers; lots.advance only captures advance-at-arrival,
+            // so subsequent PAY-button vouchers must be layered on top here.
+            // (A pending cheque leaves cheque_status = 'Pending'; we exclude those.)
+            const clearedPaymentsByContact: Record<string, number> = {};
+            if (contactIds.length > 0) {
+                const { data: paymentVouchers, error: voucherErr } = await supabase
+                    .schema('mandi')
+                    .from('vouchers')
+                    .select('party_id, amount, type, cheque_status, is_cleared')
+                    .eq('organization_id', orgId)
+                    .eq('type', 'payment')
+                    .in('party_id', contactIds);
+
+                if (voucherErr) {
+                    console.warn('[PurchaseBills] Payment voucher fetch failed, falling back to lot.advance only:', voucherErr.message);
+                } else {
+                    (paymentVouchers || []).forEach((v: any) => {
+                        const chequePending = v.cheque_status === 'Pending' || v.is_cleared === false;
+                        if (chequePending) return;
+                        const pid = v.party_id;
+                        if (!pid) return;
+                        clearedPaymentsByContact[pid] = (clearedPaymentsByContact[pid] || 0) + Number(v.amount || 0);
+                    });
+                }
+            }
+
+            // Per-contact: sum gross-owed across their lots using ONLY the arrival-time
+            // advance. Subsequent ledger payments are applied once per contact below so
+            // a supplier-level payment correctly settles across all their open bills.
             const contactBalances: Record<string, { netAmount: number; advancePaid: number; hasPayment: boolean }> = {};
 
             if (data) {
@@ -126,30 +159,32 @@ export default function PurchaseBillsPage() {
 
                     const lotGrossValue = calculateLotGrossValue(lot);
                     const advance = Number(lot.advance || 0);
-                    
-                    // GUARD: If no supplier_rate was entered, gross value = 0.
-                    // This means no purchase price was set — treat as fully paid (nothing owed).
+
+                    // GUARD: supplier_rate not set yet → treat as nothing owed on this lot.
                     if (lotGrossValue <= AMOUNT_EPSILON) {
                         if (advance > AMOUNT_EPSILON) {
                             contactBalances[contactId].hasPayment = true;
                         }
-                        return; // Skip — nothing owed on this lot
+                        return;
                     }
 
-                    // CORRECT BUSINESS LOGIC:
-                    // - If bill is fully paid with advance (advance >= lotGrossValue) → Skip it, don't include in balance
-                    // - If bill has partial/no advance → Include what's still owed
-                    if (advance >= lotGrossValue - AMOUNT_EPSILON) {
-                        // Bill is fully paid (CASH or partial UDHAAR with enough advance)
-                        // Mark that this supplier has payments, but don't add to balance
+                    // amountStillOwed is what's unpaid BEFORE considering ledger payments.
+                    const amountStillOwed = Math.max(0, lotGrossValue - advance);
+                    contactBalances[contactId].netAmount += amountStillOwed;
+                    if (advance > AMOUNT_EPSILON) {
                         contactBalances[contactId].hasPayment = true;
-                    } else {
-                        // Bill is NOT fully paid → Include the outstanding amount
-                        const amountStillOwed = lotGrossValue - advance;
-                        contactBalances[contactId].netAmount += amountStillOwed;
-                        if (advance > AMOUNT_EPSILON) {
-                            contactBalances[contactId].hasPayment = true;
-                        }
+                    }
+                });
+
+                // Apply cleared ledger payments against per-contact outstanding.
+                Object.keys(contactBalances).forEach(contactId => {
+                    const ledgerPaid = clearedPaymentsByContact[contactId] || 0;
+                    if (ledgerPaid > AMOUNT_EPSILON) {
+                        contactBalances[contactId].hasPayment = true;
+                        contactBalances[contactId].netAmount = Math.max(
+                            0,
+                            contactBalances[contactId].netAmount - ledgerPaid
+                        );
                     }
                 });
             }
