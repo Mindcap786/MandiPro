@@ -1,17 +1,15 @@
 -- ============================================================================
--- MIGRATION: 20260418_party_ledger_final_fix.sql
+-- MIGRATION: 20260418_party_ledger_final_fix.sql (REVISED v4)
 -- PURPOSE: 
---   1. Upgrade integrity check to support session-level bypass (fixes lock errors).
---   2. Rebuild get_financial_summary to be account-name resilient (fixes ₹0).
---   3. Restore view_party_balances view for accurate dashboard listings.
---   4. Refine get_ledger_statement for industry-standard detail (fixes "Unclear line items").
---   5. Repair imbalanced vouchers (fixes 4 Broken Vouchers warning).
+--   1. Fix dashboard loading (Robust summary lookup).
+--   2. Restore party balances view (Fixed view structure).
+--   3. Enhance ledger details (Itemized sales/arrivals).
+--   4. REPAIR imbalanced vouchers using Plain SQL (Prevents Supabase errors).
 -- ============================================================================
 
 BEGIN;
 
--- 1. UPGRADE INTEGRITY CHECK TO SUPPORT BYPASS (Industry Standard)
--- This allows surgical repairs (like our balancing script) to work without "pending trigger events" issues.
+-- 1. UPGRADE INTEGRITY CHECK TO SUPPORT BYPASS
 CREATE OR REPLACE FUNCTION mandi.check_voucher_balance()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -41,7 +39,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 
--- 2. ROBUST VIEW FOR PARTY BALANCES (Main Dashboard List)
+-- 2. ROBUST VIEW FOR PARTY BALANCES
 DROP VIEW IF EXISTS mandi.view_party_balances CASCADE;
 
 CREATE VIEW mandi.view_party_balances AS
@@ -147,7 +145,6 @@ DECLARE
     v_closing_balance NUMERIC := 0;
     v_rows JSONB;
 BEGIN
-    -- Opening Balance
     SELECT COALESCE(SUM(debit - credit), 0) INTO v_opening_balance
     FROM mandi.ledger_entries
     WHERE organization_id = p_organization_id AND contact_id = p_contact_id AND entry_date < p_from_date AND status = 'active';
@@ -198,59 +195,46 @@ END;
 $$;
 
 
--- 5. SURGICAL INTEGRITY REPAIR (Fixes "Vouchers with Broken Double-Entry")
-DO $$
-DECLARE 
-    v_suspense_id UUID;
-    v_rec RECORD;
-    v_diff NUMERIC;
-BEGIN
-    -- Set session flag to bypass integrity trigger (Lightweight bypass, no ALTER TABLE)
-    PERFORM set_config('mandi.skip_integrity_check', 'on', true);
+-- 5. SURGICAL INTEGRITY REPAIR (PLAIN SQL VERSION - Selection Proof)
+-- Start bypass
+SELECT set_config('mandi.skip_integrity_check', 'on', true);
 
-    -- Resolve Suspense Account
-    SELECT id INTO v_suspense_id FROM mandi.accounts WHERE code = '3001' LIMIT 1;
-    IF v_suspense_id IS NULL THEN
-        SELECT id INTO v_suspense_id FROM mandi.accounts WHERE name ILIKE '%Opening Balance Offset%' OR name ILIKE '%Suspense%' LIMIT 1;
-    END IF;
+-- Ensure Integrity Repair Account exists for all orgs
+INSERT INTO mandi.accounts (organization_id, name, type, code, is_active)
+SELECT id, 'Financial Integrity Repair Account', 'equity', '3001', true
+FROM core.organizations
+ON CONFLICT (organization_id, code) DO NOTHING;
 
-    -- If still no suspense account, create one
-    IF v_suspense_id IS NULL THEN
-        FOR v_rec IN SELECT id FROM core.organizations LOOP
-            INSERT INTO mandi.accounts (organization_id, name, type, code, is_active)
-            VALUES (v_rec.id, 'Financial Integrity Repair Account', 'equity', '3001', true)
-            ON CONFLICT DO NOTHING;
-        END LOOP;
-        SELECT id INTO v_suspense_id FROM mandi.accounts WHERE code = '3001' LIMIT 1;
-    END IF;
+-- Perform repair in one surgical INSERT statement
+INSERT INTO mandi.ledger_entries (
+    organization_id, voucher_id, account_id, debit, credit, entry_date, 
+    description, status, transaction_type
+)
+WITH imbalanced AS (
+    SELECT voucher_id, organization_id, SUM(debit) as total_dr, SUM(credit) as total_cr, MAX(entry_date) as e_date
+    FROM mandi.ledger_entries 
+    WHERE voucher_id IS NOT NULL AND status = 'active'
+    GROUP BY voucher_id, organization_id
+    HAVING ABS(SUM(debit) - SUM(credit)) > 0.01
+),
+suspense_accs AS (
+    SELECT id, organization_id FROM mandi.accounts WHERE code = '3001'
+)
+SELECT 
+    i.organization_id,
+    i.voucher_id,
+    s.id,
+    CASE WHEN (i.total_dr - i.total_cr) < 0 THEN ABS(i.total_dr - i.total_cr) ELSE 0 END as debit,
+    CASE WHEN (i.total_dr - i.total_cr) > 0 THEN ABS(i.total_dr - i.total_cr) ELSE 0 END as credit,
+    i.e_date,
+    'Automated Integrity Repair (Debit != Credit Offset)',
+    'active',
+    'adjustment'
+FROM imbalanced i
+JOIN suspense_accs s ON s.organization_id = i.organization_id;
 
-    -- Find and Repair Imbalanced Vouchers
-    FOR v_rec IN 
-        SELECT voucher_id, organization_id, SUM(debit) as total_dr, SUM(credit) as total_cr, MAX(entry_date) as e_date
-        FROM mandi.ledger_entries 
-        WHERE voucher_id IS NOT NULL AND status = 'active'
-        GROUP BY voucher_id, organization_id
-        HAVING ABS(SUM(debit) - SUM(credit)) > 0.01
-    LOOP
-        v_diff := v_rec.total_dr - v_rec.total_cr;
-        
-        -- Post balancing entry to suspense
-        INSERT INTO mandi.ledger_entries (
-            organization_id, voucher_id, account_id, debit, credit, entry_date, 
-            description, status, transaction_type
-        ) VALUES (
-            v_rec.organization_id, v_rec.voucher_id, v_suspense_id, 
-            CASE WHEN v_diff < 0 THEN ABS(v_diff) ELSE 0 END,
-            CASE WHEN v_diff > 0 THEN ABS(v_diff) ELSE 0 END,
-            v_rec.e_date,
-            'Automated Integrity Repair (Debit != Credit Offset)',
-            'active', 'adjustment'
-        );
-    END LOOP;
-
-    -- Reset session flag
-    PERFORM set_config('mandi.skip_integrity_check', 'off', true);
-END $$;
+-- Stop bypass
+SELECT set_config('mandi.skip_integrity_check', 'off', true);
 
 COMMIT;
 NOTIFY pgrst, 'reload schema';
