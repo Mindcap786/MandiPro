@@ -3,7 +3,8 @@
  * POST /api/mandi/sales       — create sale (delegates to confirm_sale_transaction RPC)
  */
 import { NextRequest, NextResponse } from 'next/server'
-import { createMandiServerClient, requireAuth, apiError, auditLog } from '../_lib/server-client'
+import crypto from 'crypto'
+import { createMandiServerClient, requireAuth, apiError, auditLog, validateRole } from '../_lib/server-client'
 
 import { CreateSaleSchema } from '@mandi-pro/validation'
 
@@ -72,7 +73,7 @@ export async function POST(request: NextRequest) {
   const items = payload.items
 
   // Validate stock availability atomically via RPC
-  const { data, error } = await supabase.rpc('confirm_sale_transaction', {
+  const { data, error } = await supabase.schema('mandi').rpc('confirm_sale_transaction', {
     p_organization_id: profile.organization_id,
     p_sale_date: payload.sale_date,
     p_buyer_id: payload.buyer_id,
@@ -109,7 +110,7 @@ export async function POST(request: NextRequest) {
     p_place_of_supply: payload.place_of_supply ?? null,
     p_buyer_gstin: payload.buyer_gstin ?? null,
     p_is_igst: Boolean(payload.is_igst),
-    p_idempotency_key: payload.idempotency_key ?? null,
+    p_idempotency_key: payload.idempotency_key ?? crypto.randomUUID(),
     p_created_by: user.id,
   } as never)
 
@@ -123,6 +124,11 @@ export async function POST(request: NextRequest) {
       return apiError.conflict(`Invalid lot reference: ${error.message}`)
     }
     return apiError.server(error.message)
+  }
+
+  if (!data) {
+    console.error('[sales:POST] confirm_sale_transaction returned null/undefined data')
+    return apiError.server("Database returned empty response")
   }
 
   auditLog(supabase, {

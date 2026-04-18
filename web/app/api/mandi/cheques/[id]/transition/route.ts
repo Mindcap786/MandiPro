@@ -75,7 +75,7 @@ export async function POST(
     }
 
     // Delegate to atomic RPC that updates cheque + posts ledger entry + writes audit
-    const { data, error } = await supabase.rpc('transition_cheque_with_ledger', {
+    const { data, error } = await supabase.schema('mandi').rpc('transition_cheque_with_ledger', {
         p_cheque_id: params.id,
         p_next_status: nextStatus,
         p_cleared_date: body.cleared_date ?? null,

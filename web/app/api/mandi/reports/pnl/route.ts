@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
         return apiError.validation(['date_from and date_to are required'])
     }
 
-    const { data, error } = await supabase.rpc('get_pnl_summary', {
+    const { data, error } = await supabase.schema('mandi').rpc('get_pnl_summary', {
         p_org_id: profile!.organization_id,
         p_date_from: dateFrom,
         p_date_to: dateTo,

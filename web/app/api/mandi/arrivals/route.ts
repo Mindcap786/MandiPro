@@ -3,7 +3,8 @@
  * POST /api/mandi/arrivals       — create arrival + lots atomically via RPC
  */
 import { NextRequest, NextResponse } from 'next/server'
-import { createMandiServerClient, requireAuth, apiError, auditLog } from '../_lib/server-client'
+import crypto from 'crypto'
+import { createMandiServerClient, requireAuth, apiError, auditLog, validateRole } from '../_lib/server-client'
 
 import { CreateArrivalSchema } from '@mandi-pro/validation'
 
@@ -15,7 +16,7 @@ export async function GET(request: NextRequest) {
     if (authErr) return authErr
 
     const { searchParams } = new URL(request.url)
-    const filters: ArrivalListFilters = {
+    const filters: any = {
         page: parseInt(searchParams.get('page') ?? '1'),
         limit: Math.min(parseInt(searchParams.get('limit') ?? '25'), 100),
         date_from: searchParams.get('date_from') ?? undefined,
@@ -90,10 +91,11 @@ export async function POST(request: NextRequest) {
     const payload = result.data
 
     // Delegate to transactional RPC — one atomic operation, no partial state possible
-    const { data, error } = await supabase.rpc('create_mixed_arrival', {
+    const { data, error } = await supabase.schema('mandi').rpc('create_mixed_arrival', {
         p_arrival: {
             ...payload,
-            organization_id: profile.organization_id // injected server side
+            organization_id: profile.organization_id, // injected server side
+            idempotency_key: crypto.randomUUID()
         },
         p_created_by: user.id,
     } as any)
@@ -103,10 +105,15 @@ export async function POST(request: NextRequest) {
         return apiError.server(error.message)
     }
 
+    if (!data) {
+        console.error('[arrivals:POST] create_mixed_arrival returned null/undefined data')
+        return apiError.server("Database returned empty response")
+    }
+
     // Attempt to post ledger automatically via RPC
     const arrivalData = data as any;
     if (arrivalData?.arrival_id) {
-        const { error: ledgerError } = await supabase.rpc('post_arrival_ledger', {
+        const { error: ledgerError } = await supabase.schema('mandi').rpc('post_arrival_ledger', {
             p_arrival_id: arrivalData.arrival_id
         });
         if (ledgerError) {
