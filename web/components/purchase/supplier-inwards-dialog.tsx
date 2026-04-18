@@ -84,7 +84,7 @@ export function SupplierInwardsDialog({ supplier, isOpen, onClose, onEditLot, on
                     arrivalAdvances: {} as Record<string, number>, 
                 };
             }
-            const itemTotal = calculateLotSettlementAmount(lot);
+            const itemTotal = calculateLotGrossValue(lot);
 
             const isLotSold = (lot.current_qty !== undefined && lot.current_qty <= 0);
             if (!isLotSold) grouped[key].isFullySold = false;
@@ -101,10 +101,11 @@ export function SupplierInwardsDialog({ supplier, isOpen, onClose, onEditLot, on
         });
 
         const finalGroups = Object.values(grouped).map((group: any) => {
+            const groupGross = calculateArrivalGrossValue(group.items, group);
             return {
                 ...group,
-                totalAmount: calculateArrivalSettlementAmount(group.items, group),
-                totalGrossAmount: calculateArrivalGrossValue(group.items, group)
+                totalAmount: groupGross,
+                totalGrossAmount: groupGross
             };
         }).filter(group => {
             if (!inwardSearch) return true;

@@ -349,7 +349,7 @@ function NewSaleForm() {
                 supabase.schema('core').from('organizations').select('name, settings').eq('id', orgId).single(),
                 supabase.schema('mandi').from('commodities').select('id, name, local_name, sku_code, custom_attributes, gst_rate').eq('organization_id', orgId),
                 supabase.schema('mandi').from('accounts').select('*').eq('organization_id', orgId),
-                supabase.schema('mandi').from('lots').select('*, contact:contacts(name)').eq('organization_id', orgId).gt('current_qty', 0).in('status', ['active', 'Active', 'available', 'Available']),
+                supabase.schema('mandi').from('lots').select('*, contact:contacts(name)').eq('organization_id', orgId).gt('current_qty', 0).in('status', ['active', 'Active', 'available', 'Available', 'partial', 'Partial']),
                 supabase.schema('mandi').from('mandi_settings' as any).select('market_fee_percent, nirashrit_percent, misc_fee_percent, default_credit_days, state_code, gst_enabled, gst_type, cgst_percent, sgst_percent, igst_percent').eq('organization_id', orgId).maybeSingle()
             ]);
 
@@ -558,26 +558,37 @@ function NewSaleForm() {
         setIsSubmitting(true);
         try {
             const buyerInfo = buyers.find(b => b.id === values.buyer_id);
+            
+            // 1. Prepare items with full metadata for totals calculation and RPC
+            const processedItems = values.sale_items.map((item: any) => {
+                const itemInfo = items.find(i => i.id === item.item_id);
+                return {
+                    lot_id: item.lot_id, // CRITICAL: REQUIRED FOR STOCK DEDUCTION
+                    item_id: item.item_id,
+                    qty: Number(item.qty),
+                    rate: Number(item.rate),
+                    amount: Number(item.amount),
+                    gst_rate: itemInfo?.gst_rate || 0,
+                    is_gst_exempt: itemInfo?.is_gst_exempt || false,
+                    hsn_code: itemInfo?.hsn_code || null
+                };
+            });
+
+            // 2. Calculate Totals once
             const totals = calculateSaleTotals({
-                items: values.sale_items.map((item: any) => {
-                    const itemInfo = items.find(i => i.id === item.item_id);
-                    return {
-                        amount: item.amount,
-                        gst_rate: itemInfo?.gst_rate,
-                        is_gst_exempt: itemInfo?.is_gst_exempt,
-                    };
-                }),
+                items: processedItems,
                 taxSettings,
                 orgStateCode,
                 buyerStateCode: buyerInfo?.state_code,
-                loadingCharges: values.loading_charges,
-                unloadingCharges: values.unloading_charges,
-                otherExpenses: values.other_expenses,
+                loadingCharges: Number(values.loading_charges || 0),
+                unloadingCharges: Number(values.unloading_charges || 0),
+                otherExpenses: Number(values.other_expenses || 0),
+                discountAmount: Number(values.discount_amount || 0),
             });
-            const totalItemsRaw = totals.subTotal;
-            const grandTotalRaw = totals.grandTotal;
 
-            const isPartial = values.payment_mode !== 'credit' && amountPaid < grandTotalRaw;
+            const totalAmount = totals.subTotal;
+            const grandTotal = totals.grandTotal;
+            const isPartial = values.payment_mode !== 'credit' && amountPaid < grandTotal;
 
             if (isPartial && !values.buyer_id) {
                 throw new Error("Buyer selection is required for partial payments.");
@@ -586,15 +597,14 @@ function NewSaleForm() {
             if (!profile?.organization_id) {
                 throw new Error("User profile not loaded. Please refresh.");
             }
-            const totalAmount = totalItemsRaw;
 
-            // 1. OFFLINE HANDLING
+            // 3. OFFLINE HANDLING
             if (!isOnline) {
                 await db.sales.add({
                     id: crypto.randomUUID(),
                     contact_id: values.buyer_id,
                     total_amount: totalAmount,
-                    items: values.sale_items,
+                    items: processedItems,
                     sale_date: values.sale_date.toISOString(),
                     created_at: Date.now(),
                     sync_status: 'pending'
@@ -609,19 +619,12 @@ function NewSaleForm() {
                 return;
             }
 
-            // 2. ONLINE HANDLING
-            // Validate Stock Pre-flight (Checking local state for immediate feedback)
-            for (const item of values.sale_items) {
-                if (!item.lot_id) {
-                    throw new Error("Please select a Stock Lot for every item.");
-                }
+            // 4. ONLINE HANDLING - Pre-flight Checks
+            for (const item of processedItems) {
+                if (!item.lot_id) throw new Error("Please select a Stock Lot for every item.");
                 const currentLot = lots.find(l => l.id === item.lot_id);
-                if (!currentLot) {
-                    throw new Error("Invalid Lot selected.");
-                }
+                if (!currentLot) throw new Error("Invalid Lot selected.");
 
-                // USER REQUIREMENT: Direct arrivals must have a purchase rate before sale.
-                // Commission arrivals can be sold without a purchase rate (rate=0) initially.
                 if ((currentLot.arrival_type || 'direct') === 'direct' && (Number(currentLot.supplier_rate) <= 0)) {
                     throw new Error(`Please enter the purchase rate for ${currentLot.lot_code} in Arrivals/Purchase Bills before selling.`);
                 }
@@ -631,12 +634,12 @@ function NewSaleForm() {
                 }
             }
 
-            const saleItemsWithTax = values.sale_items.map(item => {
-                const itemData = items.find(i => i.id === item.item_id);
+            // 5. Build final tax breakdown for each item
+            const saleItemsWithTax = processedItems.map(item => {
                 const itemTax = calculateSaleItemTaxBreakdown({
                     amount: item.amount,
-                    gstRate: itemData?.gst_rate,
-                    isGstExempt: itemData?.is_gst_exempt,
+                    gstRate: item.gst_rate,
+                    isGstExempt: item.is_gst_exempt,
                     taxSettings,
                     orgStateCode,
                     buyerStateCode: buyerInfo?.state_code,
@@ -646,20 +649,18 @@ function NewSaleForm() {
                     ...item,
                     gst_rate: itemTax.gstRateApplied,
                     gst_amount: itemTax.gstTotal,
-                    hsn_code: itemData?.hsn_code || null
                 };
             });
 
             const idempotencyKey = crypto.randomUUID();
 
-            const rpcPaymentMode = values.payment_mode;
-
+            // 6. Execute Transaction via RPC
             const { error, data: rpcResponse, warning } = await confirmSaleTransactionWithFallback({
                 organizationId: profile.organization_id,
                 buyerId: values.buyer_id,
                 saleDate: values.sale_date.toISOString().split('T')[0],
-                paymentMode: rpcPaymentMode,
-                totalAmount,
+                paymentMode: values.payment_mode,
+                totalAmount: totalAmount,
                 items: saleItemsWithTax,
                 marketFee: totals.marketFee,
                 nirashrit: totals.nirashrit,

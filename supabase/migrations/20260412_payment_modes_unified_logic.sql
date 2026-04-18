@@ -298,7 +298,7 @@ BEGIN
                 COALESCE((SELECT name FROM mandi.commodities WHERE id = v_effective_item_id LIMIT 1), 'ITEM'),
                 p_arrival_date,
                 v_gross, v_comm, 0,
-                v_net_payable, 'completed', 'unpaid'
+                v_net_payable, 'completed', mandi.get_payment_status(v_lot_id)
             );
         END;
     END LOOP;

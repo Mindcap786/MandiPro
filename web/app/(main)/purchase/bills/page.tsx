@@ -124,19 +124,28 @@ export default function PurchaseBillsPage() {
                         contactBalances[contactId] = { netAmount: 0, advancePaid: 0, hasPayment: false };
                     }
 
-                    const lotValue = calculateLotSettlementAmount(lot);
+                    const lotGrossValue = calculateLotGrossValue(lot);
                     const advance = Number(lot.advance || 0);
                     
+                    // GUARD: If no supplier_rate was entered, gross value = 0.
+                    // This means no purchase price was set — treat as fully paid (nothing owed).
+                    if (lotGrossValue <= AMOUNT_EPSILON) {
+                        if (advance > AMOUNT_EPSILON) {
+                            contactBalances[contactId].hasPayment = true;
+                        }
+                        return; // Skip — nothing owed on this lot
+                    }
+
                     // CORRECT BUSINESS LOGIC:
-                    // - If bill is fully paid with advance (advance >= lotValue) → Skip it, don't include in balance
+                    // - If bill is fully paid with advance (advance >= lotGrossValue) → Skip it, don't include in balance
                     // - If bill has partial/no advance → Include what's still owed
-                    if (advance >= lotValue - AMOUNT_EPSILON) {
+                    if (advance >= lotGrossValue - AMOUNT_EPSILON) {
                         // Bill is fully paid (CASH or partial UDHAAR with enough advance)
                         // Mark that this supplier has payments, but don't add to balance
                         contactBalances[contactId].hasPayment = true;
                     } else {
                         // Bill is NOT fully paid → Include the outstanding amount
-                        const amountStillOwed = lotValue - advance;
+                        const amountStillOwed = lotGrossValue - advance;
                         contactBalances[contactId].netAmount += amountStillOwed;
                         if (advance > AMOUNT_EPSILON) {
                             contactBalances[contactId].hasPayment = true;
