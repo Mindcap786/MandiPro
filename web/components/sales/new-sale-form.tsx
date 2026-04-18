@@ -505,21 +505,25 @@ function NewSaleForm() {
     const onSubmit = async (values: z.infer<typeof formSchema>) => {
         const buyerInfo = buyers.find(b => b.id === values.buyer_id);
         const totals = calculateSaleTotals({
-            items: values.sale_items.map((item: any) => {
+            items: (values.sale_items || []).map((item: any) => {
                 const itemInfo = items.find(i => i.id === item.item_id);
                 return {
-                    amount: item.amount,
-                    gst_rate: itemInfo?.gst_rate,
-                    is_gst_exempt: itemInfo?.is_gst_exempt,
+                    lot_id: item.lot_id, // CRITICAL: MUST BE PASSED FOR STOCK DEDUCTION
+                    item_id: item.item_id,
+                    qty: Number(item.qty),
+                    rate: Number(item.rate),
+                    amount: Number(item.amount),
+                    gst_rate: itemInfo?.gst_rate || 0,
+                    is_gst_exempt: itemInfo?.is_gst_exempt || false,
                 };
             }),
             taxSettings,
             orgStateCode,
             buyerStateCode: buyerInfo?.state_code,
-            loadingCharges: values.loading_charges,
-            unloadingCharges: values.unloading_charges,
-            otherExpenses: values.other_expenses,
-            discountAmount: values.discount_amount,
+            loadingCharges: Number(values.loading_charges || 0),
+            unloadingCharges: Number(values.unloading_charges || 0),
+            otherExpenses: Number(values.other_expenses || 0),
+            discountAmount: Number(values.discount_amount || 0),
         });
 
         if (maxInvoiceAmount > 0 && totals.grandTotal > maxInvoiceAmount) {
@@ -826,7 +830,10 @@ function NewSaleForm() {
                                                                 value: b?.id || '' 
                                                             }))}
                                                             value={field.value}
-                                                            onChange={field.onChange}
+                                                            onChange={(val) => {
+                                                                field.onChange(val);
+                                                                form.setValue('buyer_id', val, { shouldValidate: true });
+                                                            }}
                                                             placeholder="Select Buyer/Customer"
                                                             searchPlaceholder="Search buyer database..."
                                                             className={cn(
