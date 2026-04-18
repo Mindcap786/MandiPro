@@ -10,7 +10,10 @@
 BEGIN;
 
 -- 1. ROBUST VIEW FOR PARTY BALANCES (Main Dashboard List)
-CREATE OR REPLACE VIEW mandi.view_party_balances AS
+-- We must DROP CASCADE because the view definition is changing (adding/removing columns)
+DROP VIEW IF EXISTS mandi.view_party_balances CASCADE;
+
+CREATE VIEW mandi.view_party_balances AS
 WITH party_sums AS (
     SELECT 
         le.organization_id,
@@ -166,6 +169,9 @@ $$;
 
 
 -- 4. SURGICAL INTEGRITY REPAIR (Fixes "Vouchers with Broken Double-Entry")
+-- We temporarily disable the integrity trigger to allow balancing entries for imbalanced vouchers
+ALTER TABLE mandi.ledger_entries DISABLE TRIGGER trg_enforce_double_entry;
+
 DO $$
 DECLARE 
     v_suspense_id UUID;
@@ -180,9 +186,6 @@ BEGIN
 
     -- If still no suspense account, create one
     IF v_suspense_id IS NULL THEN
-        -- We need an org_id context to create one, but since this is for repairs, 
-        -- we'll pick the first org or fail if no orgs exist.
-        -- Actually, a better way is to iterate orgs.
         FOR v_rec IN SELECT id FROM core.organizations LOOP
             INSERT INTO mandi.accounts (organization_id, name, type, code, is_active)
             VALUES (v_rec.id, 'Financial Integrity Repair Account', 'equity', '3001', true)
@@ -215,6 +218,8 @@ BEGIN
         );
     END LOOP;
 END $$;
+
+ALTER TABLE mandi.ledger_entries ENABLE TRIGGER trg_enforce_double_entry;
 
 COMMIT;
 NOTIFY pgrst, 'reload schema';
