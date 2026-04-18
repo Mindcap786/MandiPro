@@ -218,18 +218,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         const initAuth = async () => {
             try {
-                // 1. Immediate cache hydration (Safe because it's in useEffect)
+                // 2. Refresh session FIRST so we know which user is actually logged in
+                const { data: { session: initialSession }, error: sessionError } = await supabase.auth.getSession();
+
+                // 1. Immediate cache hydration — only use if the cached profile belongs to the CURRENT user.
+                //    Without this check, a previous user's profile (different org_id) contaminates the state
+                //    and the dashboard shows zeros or stale data from another account.
                 const cached = localStorage.getItem('mandi_profile_cache');
                 if (cached && isMounted) {
                     try { 
                         const p = JSON.parse(cached);
-                        setProfile(p);
-                        setLoading(false);
+                        const cachedUserId = p?.id;
+                        const currentSessionUserId = initialSession?.user?.id;
+                        if (cachedUserId && currentSessionUserId && cachedUserId === currentSessionUserId) {
+                            // Safe: cached profile belongs to the currently logged-in user
+                            setProfile(p);
+                            setLoading(false);
+                        } else if (cachedUserId && currentSessionUserId && cachedUserId !== currentSessionUserId) {
+                            // Different user: purge ALL stale data immediately
+                            console.warn('[Auth Init] Cached profile user mismatch — clearing stale cache. cached:', cachedUserId, 'current:', currentSessionUserId);
+                            localStorage.removeItem('mandi_profile_cache');
+                            localStorage.removeItem('mandi_profile_cache_org_id');
+                            localStorage.removeItem('mandi_session_v');
+                            localStorage.removeItem('mandi_session_v_set_at');
+                            localStorage.removeItem('mandi_active_token');
+                            cacheClearForSession();
+                        } else if (!currentSessionUserId && cachedUserId) {
+                            // No active session but stale cache exists — use it optimistically
+                            // (user will be redirected to login if session is truly gone)
+                            setProfile(p);
+                            setLoading(false);
+                        }
                     } catch (e) {}
                 }
 
-                // 2. Refresh session and profile
-                const { data: { session: initialSession }, error: sessionError } = await supabase.auth.getSession();
+
                 if (!isMounted) return;
 
                 // Attempt to validate user via server, catch Auth Lock Throws
