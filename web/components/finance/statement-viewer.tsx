@@ -43,9 +43,17 @@ export default function StatementViewer({ contactId, contactName, contactType, o
     const formatLedgerDesc = (tx: any) => {
         let desc = (tx.narration || tx.description || tx.particulars || '').replace(/(\d+)\.0+(?=\s|[A-Za-z]|$)/g, '$1');
         
-        // Also universally fix the Rupee rendering issue in PDF text by ensuring it uses INR Rs. or proper ₹
-        // since react-pdf doesn't fully support the ₹ symbol natively in basic fonts, we'll replace it with Rs. for safety
+        // Universally fix the Rupee rendering issue in PDF text
         desc = desc.replace(/₹/g, 'Rs.');
+
+        // If we have detailed products from the RPC, use them to build a richer description
+        if (tx.products && Array.isArray(tx.products) && tx.products.length > 0) {
+            const detailStr = tx.products.map((p: any) => `${p.name || ''} ${p.qty || 0} @ Rs.${p.rate || 0}`).join(', ');
+            if (detailStr) {
+                const voucherSuffix = tx.voucher_no && tx.voucher_no !== '-' ? ` (Voucher #${tx.voucher_no})` : '';
+                return `${detailStr}${voucherSuffix}`;
+            }
+        }
 
         const isCredit = Number(tx.credit || 0) > 0;
         let invoiceStr = tx.voucher_no || tx.reference_no || '';
@@ -54,97 +62,38 @@ export default function StatementViewer({ contactId, contactName, contactType, o
             invoiceStr = parts[1] || invoiceStr;
         }
 
-        if (!invoiceStr) return desc;
+        if (!invoiceStr || invoiceStr === '-') return desc || 'Transaction';
 
-        const type = tx.transaction_type || tx.voucher_type;
-        const lowerDesc = desc.toLowerCase();
+        const type = (tx.transaction_type || tx.voucher_type || '').toLowerCase();
         
-        const isExpense = lowerDesc.includes('transport') || lowerDesc.includes('commission') || lowerDesc.includes('wage') || lowerDesc.includes('unloading');
-
-        if (type === 'purchase' || type === 'paid_receipt') {
-            if (!isCredit && !isExpense) return `Payment against Invoice #${invoiceStr}`;
-            if (isCredit) {
-                if (tx.products && Array.isArray(tx.products) && tx.products.length > 0) {
-                    const detailStr = tx.products.map((p: any) => `${p.name || ''} ${p.qty || 0} ${p.unit || ''} @ Rs.${p.rate || 0}`).join(', ');
-                    return `${detailStr} (Invoice #${invoiceStr})`;
-                }
-                let finalDesc = desc;
-                if (!desc.includes(`Invoice #${invoiceStr}`)) finalDesc = `${desc} (Invoice #${invoiceStr})`;
-                return finalDesc;
-            }
-        } else if (type === 'sale' || type === 'receive_receipt' || type === 'sale_payment') {
-            if (isCredit && !isExpense) return `Payment against Invoice #${invoiceStr}`;
-            if (!isCredit) {
-                if (tx.products && Array.isArray(tx.products) && tx.products.length > 0) {
-                    const detailStr = tx.products.map((p: any) => `${p.name || ''} ${p.qty || 0} ${p.unit || ''} @ Rs.${p.rate || 0}`).join(', ');
-                    return `${detailStr} (Invoice #${invoiceStr})`;
-                }
-                if (!desc.includes(`Invoice #${invoiceStr}`)) return `${desc} (Invoice #${invoiceStr})`;
-            }
+        if (type.includes('purchase') || type.includes('arrival')) {
+            if (!isCredit) return `Payment against Bill #${invoiceStr}`;
+            return desc || `Purchase Bill #${invoiceStr}`;
+        } else if (type.includes('sale')) {
+            if (isCredit) return `Payment against Invoice #${invoiceStr}`;
+            return desc || `Sale Invoice #${invoiceStr}`;
         }
         
-        if (tx.billing_details && tx.billing_details.linked_bill_no) {
-            const isCredit = Number(tx.credit || 0) > 0;
-            const action = isCredit ? (contactType === 'customer' ? 'Receipt' : 'Payment Received') : (contactType === 'customer' ? 'Refund' : 'Payment');
-            return `${action} against Bill #${tx.billing_details.linked_bill_no}`;
-        }
-
-        return desc;
+        return desc || 'Transaction';
     };
 
     // Build the entries array the same way for both PDF download and PDF print
     const buildPDFEntries = (transactions: any[], openingBalance: number) => {
         let runningBal = openingBalance;
-        return transactions.map(tx => {
+        return (transactions || []).map(tx => {
             const debit = Number(tx.debit || 0);
             const credit = Number(tx.credit || 0);
             runningBal = Number(tx.running_balance ?? (runningBal + (debit - credit)));
             
-            // Build products array from RPC response
-            let products: any[] = [];
-            
-            // If RPC includes line_items string, parse it
-            if (tx.line_items && typeof tx.line_items === 'string' && tx.line_items.trim()) {
-                tx.line_items.split('\n').forEach((line: string) => {
-                    const trimmed = line.trim();
-                    if (!trimmed) return;
-                    
-                    // Parse format: "Apple | Qty: 100 Box @₹200/unit = ₹20000.00"
-                    const match = trimmed.match(/^(.+?)\s*\|\s*Qty:\s*([\d.]+)\s*(\w+)\s*@₹([\d.]+)\/unit\s*=\s*₹([\d.]+)/);
-                    if (match) {
-                        products.push({
-                            name: match[1],
-                            qty: parseFloat(match[2]),
-                            unit: match[3],
-                            rate: parseFloat(match[4]),
-                            amount: parseFloat(match[5])
-                        });
-                    }
-                });
-            }
-            
-            // If RPC has modern billing_details (Nuclear Reconciliation v2)
-            if (products.length === 0 && tx.billing_details && Array.isArray(tx.billing_details.items)) {
-                products = tx.billing_details.items.map((p: any) => ({
+            // Build products array from RPC response (now standardized as 'products' key)
+            let resolvedProducts: any[] = [];
+            if (Array.isArray(tx.products)) {
+                resolvedProducts = tx.products.map((p: any) => ({
                     name: p.name || '',
                     qty: Number(p.qty || 0),
                     unit: p.unit || '',
                     rate: Number(p.rate || 0),
-                    amount: Number(p.amount || 0),
-                    lot_no: p.lot_no
-                }));
-            }
-
-            // If no parsed items and RPC has products array, use that
-            if (products.length === 0 && tx.products && Array.isArray(tx.products)) {
-                products = tx.products.map((p: any) => ({
-                    name: p.name || '',
-                    qty: Number(p.qty || 0),
-                    unit: p.unit || '',
-                    rate: Number(p.rate || 0),
-                    amount: Number(p.amount || p.line_amount || 0),
-                    gross_qty: p.gross_qty ? Number(p.gross_qty) : undefined,
-                    net_amount: p.net_amount ? Number(p.net_amount) : undefined
+                    amount: Number(p.amount || 0)
                 }));
             }
             
@@ -155,7 +104,7 @@ export default function StatementViewer({ contactId, contactName, contactType, o
                 credit,
                 running_balance: runningBal,
                 line_items: tx.line_items || '',
-                products: products,
+                products: resolvedProducts,
                 charges: tx.charges || []
             };
         });

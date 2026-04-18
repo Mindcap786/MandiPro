@@ -128,7 +128,8 @@ export default function FinancialDashboard() {
     // Reset Page on Filter Change — stale-while-revalidate pattern
     useEffect(() => {
         setPage(0);
-        // DO NOT clear partyList here — keep showing stale cache until fresh data arrives
+        // Clear the list only if it's a structural change (org/search) to give immediate feedback
+        if (debouncedSearch) setPartyList([]); 
         fetchParties(0);
     }, [filterType, subFilter, debouncedSearch, profile?.organization_id]);
 
@@ -237,7 +238,7 @@ export default function FinancialDashboard() {
             const from = pageNumber * PAGE_SIZE;
             const to = from + PAGE_SIZE - 1;
 
-            // FIX: Add cache-busting parameter to force fresh data (prevent 304 Not Modified)
+            // FORCE FRESH: Add cache-busting parameter to prevent 304 Not Modified
             const timestamp = Date.now();
 
             let query = supabase
@@ -245,16 +246,18 @@ export default function FinancialDashboard() {
                 .from('view_party_balances')
                 .select('*', { count: 'exact' })
                 .eq('organization_id', profile.organization_id)
-                .range(from, to);
+                .range(from, to)
+                .order('net_balance', { ascending: false }) // Sort by highest outstanding
+                .order('contact_name');
 
             if (filterType !== 'all') {
                 query = query.eq('contact_type', filterType);
             }
 
             if (subFilter === 'receivable') {
-                query = query.gt('net_balance', 0);
+                query = query.gt('net_balance', 0.01);
             } else if (subFilter === 'payable') {
-                query = query.lt('net_balance', 0);
+                query = query.lt('net_balance', -0.01);
             }
 
             if (debouncedSearch) {
@@ -262,24 +265,24 @@ export default function FinancialDashboard() {
             }
 
             const { data, error, count }: any = await query.then(res => {
-                // Force cache revalidation by adding timestamp
                 return { ...res, _cache_bust: timestamp };
             });
 
             if (error) {
-                console.error("Dashboard List Error (Query):", error);
+                console.error("Dashboard List Error:", error);
                 throw error;
             }
 
             if (data) {
                 setPartyList(data);
                 setTotalCount(count || 0);
-                // Save to cache for instant re-navigation
+                
+                // Update cache with fresh data
                 const existing = cacheGet<any>('finance_stats', profile.organization_id) || {};
                 cacheSet('finance_stats', profile.organization_id, { ...existing, partyList: data });
             }
         } catch (error) {
-            console.error("Dashboard List Error:", error);
+            console.error("Dashboard List Fetch Failed:", error);
         } finally {
             setLoadingList(false);
         }
