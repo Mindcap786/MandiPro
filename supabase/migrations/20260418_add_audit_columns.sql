@@ -35,9 +35,6 @@ ALTER TABLE mandi.ledger_entries
 ALTER TABLE mandi.purchase_bills 
   ADD COLUMN IF NOT EXISTS created_by UUID;
 
-ALTER TABLE mandi.returns 
-  ADD COLUMN IF NOT EXISTS created_by UUID;
-
 -- Explicitly grant SELECT and INSERT visibility on these columns
 GRANT SELECT, INSERT ON mandi.lots TO authenticated, service_role;
 GRANT SELECT, INSERT ON mandi.sales TO authenticated, service_role;
