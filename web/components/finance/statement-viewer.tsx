@@ -48,7 +48,10 @@ export default function StatementViewer({ contactId, contactName, contactType, o
 
         // If we have detailed products from the RPC, use them to build a richer description
         if (tx.products && Array.isArray(tx.products) && tx.products.length > 0) {
-            const detailStr = tx.products.map((p: any) => `${p.name || ''} ${p.qty || 0} @ Rs.${p.rate || 0}`).join(', ');
+            const detailStr = tx.products
+                .filter((p: any) => p.name)
+                .map((p: any) => `${p.name} ${p.qty || 0}${p.unit || ''} @ Rs.${p.rate || 0}`)
+                .join(', ');
             if (detailStr) {
                 const voucherSuffix = tx.voucher_no && tx.voucher_no !== '-' ? ` (Voucher #${tx.voucher_no})` : '';
                 return `${detailStr}${voucherSuffix}`;

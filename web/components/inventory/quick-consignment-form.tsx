@@ -209,7 +209,7 @@ export function QuickPurchaseForm() {
         try {
             const [itemsRes, contactsRes, locsRes, banksRes, settingsRes] = await Promise.all([
                 supabase.schema('mandi').from('commodities').select('id, name, local_name, sku_code, default_unit, custom_attributes').eq('organization_id', profile.organization_id).order('name'),
-                supabase.schema('mandi').from('contacts').select('*').eq('organization_id', profile.organization_id).in('type', ['farmer', 'supplier']).neq('status', 'deleted'),
+                supabase.schema('mandi').from('contacts').select('*').eq('organization_id', profile.organization_id).in('type', ['farmer', 'supplier', 'staff']).neq('status', 'deleted'),
                 supabase.schema('mandi').from('storage_locations').select('*').eq('organization_id', profile.organization_id),
                 supabase.schema('mandi').from('accounts').select('id, name, description, is_default').eq('organization_id', profile.organization_id).eq('account_sub_type', 'bank').eq('type', 'asset').eq('is_active', true).order('name'),
                 supabase.schema('mandi').from('mandi_settings' as any).select('commission_rate_default').eq('organization_id', profile.organization_id).maybeSingle()
@@ -513,9 +513,8 @@ export function QuickPurchaseForm() {
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Supplier / Farmer</FormLabel>
-                                    <SearchableSelect
                                         options={contacts.map(c => ({
-                                            label: `${c.name} - ${c.city || ''} (${c.type})`,
+                                            label: `${c.name}${c.type === 'staff' ? ' (Staff)' : ''} - ${c.city || ''}`,
                                             value: c.id
                                         }))}
                                         value={field.value}

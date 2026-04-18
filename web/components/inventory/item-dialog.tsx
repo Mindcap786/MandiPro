@@ -67,6 +67,7 @@ const itemSchema = z.object({
     gst_rate: z.number().min(0).optional(),
     tracking_type: z.string().optional(),
     custom_attributes: z.record(z.string(), z.string()).optional(),
+    internal_id: z.string().optional().or(z.literal("")),
 })
 
 type ItemFormValues = z.infer<typeof itemSchema>
@@ -184,8 +185,32 @@ export function ItemDialog({ children, onSuccess, initialItem }: ItemDialogProps
             gst_rate: initialItem?.gst_rate || 0,
             tracking_type: initialItem?.tracking_type || "none",
             custom_attributes: initialItem?.custom_attributes || {},
+            internal_id: initialItem?.internal_id || "",
         }
     })
+
+    const [idConflict, setIdConflict] = useState<string | null>(null)
+
+    const checkIdUniqueness = async (id: string) => {
+        if (!id || !profile?.organization_id) {
+            setIdConflict(null)
+            return
+        }
+        
+        const { data } = await supabase
+            .schema('mandi')
+            .from('commodities')
+            .select('name')
+            .eq('organization_id', profile.organization_id)
+            .eq('internal_id', id)
+            .maybeSingle()
+        
+        if (data && data.name !== form.getValues('name')) {
+            setIdConflict(`This ID is already allocated to ${data.name}. Please use a different ID.`)
+        } else {
+            setIdConflict(null)
+        }
+    }
 
     // Reset form when dialog opens/closes or initialItem changes
     useEffect(() => {
@@ -243,6 +268,14 @@ export function ItemDialog({ children, onSuccess, initialItem }: ItemDialogProps
     }
 
     const onSubmit = async (data: ItemFormValues) => {
+        if (idConflict) {
+            toast({
+                title: "ID Conflict",
+                description: idConflict,
+                variant: "destructive"
+            })
+            return
+        }
         if (!profile?.organization_id) {
             toast({
                 title: "Authentication Error",
@@ -291,6 +324,7 @@ export function ItemDialog({ children, onSuccess, initialItem }: ItemDialogProps
                         dealer_price: data.dealer_price,
                         average_cost: data.average_cost,
                         min_stock_level: data.min_stock_level,
+                        internal_id: data.internal_id,
                     })
                     .eq("id", initialItem.id) as any)
                     .abortSignal(controller.signal)
@@ -327,6 +361,7 @@ export function ItemDialog({ children, onSuccess, initialItem }: ItemDialogProps
                         dealer_price: data.dealer_price || 0,
                         average_cost: data.average_cost || 0,
                         min_stock_level: data.min_stock_level || 0,
+                        internal_id: data.internal_id,
                     })
                     .select('id')
                     .single() as any)
@@ -548,10 +583,17 @@ export function ItemDialog({ children, onSuccess, initialItem }: ItemDialogProps
                                     <div className="space-y-2">
                                         <Label className="text-[10px] font-black uppercase tracking-widest text-gray-700">Internal ID / Code</Label>
                                         <Input
-                                            placeholder="e.g. ITM-00007"
-                                            className="w-full bg-blue-50/30 border-gray-300 text-gray-900 font-bold h-12 rounded-xl focus:border-blue-500 transition-all font-mono"
-                                            {...form.register("sku_code")}
+                                            placeholder="e.g. ITM-007"
+                                            className={cn(
+                                                "w-full bg-blue-50/30 border-gray-300 text-gray-900 font-bold h-12 rounded-xl focus:border-blue-500 transition-all font-mono",
+                                                idConflict && "border-red-500 focus:border-red-600"
+                                            )}
+                                            {...form.register("internal_id")}
+                                            onBlur={(e) => checkIdUniqueness(e.target.value)}
                                         />
+                                        {idConflict && (
+                                            <p className="text-[9px] text-red-600 font-bold uppercase tracking-tight">{idConflict}</p>
+                                        )}
                                     </div>
                                     <div className="space-y-2">
                                         <div className="flex justify-between items-center">

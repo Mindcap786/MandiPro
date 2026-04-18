@@ -112,7 +112,7 @@ export function NewEntryModal() {
             .schema('mandi')
             .from('contacts')
             .select('id, name, village, default_trading_model, type')
-            .in('type', ['farmer', 'supplier'])
+            .in('type', ['farmer', 'supplier', 'staff'])
             .order('name')
 
         if (error) {
@@ -419,7 +419,7 @@ export function NewEntryModal() {
                                                         <option value="">-- Choose Source --</option>
                                                         {farmers.map(f => (
                                                             <option key={f.id} value={f.id}>
-                                                                {f.name} ({f.village}) {f.type ? `- [${f.type.toUpperCase()}]` : ''}
+                                                                {f.name}{f.type === 'staff' ? ' (Staff)' : ''} ({f.village})
                                                             </option>
                                                         ))}
                                                     </select>

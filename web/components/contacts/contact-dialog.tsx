@@ -27,10 +27,12 @@ import { supabase } from "@/lib/supabaseClient"
 import { useAuth } from "@/components/auth/auth-provider"
 import { Loader2 } from "lucide-react"
 import { useFieldGovernance } from "@/hooks/useFieldGovernance"
+import { cn } from "@/lib/utils"
 
 const contactSchema = z.object({
     name: z.string().min(2, "Name is required"),
     type: z.enum(["farmer", "buyer", "supplier", "staff"]),
+    internal_id: z.string().optional().or(z.literal("")),
     phone: z.string().optional().or(z.literal("")),
     city: z.string().optional(),
     address: z.string().optional(),
@@ -63,6 +65,7 @@ export function ContactDialog({ children, onSuccess, defaultType = "farmer" }: C
         defaultValues: {
             type: defaultType,
             name: "",
+            internal_id: "",
             phone: "",
             city: "",
             address: "",
@@ -71,7 +74,39 @@ export function ContactDialog({ children, onSuccess, defaultType = "farmer" }: C
         }
     })
 
+    const [idConflict, setIdConflict] = useState<string | null>(null)
+
+    const checkIdUniqueness = async (id: string, type: string) => {
+        if (!id || !profile?.organization_id) {
+            setIdConflict(null)
+            return
+        }
+        
+        const { data } = await supabase
+            .schema('mandi')
+            .from('contacts')
+            .select('name')
+            .eq('organization_id', profile.organization_id)
+            .eq('type', type)
+            .eq('internal_id', id)
+            .maybeSingle()
+        
+        if (data) {
+            setIdConflict(`This ID is already allocated to ${data.name}. Please use a different ID.`)
+        } else {
+            setIdConflict(null)
+        }
+    }
+
     const onSubmit = async (data: any) => {
+        if (idConflict) {
+            toast({
+                title: "ID Conflict",
+                description: idConflict,
+                variant: "destructive"
+            })
+            return
+        }
         if (!profile?.organization_id) {
             console.error("Profile check failed:", { profile })
             toast({
@@ -99,6 +134,7 @@ export function ContactDialog({ children, onSuccess, defaultType = "farmer" }: C
                     name: data.name,
                     type: data.type,
                     status: "active",
+                    internal_id: data.internal_id,
                     phone: data.phone,
                     city: data.city,
                     address: data.address
@@ -213,11 +249,18 @@ export function ContactDialog({ children, onSuccess, defaultType = "farmer" }: C
                                 <div className="space-y-2">
                                     <Label className="text-[10px] font-black uppercase tracking-widest text-slate-700">INTERNAL ID / CODE</Label>
                                     <Input
-                                        id="contact_code"
+                                        id="internal_id"
                                         placeholder="ID-101"
-                                        className="w-full bg-slate-50 border-slate-300 text-black h-12 rounded-xl focus:border-blue-500 font-bold transition-all placeholder:text-slate-600"
-                                        {...form.register("contact_code")}
+                                        className={cn(
+                                            "w-full bg-slate-50 border-slate-300 text-black h-12 rounded-xl focus:border-blue-500 font-bold transition-all placeholder:text-slate-600",
+                                            idConflict && "border-red-500 focus:border-red-600"
+                                        )}
+                                        {...form.register("internal_id")}
+                                        onBlur={(e) => checkIdUniqueness(e.target.value, form.getValues('type'))}
                                     />
+                                    {idConflict && (
+                                        <p className="text-[9px] text-red-600 font-bold uppercase tracking-tight">{idConflict}</p>
+                                    )}
                                 </div>
                             </div>
                         )}

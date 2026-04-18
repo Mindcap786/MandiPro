@@ -520,9 +520,16 @@ export default function FinancialDashboard() {
                         <CardContent className="px-4 pb-4">
                             <div className={cn(
                                 "font-black text-slate-800",
-                                totalReceivable.toLocaleString('en-IN').length > 10 ? "text-lg" : "text-2xl"
+                                (loadingStats ? 0 : totalReceivable).toLocaleString('en-IN').length > 10 ? "text-lg" : "text-2xl"
                             )}>
-                                ₹{totalReceivable.toLocaleString('en-IN')}
+                                {loadingStats ? (
+                                    <div className="flex items-center gap-2">
+                                        <Loader2 className="h-5 w-5 animate-spin text-slate-300" />
+                                        <span className="text-slate-300">₹0</span>
+                                    </div>
+                                ) : (
+                                    <>₹{totalReceivable.toLocaleString('en-IN')}</>
+                                )}
                             </div>
                         </CardContent>
                     </Card>
@@ -540,9 +547,16 @@ export default function FinancialDashboard() {
                         <CardContent className="px-4 pb-4">
                             <div className={cn(
                                 "font-black text-slate-800",
-                                totalFarmerPayable.toLocaleString('en-IN').length > 10 ? "text-lg" : "text-2xl"
+                                (loadingStats ? 0 : totalFarmerPayable).toLocaleString('en-IN').length > 10 ? "text-lg" : "text-2xl"
                             )}>
-                                ₹{totalFarmerPayable.toLocaleString('en-IN')}
+                                {loadingStats ? (
+                                    <div className="flex items-center gap-2">
+                                        <Loader2 className="h-5 w-5 animate-spin text-slate-300" />
+                                        <span className="text-slate-300">₹0</span>
+                                    </div>
+                                ) : (
+                                    <>₹{totalFarmerPayable.toLocaleString('en-IN')}</>
+                                )}
                             </div>
                         </CardContent>
                     </Card>

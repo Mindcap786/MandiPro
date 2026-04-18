@@ -341,7 +341,7 @@ function NewSaleForm() {
                     .from('contacts')
                     .select('id, name, type, city, status')
                     .eq('organization_id', orgId)
-                    .eq('type', 'buyer')
+                    .in('type', ['buyer', 'staff'])
                     .or('status.is.null,status.eq.active')
                     .order('name'),
                 supabase.schema('mandi').from('accounts').select('id, name, is_default, code, description').eq('organization_id', orgId).eq('account_sub_type', 'bank').eq('type', 'asset').eq('is_active', true),
@@ -821,7 +821,10 @@ function NewSaleForm() {
                                                 <div className="flex gap-2">
                                                     <div className="flex-1">
                                                         <SearchableSelect
-                                                            options={(buyers || []).map(b => ({ label: `${b?.name || 'Unknown Buyer'} (${b?.city || '-'})`, value: b?.id || '' }))}
+                                                            options={(buyers || []).map(b => ({ 
+                                                                label: `${b?.name || 'Unknown'}${b?.type === 'staff' ? ' (Staff)' : ''} (${b?.city || '-'})`, 
+                                                                value: b?.id || '' 
+                                                            }))}
                                                             value={field.value}
                                                             onChange={field.onChange}
                                                             placeholder="Select Buyer/Customer"
