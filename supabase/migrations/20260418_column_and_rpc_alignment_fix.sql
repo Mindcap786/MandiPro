@@ -61,11 +61,19 @@ COMMENT ON COLUMN mandi.ledger_entries.narration IS 'Human-readable description 
 -- Backfill narration from description column if it exists
 DO $$
 BEGIN
-  IF EXISTS(SELECT 1 FROM information_schema.columns 
-            WHERE table_schema='mandi' AND table_name='ledger_entries' AND column_name='description') THEN
-    UPDATE mandi.ledger_entries 
-    SET narration = description 
-    WHERE narration IS NULL AND description IS NOT NULL;
+  IF EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema='mandi' AND table_name='ledger_entries' AND column_name='description') THEN
+    -- Temporarily disable the strict voucher balance trigger to avoid crashing on legacy unbalanced data
+    BEGIN
+        ALTER TABLE mandi.ledger_entries DISABLE TRIGGER enforce_voucher_balance;
+    EXCEPTION WHEN undefined_object THEN NULL;
+    END;
+
+    UPDATE mandi.ledger_entries SET narration = description WHERE narration IS NULL AND description IS NOT NULL;
+
+    BEGIN
+        ALTER TABLE mandi.ledger_entries ENABLE TRIGGER enforce_voucher_balance;
+    EXCEPTION WHEN undefined_object THEN NULL;
+    END;
   END IF;
 END $$;
 
