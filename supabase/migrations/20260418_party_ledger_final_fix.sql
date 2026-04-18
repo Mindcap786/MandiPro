@@ -199,11 +199,13 @@ $$;
 -- Start bypass
 SELECT set_config('mandi.skip_integrity_check', 'on', true);
 
--- Ensure Integrity Repair Account exists for all orgs
+-- Ensure Integrity Repair Account exists for all orgs (safe insert, no ON CONFLICT needed)
 INSERT INTO mandi.accounts (organization_id, name, type, code, is_active)
 SELECT id, 'Financial Integrity Repair Account', 'equity', '3001', true
-FROM core.organizations
-ON CONFLICT (organization_id, code) DO NOTHING;
+FROM core.organizations o
+WHERE NOT EXISTS (
+    SELECT 1 FROM mandi.accounts a WHERE a.organization_id = o.id AND a.code = '3001'
+);
 
 -- Perform repair in one surgical INSERT statement
 INSERT INTO mandi.ledger_entries (
@@ -218,7 +220,10 @@ WITH imbalanced AS (
     HAVING ABS(SUM(debit) - SUM(credit)) > 0.01
 ),
 suspense_accs AS (
-    SELECT id, organization_id FROM mandi.accounts WHERE code = '3001'
+    SELECT DISTINCT ON (organization_id) id, organization_id 
+    FROM mandi.accounts 
+    WHERE code = '3001'
+    ORDER BY organization_id, created_at
 )
 SELECT 
     i.organization_id,
