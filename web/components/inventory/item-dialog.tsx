@@ -83,6 +83,7 @@ export function ItemDialog({ children, onSuccess, initialItem }: ItemDialogProps
     const { toast } = useToast()
     const { profile } = useAuth()
     const [loadingState, setLoadingState] = useState<string | null>(null)
+    const [idConflict, setIdConflict] = useState<string | null>(null)
     const isLoading = !!loadingState
 
     const [selectedImages, setSelectedImages] = useState<File[]>([])

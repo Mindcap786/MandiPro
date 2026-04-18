@@ -226,7 +226,7 @@ export default function FinancialDashboard() {
     };
 
     // Fetch Paginated List with total count for pagination controls
-    const fetchList = useCallback(async (pageNumber = 0) => {
+    const fetchParties = useCallback(async (pageNumber = 0) => {
         const currentOrgId = String(profile?.organization_id || "");
         if (!currentOrgId || currentOrgId === '[object Object]' || currentOrgId === 'undefined') {
             setLoadingList(false);
