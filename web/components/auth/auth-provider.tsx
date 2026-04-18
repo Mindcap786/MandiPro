@@ -316,17 +316,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 if (isMounted) setLoading(false);
             }
 
-            // 3. Background branding fetch
+            // 3. Background branding fetch (Harden against RLS/Grant failures)
             try {
-                const { data } = await supabase.schema('core')
+                const { data, error } = await supabase.schema('core')
                     .from('platform_branding_settings')
                     .select('is_compliance_visible_to_tenants')
                     .maybeSingle();
                 
+                if (error) {
+                    if (error.code === '42501') {
+                        console.warn('[Auth] Branding fetch blocked by permissions (SQL Fix Pending).');
+                    } else {
+                        console.warn('[Auth] Branding fetch error:', error.message);
+                    }
+                }
+
                 if (isMounted) {
                     setIsComplianceVisible(!!data?.is_compliance_visible_to_tenants);
                 }
-            } catch (ignore) {}
+            } catch (ignore) {
+                console.warn('[Auth] Branding fetch failed silently.');
+            }
         };
 
         // ── SINGLE onAuthStateChange subscription ────────────────────────────

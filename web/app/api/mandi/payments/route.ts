@@ -61,9 +61,9 @@ export async function POST(request: NextRequest) {
     const { user, profile, response: authErr } = await requireAuth(supabase)
     if (authErr || !user || !profile) return authErr!
 
-    if (!['owner', 'admin', 'manager', 'staff'].includes(profile.role)) {
-        return apiError.forbidden()
-    }
+    // Standardized role validation
+    const { ok, response: accessErr } = validateRole(profile, ['manager', 'staff'])
+    if (!ok) return accessErr!
 
     const result = CreatePaymentSchema.safeParse(body)
     if (!result.success) {

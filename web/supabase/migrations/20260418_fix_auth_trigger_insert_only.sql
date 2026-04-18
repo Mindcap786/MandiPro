@@ -30,9 +30,11 @@ BEGIN
         v_org_id := NULL;
     END;
 
-    -- Insert new profile. On conflict (user already exists) update ONLY the safe
-    -- contact fields. Never overwrite role or organization_id — those are set
-    -- explicitly by the provision flow and must not be clobbered by auth metadata.
+    -- Insert new profile. 
+    -- ROBUST ROLE LOGIC: 
+    -- 1. Use metadata role if provided and valid.
+    -- 2. If organization_id is present but no role, default to 'staff' (ERP standard).
+    -- 3. Otherwise, default to 'authenticated' (minimal).
     INSERT INTO core.profiles (id, full_name, email, phone, username, role, organization_id)
     VALUES (
         NEW.id,
@@ -40,17 +42,18 @@ BEGIN
         NEW.email,
         NEW.raw_user_meta_data->>'phone',
         LOWER(NULLIF(TRIM(NEW.raw_user_meta_data->>'username'), '')),
-        COALESCE(NULLIF(TRIM(NEW.raw_user_meta_data->>'role'), ''), 'authenticated'),
+        COALESCE(
+            NULLIF(TRIM(NEW.raw_user_meta_data->>'role'), ''),
+            CASE WHEN v_org_id IS NOT NULL THEN 'staff' ELSE 'authenticated' END
+        ),
         v_org_id
     )
     ON CONFLICT (id) DO UPDATE SET
-        -- Safe to update: contact info that may change
         full_name = COALESCE(EXCLUDED.full_name, core.profiles.full_name),
         email     = COALESCE(EXCLUDED.email,     core.profiles.email),
         phone     = COALESCE(EXCLUDED.phone,     core.profiles.phone),
         username  = COALESCE(EXCLUDED.username,  core.profiles.username)
         -- NOTE: role and organization_id are intentionally NOT updated here.
-        -- They are managed by the provision flow and admin panel only.
     ;
 
     RETURN NEW;

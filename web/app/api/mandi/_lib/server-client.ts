@@ -48,6 +48,30 @@ export async function requireAuth(supabase: ReturnType<typeof createMandiServerC
 }
 
 /**
+ * Robust role-based check for domain APIs.
+ * Returns { ok: true } if allowed, or { ok: false, response: NextResponse } if blocked.
+ */
+export function validateRole(profile: { role?: string }, allowedRoles: string[]) {
+    const role = profile?.role ?? 'authenticated';
+    
+    // Core ERP logic: owner and admin are ALWAYS allowed for all modules
+    const extendedAllowed = Array.from(new Set(['owner', 'admin', ...allowedRoles]));
+    
+    if (!extendedAllowed.includes(role)) {
+        console.warn(`[API:Auth] Action Blocked: User has role '${role}', but action requires one of [${extendedAllowed.join(', ')}]`);
+        return { 
+            ok: false, 
+            response: NextResponse.json({ 
+                error: 'Insufficient permissions', 
+                detail: `Role '${role}' is not authorized for this action.` 
+            }, { status: 403 }) 
+        };
+    }
+    
+    return { ok: true, response: null };
+}
+
+/**
  * Standard error response helpers
  */
 export const apiError = {
