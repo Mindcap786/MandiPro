@@ -26,8 +26,6 @@ ALTER TABLE mandi.contacts ADD COLUMN IF NOT EXISTS created_by UUID;
 ALTER TABLE mandi.commodities ADD COLUMN IF NOT EXISTS created_by UUID;
 ALTER TABLE mandi.accounts ADD COLUMN IF NOT EXISTS created_by UUID;
 ALTER TABLE mandi.vouchers ADD COLUMN IF NOT EXISTS created_by UUID;
-ALTER TABLE mandi.settings ADD COLUMN IF NOT EXISTS created_by UUID;
-ALTER TABLE mandi.organization_preferences ADD COLUMN IF NOT EXISTS created_by UUID;
 
 GRANT SELECT, INSERT, UPDATE ON mandi.contacts TO authenticated, service_role;
 GRANT SELECT, INSERT, UPDATE ON mandi.commodities TO authenticated, service_role;
