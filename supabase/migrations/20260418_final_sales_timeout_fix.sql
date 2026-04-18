@@ -119,7 +119,7 @@ BEGIN
         organization_id, buyer_id, sale_date, invoice_no,
         subtotal, discount_amount, gst_total, gst_amount, total_amount,
         payment_mode, payment_status, paid_amount, balance_due,
-        narration, cheque_number, cheque_date, bank_name, bank_account_id,
+        narration, cheque_no, cheque_date, bank_name, bank_account_id,
         cheque_status, amount_received, due_date,
         market_fee, nirashrit, misc_fee, loading_charges, unloading_charges, other_expenses,
         gst_enabled, cgst_amount, sgst_amount, igst_amount,

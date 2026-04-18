@@ -48,7 +48,7 @@ BEGIN
             v_cheque.organization_id, v_cheque.party_id, 
             COALESCE(p_cleared_date, CURRENT_DATE), 'payment_receipt', 
             'cheque_clearance', p_cheque_id, 
-            v_cheque.amount, 0, 'Cheque Cleared: ' || v_cheque.cheque_number, p_actor_id
+            v_cheque.amount, 0, 'Cheque Cleared: ' || v_cheque.cheque_no, p_actor_id
         );
     END IF;
 
