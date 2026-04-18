@@ -88,11 +88,13 @@ DECLARE
     v_row       RECORD;
     v_new_code  TEXT;
 BEGIN
+    -- mandi.commodities has no created_at column (only created_by).
+    -- Ordering by (organization_id, id) is stable and sufficient for backfill.
     FOR v_row IN
         SELECT id, organization_id
           FROM mandi.commodities
          WHERE internal_id IS NULL OR TRIM(internal_id) = ''
-         ORDER BY organization_id, created_at NULLS LAST, id
+         ORDER BY organization_id, id
     LOOP
         v_new_code := mandi.next_internal_id(v_row.organization_id, 'commodity');
         UPDATE mandi.commodities
