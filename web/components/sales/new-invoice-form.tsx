@@ -154,7 +154,7 @@ const NewInvoiceForm = () => {
                 supabase.schema('mandi').from('commodities').select('id, name, local_name, sku_code, gst_rate')
                     .eq('organization_id', orgId)
                     .order('name'),
-                supabase.schema('mandi').from('lots').select('id, lot_code, arrival_id, current_qty, unit, sale_price, item_id, supplier_rate, arrival_type, contact_id, contacts(name)').eq('organization_id', orgId).gt('current_qty', 0).eq('status', 'active'),
+                supabase.schema('mandi').from('lots').select('id, lot_code, arrival_id, current_qty, unit, sale_price, item_id, supplier_rate, arrival_type, contact_id, contacts(name)').eq('organization_id', orgId).gt('current_qty', 0).in('status', ['active', 'available']),
                 supabase.schema('mandi').from('mandi_settings' as any).select('*').eq('organization_id', orgId).maybeSingle()
             ]);
 

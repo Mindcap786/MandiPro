@@ -189,15 +189,37 @@ export function ItemDialog({ children, onSuccess, initialItem }: ItemDialogProps
         }
     })
 
-    const [idConflict, setIdConflict] = useState<string | null>(null)
-
     const checkIdUniqueness = async (id: string) => {
-        if (!id || !profile?.organization_id) {
+        if (!id || !profile?.organization_id || initialItem) {
             setIdConflict(null)
             return
         }
         
         const { data } = await supabase
+            .schema('mandi')
+            .from('commodities')
+            .select('name')
+            .eq('organization_id', String(profile.organization_id))
+            .eq('internal_id', id)
+            .maybeSingle()
+        
+        if (data) {
+            setIdConflict(`This ID is already allocated to ${data.name}. Please use a different identifier.`)
+        } else {
+            setIdConflict(null)
+        }
+    }
+
+    const onSubmit = async (data: any) => {
+        if (idConflict) {
+            toast({
+                title: "ID Allocation Error",
+                description: idConflict,
+                variant: "destructive"
+            })
+            return
+        }
+        // [Existing onSubmit logic...]
             .schema('mandi')
             .from('commodities')
             .select('name')

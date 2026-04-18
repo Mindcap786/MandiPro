@@ -73,7 +73,11 @@ export function useArrivalsMasterData(organizationId: string | undefined): Arriv
   const [error, setError] = useState<string | null>(null)
 
   const fetch = useCallback(async () => {
-    if (!organizationId) { setLoading(false); return }
+    const currentOrgId = String(organizationId || "");
+    if (!currentOrgId || currentOrgId === '[object Object]' || currentOrgId === 'undefined') { 
+      setLoading(false); 
+      return; 
+    }
 
     // 1. Serve from cache immediately if available
     const cached = cacheGet<{
@@ -82,7 +86,7 @@ export function useArrivalsMasterData(organizationId: string | undefined): Arriv
       storage: StorageLocation[]
       banks: BankAccount[]
       settings: { commission_rate_default?: number; market_fee_percent?: number; nirashrit_percent?: number; misc_fee_percent?: number }
-    }>(CACHE_KEY, organizationId)
+    }>(CACHE_KEY, currentOrgId)
 
     if (cached) {
       setContacts(cached.contacts || [])
@@ -94,23 +98,23 @@ export function useArrivalsMasterData(organizationId: string | undefined): Arriv
       setNirashritPercent(Number(cached.settings?.nirashrit_percent || 0))
       setMiscFeePercent(Number(cached.settings?.misc_fee_percent || 0))
       setLoading(false)
-      if (!cacheIsStale(CACHE_KEY, organizationId)) return
+      if (!cacheIsStale(CACHE_KEY, currentOrgId)) return
     }
 
     // 2. Background / foreground fetch from Supabase
     try {
       const [contactsRes, commoditiesRes, storageRes, bankRes, settingsRes] = await Promise.allSettled([
         supabase.schema(SCHEMA).from("contacts").select("id, name, type, city")
-          .eq("organization_id", organizationId).in("type", ["farmer", "supplier"]).order("name"),
+          .eq("organization_id", currentOrgId).in("type", ["farmer", "supplier"]).order("name"),
         supabase.schema(SCHEMA).from("commodities").select("id, name, local_name, sku_code, default_unit, custom_attributes")
-          .eq("organization_id", organizationId).order("name"),
+          .eq("organization_id", currentOrgId).order("name"),
         supabase.schema(SCHEMA).from("storage_locations").select("name, is_active")
-          .eq("organization_id", organizationId).eq("is_active", true),
+          .eq("organization_id", currentOrgId).eq("is_active", true),
         supabase.schema(SCHEMA).from("accounts").select("id, name, description, is_default")
-          .eq("organization_id", organizationId).eq("account_sub_type", "bank")
+          .eq("organization_id", currentOrgId).eq("account_sub_type", "bank")
           .eq("type", "asset").eq("is_active", true).order("name"),
         supabase.schema(SCHEMA).from("mandi_settings" as never).select("commission_rate_default, market_fee_percent, nirashrit_percent, misc_fee_percent")
-          .eq("organization_id", organizationId).maybeSingle(),
+          .eq("organization_id", currentOrgId).maybeSingle(),
       ])
 
       const newContacts = contactsRes.status === 'fulfilled' ? (contactsRes.value.data || []) as ArrivalContact[] : contacts

@@ -41,7 +41,8 @@ export default function ItemsPage() {
     }, [profile?.organization_id, authLoading])
 
     const fetchItems = useCallback(async (showLoading = true) => {
-        if (!profile?.organization_id) return
+        const currentOrgId = String(profile?.organization_id || "");
+        if (!currentOrgId || currentOrgId === '[object Object]' || currentOrgId === 'undefined') return;
 
         try {
             if (showLoading && items.length === 0) setLoading(true)
@@ -50,15 +51,13 @@ export default function ItemsPage() {
                 .schema(dbSchema)
                 .from("commodities")
                 .select("*")
-                .eq("organization_id", profile.organization_id)
+                .eq("organization_id", currentOrgId)
                 .order("name", { ascending: true })
 
             if (error) console.error('[Items] Fetch error:', error)
             if (data) {
                 setItems(data)
-                if (profile?.organization_id) {
-                    cacheSet('commodity_master', profile.organization_id, data);
-                }
+                cacheSet('commodity_master', currentOrgId, data);
             }
         } catch (error) {
             console.error("Error fetching items:", error)

@@ -49,7 +49,7 @@ export default function FinancialDashboard() {
 
     // 3. Selection & Filter States
     const [selectedParty, setSelectedParty] = useState<{ id: string, name: string, type?: string } | null>(null);
-    const [filterType, setFilterType] = useState<'all' | 'buyer' | 'supplier' | 'farmer'>('all');
+    const [filterType, setFilterType] = useState<'all' | 'buyer' | 'supplier' | 'farmer' | 'staff'>('all');
     const [subFilter, setSubFilter] = useState<'all' | 'receivable' | 'payable'>('all');
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -111,7 +111,7 @@ export default function FinancialDashboard() {
                 .schema('mandi')
                 .from('ledger_entries')
                 .select('voucher_id, debit, credit')
-                .eq('organization_id', profile.organization_id)
+                .eq('organization_id', String(profile.organization_id))
                 .gte('entry_date', since.toISOString())
                 .limit(50000);
             if (error || !data) return;
@@ -135,26 +135,25 @@ export default function FinancialDashboard() {
 
     // Fetch Lightweight Stats
     const fetchStats = useCallback(async () => {
-        if (!profile?.organization_id) { setLoadingStats(false); return; }
-        // background revalidation on mount (even if cache is fresh)
-        // if (!cacheIsStale('finance_stats', profile.organization_id)) return;
+        const currentOrgId = String(profile?.organization_id || "");
+        if (!currentOrgId || currentOrgId === '[object Object]' || currentOrgId === 'undefined') { 
+            setLoadingStats(false); 
+            return; 
+        }
+        
         setLoadingStats(true);
         try {
-            // FIX: Add cache-busting parameter to prevent 304 Not Modified responses
-            // 304s cause empty data because browser cache is stale
             const timestamp = Date.now();
             const { data, error }: any = await (supabase
                 .schema('mandi')
                 .rpc('get_financial_summary', {
-                    p_org_id: profile.organization_id,
-                    // @ts-ignore - cache bust parameter
+                    p_org_id: currentOrgId,
                     _cache_bust: timestamp
                 }) as any);
             if (!error && data) {
                 setSummary(data);
-                // Save stats to cache (bank data added by fetchBankAccounts)
-                const existing = cacheGet<any>('finance_stats', profile.organization_id) || {};
-                cacheSet('finance_stats', profile.organization_id, { ...existing, summary: data });
+                const existing = cacheGet<any>('finance_stats', currentOrgId) || {};
+                cacheSet('finance_stats', currentOrgId, { ...existing, summary: data });
             }
         } catch (error) {
             console.error("Finance Stats Error:", error);
@@ -175,7 +174,7 @@ export default function FinancialDashboard() {
             .schema('mandi')
             .from('accounts')
             .select('id, name, opening_balance, description, account_sub_type')
-            .eq('organization_id', profile.organization_id)
+            .eq('organization_id', String(profile.organization_id))
             .eq('type', 'asset')
             .eq('is_active', true)
             .or("account_sub_type.eq.bank,name.ilike.%bank%,name.ilike.%HDFC%,name.ilike.%SBI%")
@@ -207,7 +206,7 @@ export default function FinancialDashboard() {
             .from('ledger_entries')
             .select('account_id, debit, credit')
             .in('account_id', ids)
-            .eq('organization_id', profile.organization_id)
+            .eq('organization_id', String(profile.organization_id))
             .then(res => {
                 // Force cache revalidation
                 return { ...res, _ts: timestamp };
@@ -227,8 +226,8 @@ export default function FinancialDashboard() {
     };
 
     // Fetch Paginated List with total count for pagination controls
-    const fetchParties = useCallback(async (pageNumber: number) => {
-        if (!profile?.organization_id) {
+        const currentOrgId = String(profile?.organization_id || "");
+        if (!currentOrgId || currentOrgId === '[object Object]' || currentOrgId === 'undefined') {
             setLoadingList(false);
             return;
         }
@@ -245,7 +244,7 @@ export default function FinancialDashboard() {
                 .schema('mandi')
                 .from('view_party_balances')
                 .select('*', { count: 'exact' })
-                .eq('organization_id', profile.organization_id)
+                .eq('organization_id', currentOrgId)
                 .range(from, to)
                 .order('net_balance', { ascending: false }) // Sort by highest outstanding
                 .order('contact_name');
@@ -278,8 +277,8 @@ export default function FinancialDashboard() {
                 setTotalCount(count || 0);
                 
                 // Update cache with fresh data
-                const existing = cacheGet<any>('finance_stats', profile.organization_id) || {};
-                cacheSet('finance_stats', profile.organization_id, { ...existing, partyList: data });
+                const existing = cacheGet<any>('finance_stats', currentOrgId) || {};
+                cacheSet('finance_stats', currentOrgId, { ...existing, partyList: data });
             }
         } catch (error) {
             console.error("Dashboard List Fetch Failed:", error);
@@ -295,7 +294,7 @@ export default function FinancialDashboard() {
                 .schema('mandi')
                 .from('view_party_balances')
                 .select('*')
-                .eq('organization_id', profile?.organization_id);
+                .eq('organization_id', String(profile?.organization_id));
 
             if (filterType !== 'all') query = query.eq('contact_type', filterType);
             if (subFilter === 'receivable') query = query.gt('net_balance', 0);
@@ -587,7 +586,7 @@ export default function FinancialDashboard() {
                     <div className="flex flex-col gap-4 bg-white p-4 rounded-3xl border border-slate-200 shadow-sm relative overflow-hidden">
                         <div className="flex flex-col md:flex-row justify-between items-center gap-4 relative z-10">
                             <div className="flex gap-2 p-1 bg-slate-100 rounded-xl w-fit border border-slate-200 shadow-inner">
-                                {['all', 'buyer', 'supplier', 'farmer'].map((filter) => (
+                                {['all', 'buyer', 'supplier', 'farmer', 'staff'].map((filter) => (
                                     <button
                                         key={filter}
                                         onClick={() => setFilterType(filter as any)}

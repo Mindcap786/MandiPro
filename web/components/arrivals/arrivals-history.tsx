@@ -32,9 +32,9 @@ export default function ArrivalsHistory() {
     const { profile } = useAuth()
     
     // CRITICAL FIX: Validate profile data before using it
-    const _orgId = profile?.organization_id;
-    if (!_orgId) {
-        console.warn("[ArrivalsHistory] Profile not loaded or missing organization_id");
+    const _orgId = String(profile?.organization_id || "");
+    if (!_orgId || _orgId === '[object Object]' || _orgId === 'undefined') {
+        console.warn("[ArrivalsHistory] Profile not loaded or invalid organization_id:", _orgId);
     }
     
     const _cached = _orgId ? cacheGet<any>('arrivals_history', _orgId) : null;
@@ -84,7 +84,7 @@ export default function ArrivalsHistory() {
             .channel(`arrivals-history-realtime-${uniqueId}`)
             .on(
                 'postgres_changes',
-                { event: '*', schema: schema, table: 'arrivals', filter: `organization_id=eq.${profile.organization_id}` },
+                { event: '*', schema: schema, table: 'arrivals', filter: `organization_id=eq.${_orgId}` },
                 () => {
                     fetchArrivals(true);
                 }
@@ -119,7 +119,7 @@ export default function ArrivalsHistory() {
                 .schema(schema)
                 .from('v_arrivals_fast')
                 .select(`*`, { count: 'exact' })
-                .eq('organization_id', profile.organization_id)
+                .eq('organization_id', _orgId)
                 .order('created_at', { ascending: false })
                 .range((page - 1) * limit, page * limit - 1);
 
@@ -146,7 +146,7 @@ export default function ArrivalsHistory() {
                         .schema(schema)
                         .from('arrivals')
                         .select(`*, party_id`, { count: 'exact' })
-                        .eq('organization_id', profile.organization_id)
+                        .eq('organization_id', _orgId)
                         .order('created_at', { ascending: false })
                         .range((page - 1) * limit, page * limit - 1);
 
@@ -201,7 +201,7 @@ export default function ArrivalsHistory() {
                     *,
                     contacts:party_id (name, city, type)
                 `)
-                .eq('organization_id', profile?.organization_id)
+                .eq('organization_id', _orgId)
                 .order('created_at', { ascending: false })
 
             if (dateRange?.from) {

@@ -193,13 +193,13 @@ export function PurchaseBillDetailsSheet({ lotId, isOpen, isLocked, onClose, onU
                     less_units: lotData.less_units || 0,
                     packing_cost: lotData.packing_cost || 0,
                     loading_cost: lotData.loading_cost || 0,
-                    advance: lotData.advance || 0,
-                    advance_payment_mode: lotData.advance_payment_mode || 'cash',
-                    advance_bank_account_id: lotData.advance_bank_account_id || "",
-                    advance_cheque_no: lotData.advance_cheque_no || "",
-                    advance_bank_name: lotData.advance_bank_name || "",
-                    advance_cheque_date: lotData.advance_cheque_date ? new Date(lotData.advance_cheque_date) : null,
-                    advance_cheque_status: lotData.advance_cheque_status || false,
+                    advance: (Number(lotData.advance) || 0) + (Number(arrivalData.advance_amount) || 0),
+                    advance_payment_mode: lotData.advance_payment_mode || arrivalData.advance_payment_mode || 'cash',
+                    advance_bank_account_id: lotData.advance_bank_account_id || arrivalData.advance_bank_account_id || "",
+                    advance_cheque_no: lotData.advance_cheque_no || arrivalData.advance_cheque_no || "",
+                    advance_bank_name: lotData.advance_bank_name || arrivalData.advance_bank_name || "",
+                    advance_cheque_date: lotData.advance_cheque_date ? new Date(lotData.advance_cheque_date) : (arrivalData.advance_cheque_date ? new Date(arrivalData.advance_cheque_date) : null),
+                    advance_cheque_status: lotData.advance_cheque_status || arrivalData.advance_cheque_status || false,
                     farmer_charges: lotData.farmer_charges || 0,
                     sale_price: lotData.sale_price || 0
                 });
@@ -426,20 +426,46 @@ export function PurchaseBillDetailsSheet({ lotId, isOpen, isLocked, onClose, onU
     const isActuallySoldOut = data?.current_qty !== undefined && data.current_qty <= 0; // Purely inventory check
     const isSoldOut = isLocked; // Driven tightly by the global FIFO ledger logic in dialog
 
-    const SectionHeader = ({ id, icon: Icon, title, isExpanded }: any) => (
-        <button
-            onClick={() => toggleSection(id)}
-            className="w-full flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-all group shadow-sm"
-        >
-            <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <Icon className="w-4 h-4 text-blue-600" />
+    const SectionHeader = ({ id, icon: Icon, title, isExpanded }: any) => {
+        // Dynamic status check for header indicators
+        const isHeaderComplete = id === 'header' && formData.arrival_date && formData.reference_no;
+        const isTransportComplete = id === 'transport' && formData.vehicle_number;
+        
+        return (
+            <button
+                onClick={() => toggleSection(id)}
+                className={cn(
+                    "w-full flex items-center justify-between p-4 border transition-all group shadow-sm rounded-xl",
+                    isExpanded ? "bg-white border-blue-200 ring-4 ring-blue-500/5" : "bg-slate-50 border-slate-200 hover:bg-slate-100"
+                )}
+            >
+                <div className="flex items-center gap-3">
+                    <div className={cn(
+                        "w-8 h-8 rounded-lg border flex items-center justify-center group-hover:scale-110 transition-transform",
+                        isExpanded ? "bg-blue-600 border-blue-500 text-white" : "bg-white border-slate-200 text-blue-600"
+                    )}>
+                        <Icon className="w-4 h-4" />
+                    </div>
+                    <div className="flex flex-col items-start">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-700">{title}</span>
+                        {!isExpanded && (
+                            <span className="text-[9px] text-slate-400 font-medium">
+                                {id === 'header' ? (formData.reference_no || 'No Reference') : 
+                                 id === 'transport' ? (formData.vehicle_number || 'No Vehicle') : 
+                                 'Tap to expand'}
+                            </span>
+                        )}
+                    </div>
                 </div>
-                <span className="text-xs font-black uppercase tracking-widest text-slate-700">{title}</span>
-            </div>
-            {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
-        </button>
-    );
+                <div className="flex items-center gap-2">
+                    {((id === 'header' && isHeaderComplete) || (id === 'transport' && isTransportComplete)) && !isExpanded && (
+                        <Check className="w-3.5 h-3.5 text-emerald-500" />
+                    )}
+                    {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                </div>
+            </button>
+        );
+    };
 
     return (
         <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>

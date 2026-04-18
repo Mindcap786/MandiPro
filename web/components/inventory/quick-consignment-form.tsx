@@ -513,6 +513,7 @@ export function QuickPurchaseForm() {
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Supplier / Farmer</FormLabel>
+                                    <SearchableSelect
                                         options={contacts.map(c => ({
                                             label: `${c.name}${c.type === 'staff' ? ' (Staff)' : ''} - ${c.city || ''}`,
                                             value: c.id

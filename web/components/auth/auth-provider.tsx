@@ -165,7 +165,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     if (directProfile && !directError) {
                         console.log("[Auth] Recovered profile via Direct Lookup.");
                         setProfileNotFound(false);
-                        return directProfile as unknown as Profile;
+                        const result = directProfile as any;
+                        // Force organization_id to be the string ID, not the object
+                        if (typeof result.organization_id === 'object' && result.organization_id !== null) {
+                            result.organization_id = result.organization_id.id;
+                        }
+                        return result as Profile;
                     }
                 } catch (directTimeoutErr: any) {
                     clearTimeout(directTimeoutId);

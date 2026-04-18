@@ -80,7 +80,8 @@ export function SupplierInwardsDialog({ supplier, isOpen, onClose, onEditLot, on
                     hire_charges: lot.arrival?.hire_charges || 0,
                     hamali_expenses: lot.arrival?.hamali_expenses || 0,
                     other_expenses: lot.arrival?.other_expenses || 0,
-                    totalAdvance: 0, // FIX: Track advance per bill group
+                    totalLotAdvance: 0, 
+                    arrivalAdvance: Number(lot.arrival?.advance_amount || 0), 
                 };
             }
             const itemTotal = calculateLotSettlementAmount(lot);
@@ -91,7 +92,7 @@ export function SupplierInwardsDialog({ supplier, isOpen, onClose, onEditLot, on
             grouped[key].items.push(lot);
             grouped[key].totalAmount += itemTotal;
             grouped[key].totalQty += (lot.initial_qty || 0);
-            grouped[key].totalAdvance += Number(lot.advance || 0); // FIX: Sum advances per bill group
+            grouped[key].totalLotAdvance += Number(lot.advance || 0);
         });
 
         const finalGroups = Object.values(grouped).map((group: any) => {
@@ -112,7 +113,7 @@ export function SupplierInwardsDialog({ supplier, isOpen, onClose, onEditLot, on
         // Each bill's balance = bill total - bill's advance payments
         finalGroups.forEach((group: any) => {
             const totalAmount = Number(group.totalAmount || 0);
-            const totalAdvance = Number(group.totalAdvance || 0);
+            const totalAdvance = Number(group.totalLotAdvance || 0) + Number(group.arrivalAdvance || 0);
             
             // Balance to pay = total amount - what's already paid via advance
             const balanceToPay = totalAmount - totalAdvance;

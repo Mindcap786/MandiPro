@@ -42,7 +42,7 @@ export function LotSelector({ onSelect, selectedLotId, commodityId }: LotSelecto
                 commodities (name)
             `)
             .eq("organization_id", profile.organization_id)
-            .eq("status", "active")
+            .in("status", ["active", "available"])
             .gt("current_qty", 0)
 
         if (commodityId) {

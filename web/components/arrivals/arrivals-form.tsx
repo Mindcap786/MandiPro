@@ -328,18 +328,19 @@ export default function ArrivalsEntryForm() {
     }, [currentArrivalType, defaultCommissionRate, form]);
 
     useEffect(() => {
-        if (profile?.organization_id) {
-            const schema = 'mandi';
-            const uniqueId = Math.random().toString(36).substring(7);
-            const subscription = supabase
-                .channel(`arrivals-realtime-${uniqueId}`)
-                .on('postgres_changes', { event: '*', schema: schema, table: 'arrivals', filter: `organization_id=eq.${profile.organization_id}` }, () => refetchMaster())
-                .subscribe();
+        const currentOrgId = String(profile?.organization_id || "");
+        if (!currentOrgId || currentOrgId === '[object Object]' || currentOrgId === 'undefined') return;
 
-            return () => {
-                supabase.removeChannel(subscription);
-            };
-        }
+        const schema = 'mandi';
+        const uniqueId = Math.random().toString(36).substring(7);
+        const subscription = supabase
+            .channel(`arrivals-realtime-${uniqueId}`)
+            .on('postgres_changes', { event: '*', schema: schema, table: 'arrivals', filter: `organization_id=eq.${currentOrgId}` }, () => refetchMaster())
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(subscription);
+        };
     }, [profile, refetchMaster]);
 
 

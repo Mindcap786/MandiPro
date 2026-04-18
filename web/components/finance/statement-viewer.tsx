@@ -171,7 +171,8 @@ export default function StatementViewer({ contactId, contactName, contactType, o
     };
 
     const fetchStatement = async (retryCount = 0) => {
-        if (!profile?.organization_id || !contactId) return;
+        const currentOrgId = String(profile?.organization_id || "");
+        if (!currentOrgId || currentOrgId === '[object Object]' || currentOrgId === 'undefined' || !contactId) return;
 
         // Abort previous request if any
         if (abortControllerRef.current) {
@@ -186,7 +187,7 @@ export default function StatementViewer({ contactId, contactName, contactType, o
         try {
             const rpcName = 'get_ledger_statement';
             const { data: rpcData, error } = await supabase.rpc(rpcName, {
-                p_organization_id: profile.organization_id,
+                p_organization_id: currentOrgId,
                 p_contact_id: contactId,
                 p_from_date: dateRange.from.toISOString().split('T')[0],
                 p_to_date: dateRange.to.toISOString().split('T')[0]
@@ -509,30 +510,34 @@ export default function StatementViewer({ contactId, contactName, contactType, o
 
                                                     {/* Products Details if available (Modern Billing Details OR legacy products) */}
                                                     {(tx.billing_details?.items || tx.products) && (
-                                                        <div className="mt-2.5 mb-1.5 flex flex-col gap-1 w-fit bg-[#f8fafc] p-2.5 rounded-xl border border-slate-100">
+                                                        <div className="mt-3 mb-2 flex flex-col gap-2 w-full bg-slate-50 p-4 rounded-2xl border border-slate-100 shadow-inner">
+                                                            <div className="flex items-center justify-between border-b border-slate-200 pb-2 mb-1">
+                                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em]">Item Description</span>
+                                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em] text-right">Details & Amount</span>
+                                                            </div>
                                                             {(tx.billing_details?.items || tx.products).map((p: any, pIdx: number) => (
-                                                                <span key={pIdx} className="text-xs text-slate-600 font-medium flex items-center justify-between gap-4 sm:gap-8">
-                                                                    <span className="flex items-center gap-2">
-                                                                        <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
-                                                                        <span className="flex flex-col">
-                                                                            <span className="font-bold">{p.name}</span>
+                                                                <div key={pIdx} className="flex items-start justify-between gap-4 py-1.5 border-b border-slate-100 last:border-0 border-dashed">
+                                                                    <div className="flex items-start gap-2.5">
+                                                                        <div className="w-1.5 h-1.5 rounded-full bg-slate-300 mt-1.5 shrink-0"></div>
+                                                                        <div className="flex flex-col">
+                                                                            <span className="text-sm font-black text-slate-700">{p.name}</span>
                                                                             {(p.variety || p.grade || p.lot_no) && (
-                                                                                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none mt-0.5">
+                                                                                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
                                                                                     {p.lot_no ? `Lot #${p.lot_no}` : ''}
                                                                                     {(p.variety || p.grade) && ` • ${p.variety}${p.grade && ` / ${p.grade}`}`}
                                                                                 </span>
                                                                             )}
-                                                                        </span>
-                                                                    </span>
-                                                                    <div className="flex flex-col items-end">
-                                                                        <span className="text-slate-600 font-mono text-[11px] font-bold">
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="flex flex-col items-end shrink-0">
+                                                                        <span className="text-xs text-slate-600 font-mono font-bold">
                                                                             {asNumber(p.qty).toLocaleString('en-IN', { maximumFractionDigits: 2 })} <span className="opacity-70">{p.unit}</span> @ ₹{asNumber(p.rate).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                                         </span>
-                                                                        <span className="text-[10px] text-slate-500 font-bold">
-                                                                            Total: ₹{asNumber(p.amount ?? p.line_amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                                        <span className="text-[11px] text-emerald-600 font-black mt-0.5">
+                                                                            ₹{asNumber(p.amount ?? p.line_amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                                         </span>
                                                                     </div>
-                                                                </span>
+                                                                </div>
                                                             ))}
                                                         </div>
                                                     )}
