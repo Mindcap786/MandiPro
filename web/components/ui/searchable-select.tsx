@@ -19,6 +19,14 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover"
 
+interface SearchableSelectProps {
+    options: { label: string; value: string }[]
+    value?: string
+    onChange: (value: string) => void
+    placeholder?: string
+    searchPlaceholder?: string
+    emptyMessage?: string
+    disabled?: boolean
     className?: string
     error?: boolean
     onSelected?: (value: string) => void
@@ -108,4 +116,4 @@ export const SearchableSelect = React.forwardRef<HTMLButtonElement, SearchableSe
             </PopoverContent>
         </Popover>
     )
-}
+})
