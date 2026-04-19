@@ -462,9 +462,25 @@ export function MandiCommissionForm() {
             {/* Bottom Buyer Section directly based on Sci-Fi Mockup */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6 p-1 border-t border-slate-200/50 pt-6">
                 <div className="bg-blue-50/50 border-2 border-blue-200 rounded-xl p-4">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-blue-600 ml-1 flex items-center gap-2 mb-2">
-                        🤝 Buyer Name (Sale)
-                    </Label>
+                    <div className="flex justify-between items-center mb-2">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-blue-600 ml-1 flex items-center gap-2">
+                            🤝 Buyer Name (Sale)
+                        </Label>
+                        {buyerId && (
+                            <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => {
+                                    setBuyerId(null);
+                                    setBuyerLoading(0);
+                                    setBuyerPacking(0);
+                                }}
+                                className="h-6 px-2 text-[9px] font-black text-red-600 hover:text-red-700 hover:bg-red-50 uppercase tracking-tighter"
+                            >
+                                Remove Buyer
+                            </Button>
+                        )}
+                    </div>
                     <SearchableSelect
                         ref={buyerSearchRef}
                         options={buyers.map(b => ({ label: `${b.name}${b.city ? ` (${b.city})` : ""}`, value: b.id }))}

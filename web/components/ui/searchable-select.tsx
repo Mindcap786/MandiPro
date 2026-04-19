@@ -59,6 +59,7 @@ export const SearchableSelect = React.forwardRef<HTMLButtonElement, SearchableSe
                     variant="outline"
                     role="combobox"
                     aria-expanded={open}
+                    onFocus={() => !disabled && setOpen(true)}
                     className={cn(
                         "w-full justify-between bg-white border-slate-200 text-black font-black hover:bg-slate-50 transition-all shadow-sm overflow-hidden",
                         !value && "text-slate-400",

@@ -70,7 +70,10 @@ export default function ItemsPage() {
         item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.local_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.sku_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.barcode?.toLowerCase().includes(searchTerm.toLowerCase())
+        item.barcode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.internal_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.variety?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.grade?.toLowerCase().includes(searchTerm.toLowerCase())
     )
 
     return (
@@ -140,7 +143,11 @@ export default function ItemsPage() {
                                                 <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
                                                     <Tag className="w-4 h-4 text-blue-600" />
                                                 </div>
-                                                <span className="text-black text-sm">{item.name}</span>
+                                                <span className="text-black text-sm">
+                                                    {item.name}
+                                                    {item.variety && <span className="text-slate-400 ml-1">- {item.variety}</span>}
+                                                    {item.grade && <span className="text-slate-400 ml-1">({item.grade})</span>}
+                                                </span>
                                                 {item.custom_attributes && Object.keys(item.custom_attributes).length > 0 && (
                                                     <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-50 border border-blue-100 text-[8px] font-black text-blue-600 uppercase">
                                                         <Scale className="w-2.5 h-2.5" /> {Object.keys(item.custom_attributes).length} Specs
@@ -157,7 +164,7 @@ export default function ItemsPage() {
                                             </span>
                                         </TableCell>
                                         <TableCell className="font-mono text-[10px] font-black text-slate-400 group-hover:text-blue-600 transition-colors uppercase tracking-widest">
-                                            {item.sku_code || '---'}
+                                            {item.internal_id || '---'}
                                         </TableCell>
                                         <TableCell className="text-right px-4">
                                             {item.barcode ? (
