@@ -1339,7 +1339,9 @@ export default function DayBook() {
                     const isReceipt = flowType === 'receive_receipt' || flowType === 'receipt';
                     const isPayment = flowType === 'paid_receipt' || flowType === 'payment';
 
-                    const legToPush = { ...mainLeg };
+                    const effectiveContactId = mainLeg.contact_id || rawLegs.find((l: any) => !!l.contact_id)?.contact_id;
+                    const resolvedName = effectiveContactId ? contactMap[effectiveContactId] : (mainLeg.account?.name || 'Unknown');
+                    const legToPush = { ...mainLeg, contact: { name: resolvedName } };
 
                     if (isReceipt) {
                         // Money received from buyer/party — credit side goes up
