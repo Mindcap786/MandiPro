@@ -80,9 +80,13 @@ export function NativeFinanceHub() {
     }, [searchQuery])
 
     // ── Fetch stats ----------------------------------------------------------
-    const fetchStats = useCallback(async () => {
+    // ── Fetch stats ----------------------------------------------------------
+    const fetchStats = useCallback(async (isManualRefresh = false) => {
         if (!orgId) return
-        setLoadingStats(true)
+        const isStale = cacheIsStale('finance_stats', orgId)
+        if (!isStale && !isManualRefresh && summary.receivables !== 0) return
+
+        if (!isManualRefresh && !summary.receivables) setLoadingStats(true)
         try {
             const { data, error }: any = await (supabase.schema('mandi').rpc('get_financial_summary', { p_org_id: orgId }) as any)
             if (!error && data) {
@@ -93,54 +97,97 @@ export function NativeFinanceHub() {
         } catch { } finally {
             setLoadingStats(false)
         }
-    }, [orgId])
+    }, [orgId, summary.receivables])
 
     // ── Fetch bank accounts --------------------------------------------------
     const fetchBankAccounts = useCallback(async () => {
         if (!orgId) return
+        // Use the cache if available and not manual
+        const cached = cacheGet<any>('finance_bank_accounts', orgId)
+        if (cached && !cacheIsStale('finance_bank_accounts', orgId)) {
+            setBankAccounts(cached.accounts || [])
+            setBankBalances(cached.balances || {})
+            return
+        }
+
         const { data: accounts } = await supabase
             .schema('mandi').from('accounts').select('id, name, opening_balance, description, account_sub_type')
             .eq('organization_id', orgId).eq('type', 'asset').eq('is_active', true)
             .or("account_sub_type.eq.bank,name.ilike.%bank%,name.ilike.%HDFC%,name.ilike.%SBI%").order('name')
-        if (!accounts || accounts.length === 0) { setBankAccounts([]); setBankBalances({}); return }
+        
+        if (!accounts || accounts.length === 0) { 
+            setBankAccounts([])
+            setBankBalances({})
+            return 
+        }
+
         const filtered = accounts.filter((acc: any) => !/(transit|cheques?\s*in\s*hand)/i.test(acc.name))
-        setBankAccounts(filtered)
-        const ids = filtered.map((a: any) => a.id)
-        const { data: entries } = await supabase.schema('mandi').from('ledger_entries')
-            .select('account_id, debit, credit').in('account_id', ids).eq('organization_id', orgId)
+        
+        // Optimized check: Instead of fetching ALL ledger entries, we fetch current balance per account
+        const { data: currentBalances } = await supabase
+            .schema('mandi')
+            .from('ledger_entries')
+            .select('account_id, debit, credit')
+            .in('account_id', filtered.map(a => a.id))
+            .eq('organization_id', orgId)
+            .eq('status', 'active')
+
         const map: Record<string, number> = {}
-        ids.forEach((id: string) => { map[id] = 0 })
-        ;(entries || []).forEach((e: any) => { map[e.account_id] = (map[e.account_id] || 0) + (Number(e.debit) - Number(e.credit)) })
-        accounts.forEach((acc: any) => { map[acc.id] = (map[acc.id] || 0) + Number(acc.opening_balance || 0) })
+        filtered.forEach((acc: any) => { 
+            const entries = (currentBalances || []).filter(e => e.account_id === acc.id)
+            const balance = entries.reduce((s, e) => s + (Number(e.debit) - Number(e.credit)), 0)
+            map[acc.id] = Number(acc.opening_balance || 0) + balance
+        })
+
+        setBankAccounts(filtered)
         setBankBalances(map)
+        cacheSet('finance_bank_accounts', orgId, { accounts: filtered, balances: map })
     }, [orgId])
 
     // ── Fetch party list -----------------------------------------------------
-    const fetchParties = useCallback(async (pageNum: number) => {
+    const fetchParties = useCallback(async (pageNum: number, isManualRefresh = false) => {
         if (!orgId) return
-        setLoadingList(true)
+        
+        const cacheKey = `finance_parties_${filterType}_${subFilter}_${debouncedSearch}_${pageNum}`
+        const isStale = cacheIsStale(cacheKey, orgId)
+        
+        if (!isStale && !isManualRefresh && partyList.length > 0) return
+
+        if (!isManualRefresh && partyList.length === 0) setLoadingList(true)
         try {
             const from = pageNum * PAGE_SIZE
             const to = from + PAGE_SIZE - 1
             let query = supabase.schema('mandi').from('view_party_balances')
                 .select('*', { count: 'exact' }).eq('organization_id', orgId).range(from, to)
+            
             if (filterType !== 'all') query = query.eq('contact_type', filterType)
             if (subFilter === 'receivable') query = query.gt('net_balance', 0)
             else if (subFilter === 'payable') query = query.lt('net_balance', 0)
             if (debouncedSearch) query = query.or(`contact_name.ilike.%${debouncedSearch}%,contact_city.ilike.%${debouncedSearch}%`)
+            
             const { data, count, error }: any = await query
             if (!error && data) {
                 setPartyList(data)
                 setTotalCount(count || 0)
-                const existing = cacheGet<any>('finance_stats', orgId) || {}
-                cacheSet('finance_stats', orgId, { ...existing, partyList: data })
+                cacheSet(cacheKey, orgId, { data, count })
             }
         } catch { } finally { setLoadingList(false) }
-    }, [orgId, filterType, subFilter, debouncedSearch])
+    }, [orgId, filterType, subFilter, debouncedSearch, partyList.length])
 
     // ── On mount & filter changes --------------------------------------------
-    useEffect(() => { fetchStats(); fetchBankAccounts() }, [orgId])
-    useEffect(() => { setPage(0); fetchParties(0) }, [filterType, subFilter, debouncedSearch, orgId])
+    useEffect(() => { 
+        if (orgId) {
+            fetchStats()
+            fetchBankAccounts()
+        }
+    }, [orgId, fetchStats, fetchBankAccounts])
+
+    useEffect(() => { 
+        if (orgId) {
+            setPage(0)
+            fetchParties(0)
+        }
+    }, [filterType, subFilter, debouncedSearch, orgId, fetchParties])
 
     // ── Derived values -------------------------------------------------------
     const totalBank = Object.values(bankBalances).reduce((s, v) => s + v, 0)
@@ -150,9 +197,21 @@ export function NativeFinanceHub() {
 
     return (
         <div className="bg-[#F2F2F7] min-h-dvh pb-28">
+            {/* ── Mobile Header ─────────────────────────────────────────── */}
+            <div className="bg-white px-4 pt-6 pb-4 border-b border-slate-100 shadow-sm sticky top-0 z-40">
+                <div className="flex items-center gap-3 mb-1">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
+                        <Wallet className="w-5 h-5 text-emerald-600" />
+                    </div>
+                    <div>
+                        <h2 className="text-xl font-black text-slate-900 tracking-tight">Financial Hub</h2>
+                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Business Liquidity & Party Balances</p>
+                    </div>
+                </div>
+            </div>
 
-            {/* ── Summary Cards ─────────────────────────────────────────── */}
-            <div className="px-4 pt-3 pb-1">
+            {/* ── Summary Cards (Horizontal Scroll) ─────────────────────── */}
+            <div className="px-4 pt-4 pb-2">
                 <div className="-mx-4 px-4 flex gap-3 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                     {/* Cash */}
                     <SummaryChip
@@ -160,15 +219,17 @@ export function NativeFinanceHub() {
                         value={cashBal}
                         color="#D97706"
                         bg="#FFFBEB"
+                        icon={<Activity className="w-3 h-3" />}
                         loading={loadingStats}
                     />
                     {/* Bank */}
                     <button onClick={() => setShowBankSheet(true)} className="flex-shrink-0 focus:outline-none">
                         <SummaryChip
-                            label={`Bank Balance${bankAccounts.length > 0 ? ` (${bankAccounts.length})` : ''}`}
+                            label={`Bank Balance`}
                             value={totalBank}
                             color="#2563EB"
                             bg="#EFF6FF"
+                            icon={<Landmark className="w-3 h-3" />}
                             loading={loadingStats}
                             arrow
                         />
@@ -176,10 +237,11 @@ export function NativeFinanceHub() {
                     {/* Receivable */}
                     <button onClick={() => { setFilterType('buyer'); setSubFilter('receivable') }} className="flex-shrink-0 focus:outline-none">
                         <SummaryChip
-                            label="Receivable (Buyers)"
+                            label="Receivable"
                             value={receivable}
                             color="#16A34A"
                             bg="#F0FDF4"
+                            icon={<ArrowDownLeft className="w-3 h-3" />}
                             loading={loadingStats}
                             arrow
                         />
@@ -191,6 +253,7 @@ export function NativeFinanceHub() {
                             value={supplierPayable}
                             color="#DC2626"
                             bg="#FEF2F2"
+                            icon={<ArrowUpRight className="w-3 h-3" />}
                             loading={loadingStats}
                             arrow
                         />
@@ -218,10 +281,10 @@ export function NativeFinanceHub() {
                             key={f}
                             onClick={() => { setFilterType(f); setPage(0) }}
                             className={cn(
-                                "flex-shrink-0 px-5 py-2 rounded-full text-[11px] font-black uppercase tracking-wider transition-all active:scale-95",
+                                "flex-shrink-0 px-6 py-2.5 rounded-2xl text-[11px] font-black uppercase tracking-wider transition-all active:scale-95 border-2",
                                 filterType === f
-                                    ? "text-white shadow-sm"
-                                    : "bg-white text-[#6B7280] border border-[#E5E7EB]"
+                                    ? "text-white shadow-[0_8px_16px_-4px_rgba(0,0,0,0.1)] border-transparent"
+                                    : "bg-white text-[#6B7280] border-[#E5E7EB]"
                             )}
                             style={filterType === f ? { backgroundColor: FILTER_COLORS[f] } : {}}
                         >
@@ -265,81 +328,87 @@ export function NativeFinanceHub() {
                 </div>
 
                 {/* Party Cards */}
-                <NativeCard divided>
+                <div className="space-y-3">
                     {loadingList && partyList.length === 0 ? (
-                        <div className="flex items-center justify-center gap-2 py-8">
-                            <Loader2 className="w-5 h-5 animate-spin text-[#1A6B3C]" />
-                            <span className="text-sm font-semibold text-[#6B7280]">Loading...</span>
+                        <div className="flex flex-col items-center justify-center gap-2 py-12 bg-white rounded-3xl border border-slate-100 shadow-sm">
+                            <Loader2 className="w-8 h-8 animate-spin text-[#1A6B3C]" />
+                            <span className="text-xs font-black text-[#6B7280] uppercase tracking-widest animate-pulse">Filtering Parties...</span>
                         </div>
                     ) : partyList.length === 0 ? (
-                        <div className="py-10 text-center text-sm font-semibold text-[#9CA3AF]">
-                            No parties matching filters
+                        <div className="py-16 text-center bg-white rounded-3xl border-2 border-dashed border-slate-100 flex flex-col items-center gap-3">
+                            <Search className="w-10 h-10 text-slate-100" />
+                            <p className="text-xs font-black text-[#9CA3AF] uppercase tracking-widest">No parties matching filters</p>
                         </div>
                     ) : partyList.map(row => (
-                        <button
+                        <NativeCard
                             key={row.contact_id}
+                            divided={false}
+                            className="p-4 active:scale-[0.98] transition-all"
                             onClick={() => setSelectedParty({ id: row.contact_id, name: row.contact_name, type: row.contact_type })}
-                            className="w-full text-left flex items-center gap-3 px-4 py-3.5 active:bg-[#F2F2F7] transition-colors"
                         >
-                            {/* Type Badge */}
-                            <div
-                                className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                                style={{ backgroundColor: TYPE_BADGE[row.contact_type]?.bg || '#F3F4F6' }}
-                            >
-                                <span
-                                    className="text-[9px] font-black uppercase"
-                                    style={{ color: TYPE_BADGE[row.contact_type]?.text || '#374151' }}
+                            <div className="flex items-center gap-4">
+                                {/* Type Avatar */}
+                                <div
+                                    className="w-12 h-12 rounded-[1.25rem] flex items-center justify-center flex-shrink-0 shadow-sm border border-black/5"
+                                    style={{ backgroundColor: TYPE_BADGE[row.contact_type]?.bg || '#F3F4F6' }}
                                 >
-                                    {row.contact_type?.charAt(0).toUpperCase()}
-                                </span>
-                            </div>
-
-                            {/* Info */}
-                            <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold text-[#1A1A2E] truncate">{row.contact_name}</p>
-                                <p className="text-xs text-[#9CA3AF] mt-0.5 flex items-center gap-1">
                                     <span
-                                        className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase"
-                                        style={{
-                                            backgroundColor: TYPE_BADGE[row.contact_type]?.bg,
-                                            color: TYPE_BADGE[row.contact_type]?.text
-                                        }}
+                                        className="text-sm font-black text-slate-800"
+                                        style={{ color: TYPE_BADGE[row.contact_type]?.text || '#374151' }}
                                     >
-                                        {row.contact_type}
+                                        {row.contact_name?.charAt(0).toUpperCase()}
                                     </span>
-                                    {row.contact_city && <span className="truncate">{row.contact_city}</span>}
-                                </p>
-                            </div>
+                                </div>
 
-                            {/* Balance */}
-                            <div className="flex flex-col items-end flex-shrink-0">
-                                <span
-                                    className="text-sm font-black font-mono"
-                                    style={{ color: row.net_balance >= 0 ? '#16A34A' : '#DC2626' }}
+                                {/* Info */}
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <h3 className="text-sm font-black text-[#1A1A2E] truncate leading-none">{row.contact_name}</h3>
+                                        <span className="text-[8px] font-black uppercase tracking-tighter bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded border border-slate-200">
+                                            {row.contact_type}
+                                        </span>
+                                    </div>
+                                    <p className="text-[10px] text-[#9CA3AF] font-bold uppercase tracking-tight flex items-center gap-1">
+                                        <MapPin className="w-2.5 h-2.5" />
+                                        {row.contact_city || 'No City'}
+                                    </p>
+                                </div>
+
+                                {/* Balance */}
+                                <div className="text-right flex flex-col items-end pr-1">
+                                    <p
+                                        className="text-base font-[1000] tracking-tighter leading-none mb-1"
+                                        style={{ color: row.net_balance >= 0 ? '#16A34A' : '#DC2626' }}
+                                    >
+                                        ₹{Math.abs(row.net_balance).toLocaleString('en-IN')}
+                                    </p>
+                                    <span 
+                                        className={cn(
+                                            "text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest border",
+                                            row.net_balance >= 0 ? "bg-[#DCFCE7] text-[#16A34A] border-[#BBF7D0]" : "bg-[#FEE2E2] text-[#DC2626] border-[#FECACA]"
+                                        )}
+                                    >
+                                        {row.net_balance >= 0 ? 'NAAM (DR)' : 'JAMA (CR)'}
+                                    </span>
+                                </div>
+
+                                {/* WhatsApp shortcut */}
+                                <button
+                                    onClick={e => {
+                                        e.stopPropagation()
+                                        const bal = Math.abs(row.net_balance || 0).toLocaleString('en-IN')
+                                        const side = (row.net_balance || 0) >= 0 ? 'DR' : 'CR'
+                                        const text = `*Balance Summary: ${row.contact_name}*\nOutstanding: ₹${bal} ${side}\nCity: ${row.contact_city || '-'}\n\n_Sent via MandiPro_`
+                                        window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
+                                    }}
+                                    className="w-10 h-10 rounded-full bg-[#F0FDF4] border border-[#DCFCE7] flex items-center justify-center flex-shrink-0 active:scale-90 transition-transform ml-1"
                                 >
-                                    ₹{Math.abs(row.net_balance).toLocaleString('en-IN')}
-                                </span>
-                                <span className="text-[9px] font-black uppercase" style={{ color: row.net_balance >= 0 ? '#86EFAC' : '#FCA5A5' }}>
-                                    {row.net_balance >= 0 ? 'DR' : 'CR'}
-                                </span>
+                                    <MessageCircle className="w-5 h-5 text-[#16A34A]" />
+                                </button>
                             </div>
-
-                            {/* WhatsApp quick share */}
-                            <button
-                                onClick={e => {
-                                    e.stopPropagation()
-                                    const bal = Math.abs(row.net_balance || 0).toLocaleString('en-IN')
-                                    const side = (row.net_balance || 0) >= 0 ? 'DR' : 'CR'
-                                    const text = `*Balance: ${row.contact_name}*\nOutstanding: ₹${bal} ${side}\nCity: ${row.contact_city || '-'}`
-                                    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
-                                }}
-                                className="w-8 h-8 rounded-full flex items-center justify-center bg-[#F0FDF4] flex-shrink-0 active:opacity-60"
-                            >
-                                <MessageCircle className="w-4 h-4 text-[#16A34A]" />
-                            </button>
-                        </button>
+                        </NativeCard>
                     ))}
-                </NativeCard>
+                </div>
 
                 {/* Pagination */}
                 {totalCount > PAGE_SIZE && (
@@ -428,21 +497,28 @@ export function NativeFinanceHub() {
 
 // ─── Summary Chip ─────────────────────────────────────────────────────────────
 function SummaryChip({
-    label, value, color, bg, loading, arrow
-}: { label: string; value: number; color: string; bg: string; loading?: boolean; arrow?: boolean }) {
+    label, value, color, bg, loading, arrow, icon
+}: { label: string; value: number; color: string; bg: string; loading?: boolean; arrow?: boolean; icon?: React.ReactNode }) {
     return (
         <div
-            className="flex-shrink-0 rounded-2xl px-4 py-3 min-w-[140px]"
+            className="flex-shrink-0 rounded-[2rem] px-5 py-4 min-w-[160px] shadow-sm border border-black/5 relative overflow-hidden transition-transform active:scale-95"
             style={{ backgroundColor: bg }}
         >
-            <p className="text-[9px] font-black uppercase tracking-widest mb-1" style={{ color }}>
-                {label} {arrow && <ChevronRight className="inline w-2.5 h-2.5" />}
-            </p>
+            <div className="absolute top-0 right-0 w-16 h-16 opacity-5 bg-black rounded-full -mr-8 -mt-8"></div>
+            <div className="flex items-center gap-2 mb-1.5 overflow-hidden">
+                <span className="shrink-0" style={{ color }}>{icon}</span>
+                <p className="text-[9px] font-black uppercase tracking-widest truncate" style={{ color }}>
+                    {label}
+                </p>
+                {arrow && <ChevronRight className="shrink-0 w-2.5 h-2.5 ml-auto" style={{ color }} />}
+            </div>
             {loading ? (
-                <Loader2 className="w-4 h-4 animate-spin" style={{ color }} />
+                <div className="h-6 flex items-center">
+                    <div className="w-3 h-3 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: color, borderTopColor: 'transparent' }} />
+                </div>
             ) : (
-                <p className="text-base font-black font-mono text-[#1A1A2E]">
-                    ₹{value.toLocaleString('en-IN')}
+                <p className="text-lg font-[1000] font-mono tracking-tighter text-[#1A1A2E] leading-none">
+                    ₹{Math.abs(value).toLocaleString('en-IN')}
                 </p>
             )}
         </div>

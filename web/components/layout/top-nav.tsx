@@ -9,6 +9,7 @@ import { usePermission } from '@/hooks/use-permission'
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { AlertBell } from '@/components/alerts/AlertBell'
+import { useCachedParties, useCachedItems } from '@/hooks/use-cached-lists'
 
 const QUICK_LINKS = [
     { tKey: 'nav.quick_purchase', href: '/stock/quick-entry', icon: ShoppingCart, color: 'text-purple-600', bg: 'bg-purple-50' },
@@ -23,6 +24,10 @@ export function TopNav() {
     const { profile, can, isImpersonating } = usePermission()
     const { t } = useLanguage()
     const [isImpersonatingState, setIsImpersonatingState] = useState(false)
+
+    // PRE-FETCH CORE DROPDOWNS (Caches in data-cache.ts for 5 minutes)
+    useCachedParties(profile?.organization_id)
+    useCachedItems(profile?.organization_id)
 
     useEffect(() => {
         setIsImpersonatingState(localStorage.getItem('mandi_impersonation_mode') === 'true')

@@ -27,6 +27,7 @@ export const NAV_ITEMS: MenuItem[] = [
         icon: Receipt,
         module: 'mandi',
         items: [
+            { tKey: 'nav.mandi_commission', href: '/mandi-commission', icon: Scale },
             { tKey: 'nav.gate_entry', href: '/gate', icon: Gavel },
             { tKey: 'nav.arrivals', href: '/arrivals', icon: Truck },
             { tKey: 'nav.purchase_bills', href: '/purchase/bills', icon: Receipt },

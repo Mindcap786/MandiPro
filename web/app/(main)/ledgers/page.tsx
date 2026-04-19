@@ -36,83 +36,130 @@ export default function Ledgers() {
 
     if (isNativePlatform()) {
         return (
-            <NativePageWrapper title="Master Ledger">
-                <div className="space-y-4 px-4 pb-10">
-                    {/* Compact Stats Grid */}
-                    <div className="grid grid-cols-2 gap-3">
-                        <NativeCard className="p-4 bg-[#F0FDF4] border-green-100">
-                            <p className="text-[10px] font-black uppercase text-green-700 tracking-widest mb-1">Receivables</p>
-                            <p className="text-xl font-black text-green-900">₹{stats.totalReceivable.toLocaleString()}</p>
-                        </NativeCard>
-                        <NativeCard className="p-4 bg-[#FEF2F2] border-red-100">
-                            <p className="text-[10px] font-black uppercase text-red-700 tracking-widest mb-1">Payables</p>
-                            <p className="text-xl font-black text-red-900">₹{stats.totalPayable.toLocaleString()}</p>
-                        </NativeCard>
+            <NativePageWrapper title="">
+                <div className="space-y-6 pb-24 bg-[#F2F2F7] min-h-dvh">
+                    {/* ── Mobile Header ─────────────────────────────────────────── */}
+                    <div className="bg-white px-4 pt-6 pb-4 border-b border-slate-100 shadow-sm sticky top-0 z-40">
+                        <div className="flex items-center gap-3 mb-1">
+                            <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center">
+                                <Wallet className="w-5 h-5 text-purple-600" />
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-black text-slate-900 tracking-tight">Master Ledger</h2>
+                                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Aggregate Outstanding Balances</p>
+                            </div>
+                        </div>
                     </div>
 
-                    <Tabs defaultValue="farmers" className="w-full">
-                        <TabsList className="bg-gray-100 p-1 rounded-xl mb-4 w-full h-12">
-                            <TabsTrigger value="farmers" className="flex-1 rounded-lg font-bold text-xs uppercase tracking-wider h-10">
-                                Suppliers
-                            </TabsTrigger>
-                            <TabsTrigger value="buyers" className="flex-1 rounded-lg font-bold text-xs uppercase tracking-wider h-10">
-                                Buyers
-                            </TabsTrigger>
-                        </TabsList>
+                    {/* Compact Stats Grid */}
+                    <div className="px-4">
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="p-4 bg-[#F0FDF4] border border-[#DCFCE7] rounded-[1.5rem] shadow-sm relative overflow-hidden">
+                                <div className="absolute top-0 right-0 w-12 h-12 bg-green-500/5 rounded-full -mr-6 -mt-6"></div>
+                                <p className="text-[10px] font-black uppercase text-green-700 tracking-widest mb-1 opacity-70">Receivables</p>
+                                <p className="text-xl font-[1000] text-green-900 font-mono tracking-tighter self-end">₹{stats.totalReceivable.toLocaleString()}</p>
+                            </div>
+                            <div className="p-4 bg-[#FEF2F2] border border-[#FEE2E2] rounded-[1.5rem] shadow-sm relative overflow-hidden">
+                                <div className="absolute top-0 right-0 w-12 h-12 bg-red-500/5 rounded-full -mr-6 -mt-6"></div>
+                                <p className="text-[10px] font-black uppercase text-red-700 tracking-widest mb-1 opacity-70">Payables</p>
+                                <p className="text-xl font-[1000] text-red-900 font-mono tracking-tighter self-end">₹{stats.totalPayable.toLocaleString()}</p>
+                            </div>
+                        </div>
+                    </div>
 
-                        <TabsContent value="farmers" className="space-y-3 m-0">
-                            {farmerLedgers.length === 0 ? (
-                                <div className="text-center py-20 text-gray-400 font-medium">No supplier ledgers found</div>
-                            ) : (
-                                farmerLedgers.map(row => (
-                                    <NativeCard 
-                                        key={row.entity_id} 
-                                        onClick={() => {}} // Could link to individual ledger
-                                        className="p-4 flex items-center justify-between active:scale-95 transition-transform"
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-purple-50 flex items-center justify-center text-purple-700 font-bold">
-                                                {row.entity_name.charAt(0)}
-                                            </div>
-                                            <div>
-                                                <p className="font-bold text-sm text-gray-900">{row.entity_name}</p>
-                                                <p className="text-[10px] font-bold text-red-500 uppercase">
-                                                    {row.net_balance < 0 ? `Payable: ₹${Math.abs(row.net_balance).toLocaleString()}` : "Settled"}
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <ChevronRight className="w-4 h-4 text-gray-300" />
-                                    </NativeCard>
-                                ))
-                            )}
-                        </TabsContent>
+                    <div className="px-4">
+                        <Tabs defaultValue="farmers" className="w-full">
+                            <TabsList className="bg-white p-1 rounded-2xl mb-6 w-full h-12 border border-slate-100 shadow-sm">
+                                <TabsTrigger value="farmers" className="flex-1 rounded-xl font-black text-[10px] uppercase tracking-wider h-10 data-[state=active]:bg-purple-600 data-[state=active]:text-white transition-all">
+                                    Suppliers
+                                </TabsTrigger>
+                                <TabsTrigger value="buyers" className="flex-1 rounded-xl font-black text-[10px] uppercase tracking-wider h-10 data-[state=active]:bg-emerald-600 data-[state=active]:text-white transition-all">
+                                    Buyers
+                                </TabsTrigger>
+                            </TabsList>
 
-                        <TabsContent value="buyers" className="space-y-3 m-0">
-                            {buyerLedgers.length === 0 ? (
-                                <div className="text-center py-20 text-gray-400 font-medium">No buyer ledgers found</div>
-                            ) : (
-                                buyerLedgers.map(row => (
-                                    <NativeCard 
-                                        key={row.entity_id} 
-                                        className="p-4 flex items-center justify-between active:scale-95 transition-transform"
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center text-green-700 font-bold">
-                                                {row.entity_name.charAt(0)}
+                            <TabsContent value="farmers" className="space-y-3 m-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                {farmerLedgers.length === 0 ? (
+                                    <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-slate-100">
+                                        <Truck className="w-10 h-10 text-slate-100 mx-auto mb-3" />
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No supplier ledgers found</p>
+                                    </div>
+                                ) : (
+                                    farmerLedgers.map(row => (
+                                        <NativeCard 
+                                            key={row.entity_id} 
+                                            onClick={() => {}} // Could link to individual ledger
+                                            className="p-4 flex items-center justify-between active:scale-[0.98] transition-all"
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-12 h-12 rounded-2xl bg-purple-50 flex items-center justify-center text-purple-700 font-black text-lg shadow-sm border border-purple-100">
+                                                    {row.entity_name.charAt(0)}
+                                                </div>
+                                                <div>
+                                                    <p className="font-black text-sm text-slate-900 mb-0.5">{row.entity_name}</p>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest px-1.5 py-0.5 rounded border border-slate-100">Supplier</span>
+                                                        <span className="text-[10px] font-bold text-slate-400">Net Position</span>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <p className="font-bold text-sm text-gray-900">{row.entity_name}</p>
-                                                <p className="text-[10px] font-bold text-blue-600 uppercase">
-                                                    {row.net_balance > 0 ? `Due: ₹${row.net_balance.toLocaleString()}` : "Advance"}
+                                            <div className="text-right flex flex-col items-end">
+                                                <p className="text-base font-[1000] text-rose-600 font-mono tracking-tighter">
+                                                    ₹{Math.abs(row.net_balance).toLocaleString()}
                                                 </p>
+                                                <span className={cn(
+                                                    "text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest border",
+                                                    row.net_balance < 0 ? "bg-rose-50 text-rose-600 border-rose-100" : "bg-slate-50 text-slate-400 border-slate-100"
+                                                )}>
+                                                    {row.net_balance < 0 ? "PAYABLE (CR)" : "SETTLED"}
+                                                </span>
                                             </div>
-                                        </div>
-                                        <ChevronRight className="w-4 h-4 text-gray-300" />
-                                    </NativeCard>
-                                ))
-                            )}
-                        </TabsContent>
-                    </Tabs>
+                                        </NativeCard>
+                                    ))
+                                )}
+                            </TabsContent>
+
+                            <TabsContent value="buyers" className="space-y-3 m-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                {buyerLedgers.length === 0 ? (
+                                    <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-slate-100">
+                                        <User className="w-10 h-10 text-slate-100 mx-auto mb-3" />
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No buyer ledgers found</p>
+                                    </div>
+                                ) : (
+                                    buyerLedgers.map(row => (
+                                        <NativeCard 
+                                            key={row.entity_id} 
+                                            className="p-4 flex items-center justify-between active:scale-[0.98] transition-all"
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-700 font-black text-lg shadow-sm border border-emerald-100">
+                                                    {row.entity_name.charAt(0)}
+                                                </div>
+                                                <div>
+                                                    <p className="font-black text-sm text-slate-900 mb-0.5">{row.entity_name}</p>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest px-1.5 py-0.5 rounded border border-slate-100">Buyer</span>
+                                                        <span className="text-[10px] font-bold text-slate-400">Current Balance</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="text-right flex flex-col items-end">
+                                                <p className="text-base font-[1000] text-emerald-600 font-mono tracking-tighter">
+                                                    ₹{row.net_balance.toLocaleString()}
+                                                </p>
+                                                <span className={cn(
+                                                    "text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest border",
+                                                    row.net_balance > 0 ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-blue-50 text-blue-600 border-blue-100"
+                                                )}>
+                                                    {row.net_balance > 0 ? "DUE (DR)" : "ADVANCE (CR)"}
+                                                </span>
+                                            </div>
+                                        </NativeCard>
+                                    ))
+                                )}
+                            </TabsContent>
+                        </Tabs>
+                    </div>
                 </div>
             </NativePageWrapper>
         )
@@ -304,7 +351,7 @@ export default function Ledgers() {
                                             <td className="px-8 py-5 text-right text-gray-400 font-mono text-sm">₹{row.total_credit.toLocaleString()}</td>
                                             <td className="px-8 py-5 text-right text-gray-400 font-mono text-sm">₹{row.total_debit.toLocaleString()}</td>
                                             <td className="px-8 py-5 text-right">
-                                                <span className={`font-mono font-bold px-3 py-1.5 rounded-lg text-xs border ${row.net_balance > 0 ? 'bg-red-500/10 text-red-500 border-red-500/20' : 'bg-green-500/10 text-gray-400 border-green-500/20'}`}>
+                                                <span className={`font-mono font-bold px-3 py-1.5 rounded-lg text-xs border ${row.net_balance > 0 ? 'bg-red-500/10 text-red-500 border-red-500/20' : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'}`}>
                                                     {row.net_balance > 0 ? `Payable: ₹${row.net_balance.toLocaleString()}` : 'Settled'}
                                                 </span>
                                             </td>

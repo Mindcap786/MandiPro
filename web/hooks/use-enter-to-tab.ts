@@ -47,12 +47,46 @@ export function useEnterToTab(formRef: RefObject<HTMLFormElement>) {
                     }
                 }
             }
+
+            // 2F. SAVE / SUBMIT SHORTCUTS
+            // Ctrl + S: Submit
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                e.stopPropagation();
+                const submitBtn = formRef.current?.querySelector('button[type="submit"]') as HTMLButtonElement | null;
+                if (submitBtn) submitBtn.click();
+            }
+
+            // Ctrl + N: Reset form
+            if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+                e.preventDefault();
+                e.stopPropagation();
+                const resetBtn = formRef.current?.querySelector('button[type="reset"]') as HTMLButtonElement | null;
+                if (resetBtn) resetBtn.click();
+            }
+        };
+
+        const handleFocusIn = (e: FocusEvent) => {
+            const target = e.target as HTMLInputElement;
+            if (target && target.tagName === 'INPUT') {
+                const type = target.getAttribute('type');
+                const inputMode = target.getAttribute('inputmode');
+                // Auto-select text if it's numeric/decimal on focus
+                if (type === 'number' || inputMode === 'decimal' || inputMode === 'numeric') {
+                    // Small delay to ensure browser focus completes
+                    setTimeout(() => target.select(), 0);
+                }
+            }
         };
 
         const formElement = formRef.current;
         if (formElement) {
             formElement.addEventListener('keydown', handleKeyDown);
-            return () => formElement.removeEventListener('keydown', handleKeyDown);
+            formElement.addEventListener('focusin', handleFocusIn);
+            return () => {
+                formElement.removeEventListener('keydown', handleKeyDown);
+                formElement.removeEventListener('focusin', handleFocusIn);
+            };
         }
     }, [formRef]);
 }

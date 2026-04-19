@@ -60,7 +60,8 @@ export const translations = {
             ledgers: "Ledgers",
             warehouse: "Warehouse",
             field_manager: "Field Manager",
-            field_governance: "Field Governance"
+            field_governance: "Field Governance",
+            mandi_commission: "Mandi Commission"
         },
         actions: {
             new_sale: "New Sale",

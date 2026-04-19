@@ -10,6 +10,7 @@ import { LanguageProvider } from '@/components/i18n/language-provider'
 import { ShortcutProvider } from '@/components/providers/shortcut-provider'
 import { ImpersonationBanner } from '@/components/admin/impersonation-banner'
 import { PaymentReminderBanner } from '@/components/layout/payment-reminder-banner'
+import { KeyboardHelpOverlay } from '@/components/layout/keyboard-help-overlay'
 // ── Capacitor Native Shell ────────────────────────────────────────────────────
 import { CapacitorProvider } from '@/components/capacitor/capacitor-provider'
 import { NativeAuthGuard } from '@/components/capacitor/native-auth-guard'
@@ -290,6 +291,7 @@ export default function RootLayout({
                                     <Toaster />
                                     <OfflineSyncManager />
                                     <SubscriptionEnforcer />
+                                    <KeyboardHelpOverlay />
                                 </AuthProvider>
                             </ShortcutProvider>
                         </LanguageProvider>

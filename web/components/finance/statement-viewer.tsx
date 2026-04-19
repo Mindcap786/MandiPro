@@ -7,10 +7,15 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
-import { CalendarIcon, Download, Printer, Search, ArrowLeft, MessageCircle, X, ArrowDownLeft, ArrowUpRight, Loader2 } from "lucide-react";
+import { CalendarIcon, Download, Printer, Search, ArrowLeft, MessageCircle, X, ArrowDownLeft, ArrowUpRight, Loader2, Wallet, Activity, Calendar as CalendarIconLucide, TrendingUp } from "lucide-react";
 import { useAuth } from "@/components/auth/auth-provider";
 // @react-pdf/renderer loaded on-demand — not on initial mount
 import { usePlatformBranding } from "@/hooks/use-platform-branding";
+import { isNativePlatform } from "@/lib/capacitor-utils";
+import { NativeCard } from "@/components/mobile/NativeCard";
+import { NativeSectionLabel } from "@/components/mobile/NativeInput";
+import { cn } from "@/lib/utils";
+import { cacheGet, cacheSet, cacheIsStale } from "@/lib/data-cache";
 
 interface StatementViewerProps {
     contactId: string;
@@ -37,7 +42,15 @@ export default function StatementViewer({ contactId, contactName, contactType, o
         closing_balance: number;
         last_activity?: string;
         transactions: any[];
-    } | null>(null);
+    } | null>(() => {
+        if (typeof window === 'undefined') return null;
+        const orgId = profile?.organization_id;
+        if (!orgId || !contactId) return null;
+        
+        // Try to get initially cached data for the current date range
+        const cacheKey = `ledger_${contactId}_${format(dateRange.from, 'yyyyMMdd')}_${format(dateRange.to, 'yyyyMMdd')}`;
+        return cacheGet<any>(cacheKey, orgId);
+    });
 
     const [isPrinting, setIsPrinting] = useState(false);
     const abortControllerRef = useRef<AbortController | null>(null);
@@ -155,9 +168,18 @@ export default function StatementViewer({ contactId, contactName, contactType, o
         }
     };
 
-    const fetchStatement = async (retryCount = 0) => {
+    const fetchStatement = async (retryCount = 0, isManualRefresh = false) => {
         const currentOrgId = String(profile?.organization_id || "");
         if (!currentOrgId || currentOrgId === '[object Object]' || currentOrgId === 'undefined' || !contactId) return;
+
+        const cacheKey = `ledger_${contactId}_${format(dateRange.from, 'yyyyMMdd')}_${format(dateRange.to, 'yyyyMMdd')}`;
+        const isStale = cacheIsStale(cacheKey, currentOrgId);
+
+        // If not stale and we already have data, skip the fetch unless it's a manual refresh
+        if (!isStale && !isManualRefresh && data && data.transactions.length > 0) {
+            setLoading(false);
+            return;
+        }
 
         // Abort previous request if any
         if (abortControllerRef.current) {
@@ -168,14 +190,16 @@ export default function StatementViewer({ contactId, contactName, contactType, o
         abortControllerRef.current = controller;
         const signal = controller.signal;
 
-        setLoading(true);
+        // Only show full loading if we have no cached data
+        if (!data || isManualRefresh) setLoading(true);
+
         try {
             const rpcName = 'get_ledger_statement';
             const { data: rpcData, error } = await supabase.rpc(rpcName, {
                 p_organization_id: currentOrgId,
                 p_contact_id: contactId,
-                p_from_date: dateRange.from.toISOString().split('T')[0],
-                p_to_date: dateRange.to.toISOString().split('T')[0]
+                p_from_date: format(dateRange.from, 'yyyy-MM-dd'),
+                p_to_date: format(dateRange.to, 'yyyy-MM-dd')
             }).abortSignal(signal);
 
             if (signal.aborted) return;
@@ -191,28 +215,23 @@ export default function StatementViewer({ contactId, contactName, contactType, o
             }
 
             if (rpcData && Array.isArray(rpcData.transactions)) {
-                let transactions = [...rpcData.transactions];
-                let closingBalance = rpcData.closing_balance || 0;
-
-                // VIRTUAL INJECTION REMOVED: Settlements are now persisted natively in the backend (Phase 2).
-
-
-                // Respect backend ASC order for professional chronological reporting.
-                // transactions.reverse();
-
-                setData({
+                const processed = {
                     opening_balance: rpcData.opening_balance || 0,
-                    closing_balance: closingBalance,
+                    closing_balance: rpcData.closing_balance || 0,
                     last_activity: rpcData.last_activity,
-                    transactions: transactions
-                });
+                    transactions: rpcData.transactions
+                };
+                setData(processed);
+                cacheSet(cacheKey, currentOrgId, processed);
             } else {
-                setData({
+                const empty = {
                     opening_balance: 0,
                     closing_balance: 0,
                     last_activity: undefined,
                     transactions: []
-                });
+                };
+                setData(empty);
+                cacheSet(cacheKey, currentOrgId, empty);
             }
 
         } catch (e: any) {
@@ -236,16 +255,257 @@ export default function StatementViewer({ contactId, contactName, contactType, o
         return () => abortControllerRef.current?.abort();
     }, [contactId, dateRange.from, dateRange.to]);
 
-    const formatCurrency = (val: number) => {
-        const abs = Math.abs(val);
-        const suffix = val < 0 ? " Cr" : " Dr";
-        return "₹ " + abs.toLocaleString('en-IN', { minimumFractionDigits: 2 }) + suffix;
-    };
-
     const asNumber = (value: any) => {
         const num = Number(value);
         return Number.isFinite(num) ? num : 0;
     };
+
+    if (isNativePlatform()) {
+        return (
+            <div className="flex flex-col h-full bg-[#F2F2F7]">
+                {/* ── Mobile Header ─────────────────────────────────────────── */}
+                <div className="bg-white px-4 py-5 border-b border-slate-100 shadow-sm sticky top-0 z-40 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        {onClose && (
+                            <button onClick={onClose} className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center active:scale-90 transition-transform">
+                                <ArrowLeft className="w-5 h-5 text-slate-800" />
+                            </button>
+                        )}
+                        <div>
+                            <h2 className="text-lg font-black text-slate-900 tracking-tight leading-none mb-1">Statement</h2>
+                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest truncate max-w-[150px]">
+                                {contactName}
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div className="flex gap-2">
+                         <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    className="bg-slate-50 border-slate-200 h-10 px-3 rounded-xl flex items-center gap-2 font-black text-[10px] uppercase tracking-wider"
+                                >
+                                    <CalendarIcon className="w-3.5 h-3.5 text-emerald-600" />
+                                    {format(dateRange.from, "MMM d")} - {format(dateRange.to, "MMM d")}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0 border-none rounded-3xl overflow-hidden shadow-2xl" align="end">
+                                <Calendar
+                                    initialFocus
+                                    mode="range"
+                                    defaultMonth={dateRange.from}
+                                    selected={dateRange as any}
+                                    onSelect={(val: any) => {
+                                        if (val?.from) {
+                                            const fromDate = new Date(val.from);
+                                            fromDate.setHours(0, 0, 0, 0);
+                                            const toDate = val.to ? new Date(val.to) : new Date(val.from);
+                                            toDate.setHours(23, 59, 59, 999);
+                                            setDateRange({ from: fromDate, to: toDate });
+                                        }
+                                    }}
+                                    className="bg-white text-black font-bold p-4"
+                                />
+                            </PopoverContent>
+                        </Popover>
+                    </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto pb-24">
+                    {/* ── Mobile Summary Horizontal Scroll ──────────────────────── */}
+                    <div className="px-4 pt-4 pb-2">
+                        <div className="-mx-4 px-4 flex gap-3 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                            {/* Closing Balance */}
+                            <div className={cn(
+                                "flex-shrink-0 rounded-[2rem] px-5 py-4 min-w-[200px] shadow-lg relative overflow-hidden text-white transition-all",
+                                (data?.closing_balance || 0) >= 0 ? "bg-emerald-600 shadow-emerald-100" : "bg-rose-600 shadow-rose-100"
+                            )}>
+                                <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full blur-2xl -mr-12 -mt-12 opacity-40"></div>
+                                <p className="text-[9px] font-black uppercase tracking-widest mb-1 opacity-80">Closing Balance</p>
+                                <p className="text-xl font-[1000] font-mono tracking-tighter">
+                                    {formatCurrency(data?.closing_balance || 0)}
+                                </p>
+                            </div>
+
+                            {/* Financial Health / Activity */}
+                            <div className="flex-shrink-0 rounded-[2rem] px-5 py-4 min-w-[180px] bg-white border border-slate-100 shadow-sm">
+                                <p className="text-[9px] font-black uppercase tracking-widest mb-1 text-slate-400">Financial Health</p>
+                                <div className="flex flex-col gap-0.5">
+                                    <p className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                                        <Activity className="w-3 h-3 text-indigo-500" />
+                                        {data?.last_activity ? format(new Date(data.last_activity), "dd MMM") : 'No Activity'}
+                                    </p>
+                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Last Transaction Date</p>
+                                </div>
+                            </div>
+
+                            {/* Period Info */}
+                            <div className="flex-shrink-0 rounded-[2rem] px-5 py-4 min-w-[180px] bg-white border border-slate-100 shadow-sm">
+                                <p className="text-[9px] font-black uppercase tracking-widest mb-1 text-slate-400">Statement Period</p>
+                                <div className="flex flex-col gap-0.5">
+                                    <p className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                                        <TrendingUp className="w-3 h-3 text-emerald-500" />
+                                        {Math.floor((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 3600 * 24))} Days
+                                    </p>
+                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Analyzed Range</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* ── Transaction Feed ────────────────────────────────────────── */}
+                    <div className="p-4 space-y-4">
+                        <div className="flex items-center justify-between mb-2">
+                            <NativeSectionLabel>Transactions ({data?.transactions?.length || 0})</NativeSectionLabel>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={handlePrint}
+                                    disabled={isPrinting}
+                                    className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center active:scale-95 disabled:opacity-50"
+                                >
+                                    {isPrinting ? <Loader2 className="w-4 h-4 animate-spin text-slate-400" /> : <Printer className="w-4 h-4 text-slate-600" />}
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        const text = `*Statement: ${contactName}*\nBalance: ${formatCurrency(data?.closing_balance || 0)}\nPeriod: ${format(dateRange.from, 'dd-MM-yy')} to ${format(dateRange.to, 'dd-MM-yy')}`;
+                                        window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+                                    }}
+                                    className="w-10 h-10 rounded-xl bg-[#F0FDF4] border border-[#DCFCE7] flex items-center justify-center active:scale-95"
+                                >
+                                    <MessageCircle className="w-4 h-4 text-[#16A34A]" />
+                                </button>
+                            </div>
+                        </div>
+
+                        {loading && (!data || data.transactions.length === 0) ? (
+                            <div className="flex flex-col items-center justify-center py-20 gap-4">
+                                <Loader2 className="w-10 h-10 animate-spin text-emerald-600" />
+                                <p className="text-xs font-black text-slate-400 uppercase tracking-widest animate-pulse">Fetching Ledger...</p>
+                            </div>
+                        ) : data?.transactions.length === 0 ? (
+                            <div className="py-20 text-center bg-white rounded-[2rem] border-2 border-dashed border-slate-100 px-8">
+                                <Search className="w-12 h-12 text-slate-100 mx-auto mb-4" />
+                                <p className="text-slate-400 font-black text-xs uppercase tracking-[0.2em] mb-2">No entries found</p>
+                                <p className="text-[10px] text-slate-300 font-bold uppercase">Try changing the date range</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                {/* Opening Balance Card */}
+                                <NativeCard className="p-5 bg-gradient-to-br from-slate-50 to-white border-slate-100 shadow-sm relative overflow-hidden">
+                                     <div className="absolute top-0 right-0 w-20 h-20 bg-indigo-50/50 rounded-full blur-2xl -mr-10 -mt-10"></div>
+                                     <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{format(dateRange.from, "dd MMM yyyy")}</p>
+                                            <h4 className="text-sm font-black text-slate-800">Opening Balance Forward</h4>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-base font-black font-mono text-slate-700">{formatCurrency(data?.opening_balance || 0)}</p>
+                                        </div>
+                                     </div>
+                                </NativeCard>
+
+                                {/* Grouped Transactions (By Date for better legibility) */}
+                                {(() => {
+                                    let currentBal = data?.opening_balance || 0;
+                                    return data?.transactions.map((tx, idx) => {
+                                        const debit = Number(tx.debit || 0);
+                                        const credit = Number(tx.credit || 0);
+                                        currentBal = asNumber(tx.running_balance ?? (currentBal + (debit - credit)));
+
+                                        const isCredit = credit > 0;
+                                        const amountVal = isCredit ? credit : debit;
+                                        const colorClass = isCredit ? 'text-emerald-700' : 'text-rose-700';
+
+                                        return (
+                                            <NativeCard key={idx} className="p-4 space-y-3 active:scale-[0.98] transition-all">
+                                                <div className="flex items-start justify-between">
+                                                    <div className="min-w-0 flex-1">
+                                                        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                                                            <span className={cn(
+                                                                "text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg",
+                                                                isCredit ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
+                                                            )}>
+                                                                {isCredit ? 'Cash/Item Received' : 'Cash/Item Sent'}
+                                                            </span>
+                                                            <span className="text-[9px] font-mono text-slate-400 uppercase">
+                                                                #{tx.bill_number || tx.voucher_no || 'TXN'}
+                                                            </span>
+                                                            <span className="text-[9px] font-black text-slate-300 uppercase tracking-tighter">
+                                                                {format(new Date(tx.date || tx.created_at), "dd MMM, h:mm a")}
+                                                            </span>
+                                                        </div>
+                                                        <h3 className="text-sm font-black text-slate-900 leading-tight">
+                                                            {formatLedgerDesc(tx)}
+                                                        </h3>
+                                                        
+                                                        {tx.products && tx.products.length > 0 && (
+                                                            <div className="mt-2 text-[10px] text-slate-500 font-bold bg-slate-50 px-2 py-1.5 rounded-lg border border-slate-100 flex flex-wrap gap-x-3 gap-y-1">
+                                                                {tx.products.filter((p:any)=>p.name).map((p:any, i:number) => (
+                                                                    <span key={i} className="flex items-center gap-1 shrink-0">
+                                                                        <div className="w-1 h-1 rounded-full bg-slate-300" />
+                                                                        {p.name} ({p.qty}{p.unit})
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    
+                                                    <div className="text-right pl-4">
+                                                        <p className={cn("text-lg font-[1000] tracking-tighter leading-none", colorClass)}>
+                                                            {isCredit ? '+' : '-'}₹{amountVal.toLocaleString('en-IN')}
+                                                        </p>
+                                                        <p className={cn(
+                                                                "text-[8px] font-black uppercase mt-1 tracking-widest opacity-60",
+                                                                isCredit ? "text-emerald-500" : "text-rose-500"
+                                                        )}>
+                                                            {isCredit ? 'Credit' : 'Debit'}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div className="pt-2 border-t border-slate-50 flex items-center justify-between">
+                                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">
+                                                        Type: {(tx.voucher_type || tx.transaction_type || 'TXN').replace(/_/g, ' ')}
+                                                    </span>
+                                                    <span className="text-[10px] font-black text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
+                                                        Bal: ₹{Math.abs(currentBal).toLocaleString('en-IN')} {currentBal < 0 ? 'Cr' : 'Dr'}
+                                                    </span>
+                                                </div>
+                                            </NativeCard>
+                                        );
+                                    });
+                                })()}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Mobile Bottom FAB for Actions */}
+                <div className="fixed bottom-6 right-6 flex flex-col gap-3 group print:hidden">
+                    <button 
+                        onClick={() => {
+                            const end = new Date();
+                            const start = new Date();
+                            start.setDate(start.getDate() - 30);
+                            setDateRange({ from: start, to: end });
+                        }}
+                        className="w-12 h-12 bg-white text-slate-700 rounded-full shadow-2xl flex items-center justify-center border border-slate-100 active:scale-90 transition-all"
+                        title="Last 30 Days"
+                    >
+                        <CalendarIconLucide className="w-5 h-5" />
+                    </button>
+                    <button 
+                         onClick={handlePDFDownload}
+                         disabled={isDownloading}
+                         className="w-14 h-14 bg-indigo-600 text-white rounded-full shadow-[0_12px_24px_-8px_rgba(79,70,229,0.5)] flex items-center justify-center active:scale-90 transition-all disabled:opacity-50"
+                    >
+                        {isDownloading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Download className="w-6 h-6" />}
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="flex flex-col h-full bg-[#F0F2F5] print:bg-white print:h-auto">

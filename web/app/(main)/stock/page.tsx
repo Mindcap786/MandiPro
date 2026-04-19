@@ -289,56 +289,93 @@ export default function StockPage() {
     const fetchData = async (isManualRefresh = false) => {
         if (!profile?.organization_id) return
         if (isFetching.current) return
-        if (!cacheIsStale('stock_main', _orgId!) && !isManualRefresh) { setLoading(false); return }
+        
+        const orgId = profile.organization_id
+        const isStale = cacheIsStale('stock_main', orgId!)
+        
+        // If not stale and not manual refresh, we are done
+        if (!isStale && !isManualRefresh && stocks.length > 0) {
+            setLoading(false)
+            return
+        }
+
         isFetching.current = true
         const isBackgroundRefresh = stocks.length > 0 && !isManualRefresh
         if (!isBackgroundRefresh) setLoading(true)
+
         try {
-            const { data: stockData, error: stockErr } = await supabase.schema('mandi').from('view_location_stock').select('*').eq('organization_id', profile.organization_id)
-            if (stockErr) console.error('[Stock] Error:', stockErr)
+            // SINGLE QUERY: view_location_stock now contains total_value and last_arrival_date
+            const { data: stockData, error: stockErr } = await supabase
+                .schema('mandi')
+                .from('view_location_stock')
+                .select('*')
+                .eq('organization_id', orgId)
 
-            const { data: lots } = await supabase.schema('mandi').from('lots')
-                .select('item_id, storage_location, current_qty, supplier_rate')
-                .eq('organization_id', profile.organization_id)
-                .gt('current_qty', 0)
+            if (stockErr) throw stockErr
+
+            let validStockData: any[] = stockData || []
+            
+            // DEFENSIVE FALLBACK: If total_value is missing (migration hasn't run yet), fetch lots
+            const hasFinancials = validStockData.length > 0 && ('total_value' in validStockData[0])
+            
+            if (!hasFinancials && validStockData.length > 0) {
+                const { data: lots } = await supabase.schema('mandi').from('lots')
+                    .select('item_id, storage_location, current_qty, supplier_rate')
+                    .eq('organization_id', orgId)
+                    .gt('current_qty', 0)
                 
-            let validStockData = stockData || []
-            if (lots) {
-                const valueMap: Record<string, number> = {}
-                lots.forEach(l => {
-                    const key = `${l.item_id}_${l.storage_location || 'Mandi'}`
-                    const val = (Number(l.current_qty) || 0) * (Number(l.supplier_rate) || 0)
-                    valueMap[key] = (valueMap[key] || 0) + val
-                })
+                if (lots) {
+                    const valueMap: Record<string, number> = {}
+                    lots.forEach(l => {
+                        const key = `${l.item_id}_${l.storage_location || 'Mandi'}`
+                        const val = (Number(l.current_qty) || 0) * (Number(l.supplier_rate) || 0)
+                        valueMap[key] = (valueMap[key] || 0) + val
+                    })
 
-                // Calculate total stock qty mapped per matching key to distribute values proportionally 
-                // and avoid doubling if view_location_stock splits items by arrival_type/unit
-                const qtyMap: Record<string, number> = {}
-                validStockData.forEach(s => {
-                    const key = `${s.item_id}_${s.storage_location || 'Mandi'}`
-                    qtyMap[key] = (qtyMap[key] || 0) + Number(s.current_stock || 0)
-                })
+                    const qtyMap: Record<string, number> = {}
+                    validStockData.forEach(s => {
+                        const key = `${s.item_id}_${s.storage_location || 'Mandi'}`
+                        qtyMap[key] = (qtyMap[key] || 0) + Number(s.current_stock || 0)
+                    })
 
-                validStockData = validStockData.map(s => {
-                    const key = `${s.item_id}_${s.storage_location || 'Mandi'}`
-                    const totalQty = qtyMap[key] || 1
-                    const myQty = Number(s.current_stock || 0)
-                    const distributionPortion = myQty / totalQty
-                    
-                    return { ...s, total_value: (valueMap[key] || 0) * distributionPortion }
-                })
+                    validStockData = validStockData.map(s => {
+                        const key = `${s.item_id}_${s.storage_location || 'Mandi'}`
+                        const totalQty = qtyMap[key] || 1
+                        const myQty = Number(s.current_stock || 0)
+                        const distributionPortion = myQty / totalQty
+                        return { ...s, total_value: (valueMap[key] || 0) * distributionPortion }
+                    })
+                }
             }
 
-            setStocks(validStockData.filter(s => Number(s.current_stock) > 0))
-            const { data: locData } = await supabase.schema('mandi').from('storage_locations').select('name').eq('organization_id', profile.organization_id).eq('is_active', true).order('created_at')
-            const dynamicLocs = locData?.map(l => l.name.trim()) || []
-            setLocations(Array.from(new Set(['All', ...dynamicLocs].filter(Boolean))))
-            cacheSet('stock_main', profile.organization_id, validStockData || [])
-        } catch (err) { console.error("Fetch error:", err) }
-        finally { isFetching.current = false; setLoading(false) }
+            const processedData = validStockData.filter(s => Number(s.current_stock) > 0)
+            setStocks(processedData)
+            cacheSet('stock_main', orgId, processedData)
+
+            // Background fetch storage locations once
+            if (locations.length <= 3) {
+                const { data: locData } = await supabase
+                    .schema('mandi')
+                    .from('storage_locations')
+                    .select('name')
+                    .eq('organization_id', orgId)
+                    .eq('is_active', true)
+                    .order('created_at')
+                
+                if (locData) {
+                    const dynamicLocs = locData.map(l => l.name.trim())
+                    setLocations(Array.from(new Set(['All', ...dynamicLocs].filter(Boolean))))
+                }
+            }
+        } catch (err) { 
+            console.error("[Stock] Fetch error:", err) 
+        } finally { 
+            isFetching.current = false
+            setLoading(false) 
+        }
     }
 
-    useEffect(() => { fetchData() }, [profile])
+    useEffect(() => { fetchData() }, [profile?.organization_id])
 
     const handleAuditPrint = async () => {
         if (auditPrinting) return;
@@ -372,14 +409,27 @@ export default function StockPage() {
         }
     };
 
+    // DEBUNCED REALTIME: Don't hammer the DB on every lot change
     useEffect(() => {
-        if (!profile?.organization_id) return
-        const uniqueId = Math.random().toString(36).substring(7)
-        const channel = supabase.channel(`realtime-stock-${uniqueId}`)
-            .on('postgres_changes', { event: '*', schema: 'mandi', table: 'lots', filter: `organization_id=eq.${profile.organization_id}` }, () => fetchData(true))
-            .subscribe()
-        return () => { supabase.removeChannel(channel) }
-    }, [profile])
+        if (!profile?.organization_id) return;
+        const orgId = profile.organization_id;
+        
+        let timeout: NodeJS.Timeout;
+        const channel = supabase.channel(`realtime-stock-${orgId}`)
+            .on('postgres_changes', 
+                { event: '*', schema: 'mandi', table: 'lots', filter: `organization_id=eq.${orgId}` }, 
+                () => {
+                    clearTimeout(timeout);
+                    timeout = setTimeout(() => fetchData(true), 1500); // 1.5s debounce
+                }
+            )
+            .subscribe();
+            
+        return () => { 
+            supabase.removeChannel(channel);
+            clearTimeout(timeout);
+        };
+    }, [profile?.organization_id]);
 
     const getAvailabilityCount = (typeId: string) => {
         const matchingStocks = stocks.filter(item => {
@@ -395,6 +445,8 @@ export default function StockPage() {
         return matchesSearch && (locationFilter === 'All' || loc === locationFilter) && (arrivalFilter === 'All' || item.arrival_type === arrivalFilter)
     })
 
+    // Aggregation stays client-side because users filter by source/location dynamically,
+    // but we've simplified the data it works with.
     const aggregatedStock = filteredStock.reduce((acc, curr) => {
         const u = curr.unit || 'BOX'
         if (!acc[curr.item_id]) {

@@ -176,6 +176,7 @@ export function CapacitorProvider({ children }: { children: React.ReactNode }) {
                 const observer = new MutationObserver(fixNumberInputs);
                 observer.observe(document.body, { childList: true, subtree: true });
 
+                console.log(`[CapacitorProvider] UI Mode: ${isMobileView ? 'Mobile (Vyapar)' : 'Desktop'} | Width: ${window.innerWidth}px | Native: ${Cap.isNativePlatform()}`);
                 console.log('[CapacitorProvider] Native initialized ✓ (v2 — green theme)');
 
             } catch (err) {

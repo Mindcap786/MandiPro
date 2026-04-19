@@ -6,9 +6,8 @@ import { Capacitor } from '@capacitor/core'
  * Priority order:
  *  1. Capacitor.isNativePlatform() — definitive: we're inside a native WebView
  *  2. NEXT_PUBLIC_CAPACITOR=true  — build-time flag injected by build-mobile.sh
- *     This fires when the static bundle runs on both real devices AND emulators,
- *     regardless of the reported window viewport width.
- *  3. window.innerWidth < 768     — fallback for Chrome DevTools mobile simulation
+ *  3. User Agent contains Mobile signal — very strong indicator of a phone browser
+ *  4. window.innerWidth < 1024    — fallback (increased from 768 to handle massive S26 Ultra/iPhone Pro Max types)
  */
 export function isNativePlatform(): boolean {
     if (typeof window === 'undefined') return false;
@@ -17,11 +16,15 @@ export function isNativePlatform(): boolean {
     if (Capacitor.isNativePlatform()) return true;
 
     // 2. Build-time Capacitor flag (baked in by build-mobile.sh)
-    //    This is the key signal that makes emulators and real devices work correctly
-    //    even before Capacitor fully initialises on the first JS tick.
     if (process.env.NEXT_PUBLIC_CAPACITOR === 'true') return true;
 
-    // 3. Browser-only fallback: responsive mobile width (Chrome DevTools, etc.)
-    return window.innerWidth < 768;
+    // 3. User Agent Check — identify phones/tablets even if viewport is wide
+    const ua = navigator.userAgent || "";
+    const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+    if (isMobileUA) return true;
+
+    // 4. Browser-only fallback: responsive mobile/tablet width
+    // Increased to 1024 to catch all modern "Phablets" and portrait tablets
+    return window.innerWidth < 1024;
 }
 

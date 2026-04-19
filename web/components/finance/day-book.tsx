@@ -25,6 +25,7 @@ import { exportToCSV } from "@/lib/utils/export-csv";
 import { useLanguage } from "@/components/i18n/language-provider";
 import { formatCurrency, roundTo2 } from "@/lib/accounting-logic";
 import { cacheGet, cacheSet } from "@/lib/data-cache";
+import { useTableKeyboard } from "@/hooks/use-table-keyboard";
 import { findImbalancedVoucherIds, summarizeVoucherHealth } from "@/lib/finance/voucher-integrity";
 
 const DAYBOOK_CACHE_VERSION = 'v2.5'; // Bumped 2026-04-19: Fix Arjun double purchase row + Mubarak invisible entries
@@ -844,6 +845,7 @@ export default function DayBook() {
     const [datePickerOpen, setDatePickerOpen] = useState(false);
     const [viewMode, setViewMode] = useState<'cash' | 'all'>('all');
     const [cashFilter, setCashFilter] = useState<'all' | 'inflow' | 'outflow' | 'sales' | 'purchases'>('all');
+    const tableContainerRef = React.useRef<HTMLDivElement>(null);
     
     const orgId = profile?.organization_id;
     // Cache is now shared across views for the same date
@@ -878,6 +880,25 @@ export default function DayBook() {
                 setRawData(null);
             }
             fetchDayBook();
+
+            // Realtime subscription
+            const channel = supabase.channel(`daybook-realtime-${orgId}-${dateKey}`)
+                .on('postgres_changes', { event: 'INSERT', schema: 'mandi', table: 'ledger_entries', filter: `organization_id=eq.${orgId}` }, () => {
+                    fetchDayBook(true); // silent background fresh
+                })
+                .on('postgres_changes', { event: 'UPDATE', schema: 'mandi', table: 'ledger_entries', filter: `organization_id=eq.${orgId}` }, () => {
+                    fetchDayBook(true); // silent background fresh
+                })
+                .subscribe();
+
+            // Smart refresh from keyboard shortcuts
+            const handleRefresh = () => fetchDayBook(true);
+            window.addEventListener('smart-refresh', handleRefresh);
+
+            return () => {
+                supabase.removeChannel(channel);
+                window.removeEventListener('smart-refresh', handleRefresh);
+            };
         }
     }, [profile?.organization_id, profile?.business_domain, date]);
 
@@ -1528,6 +1549,11 @@ export default function DayBook() {
         return true;
     });
 
+    const { focusedIndex } = useTableKeyboard({
+        rowCount: filteredGroups.length,
+        containerRef: tableContainerRef
+    });
+
     if (isNativePlatform()) {
         return (
             <div className="space-y-6 pb-24">
@@ -2013,8 +2039,10 @@ export default function DayBook() {
                                             return (
                                                 <tr
                                                     key={e.id}
+                                                    data-row-index={isFirst ? groupIdx : undefined}
                                                     className={cn(
                                                         "transition-all group border-none relative print:break-inside-avoid",
+                                                        focusedIndex === groupIdx ? "ring-2 ring-inset ring-indigo-500 brightness-95" : "",
                                                         styles.bg,
                                                         e.status === 'reversed' ? "opacity-50 grayscale" : "hover:brightness-[0.98]"
                                                     )}
