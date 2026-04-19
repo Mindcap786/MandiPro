@@ -438,7 +438,12 @@ export function MandiCommissionForm() {
                                 ref={addBtnRef}
                                 type="button"
                                 onClick={handleAddRow}
-                                onKeyDown={(e) => handleKeyDown(e, farmerSearchRef)}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                        e.preventDefault();
+                                        handleAddRow();
+                                    }
+                                }}
                                 className="add-btn w-full h-14 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black text-xl tracking-widest shadow-lg shadow-emerald-500/20 shadow-[inset_0px_1px_1px_rgba(255,255,255,0.4)] transition-all"
                             >
                                 [Add] <Plus className="ml-2 w-6 h-6" />
@@ -513,6 +518,12 @@ export function MandiCommissionForm() {
                     ref={submitBtnRef}
                     className="w-full max-w-xl h-16 bg-slate-900 hover:bg-black text-white rounded-2xl font-black text-2xl tracking-widest shadow-2xl flex items-center justify-center gap-3 transition-all hover:scale-[1.02] active:scale-[0.98]"
                     onClick={handleSubmit}
+                    onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleSubmit();
+                        }
+                    }}
                     disabled={isCommitting}
                 >
                     {isCommitting ? "GENERATING BILLS..." : "SUBMIT & PRINT"}
