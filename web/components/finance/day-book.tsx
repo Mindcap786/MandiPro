@@ -27,7 +27,7 @@ import { formatCurrency, roundTo2 } from "@/lib/accounting-logic";
 import { cacheGet, cacheSet } from "@/lib/data-cache";
 import { findImbalancedVoucherIds, summarizeVoucherHealth } from "@/lib/finance/voucher-integrity";
 
-const DAYBOOK_CACHE_VERSION = 'v2.3'; // Bumped 2026-04-19: Fix Sales=0, Liquid=-85500, i18n GOODS_ARRIVAL bug
+const DAYBOOK_CACHE_VERSION = 'v2.4'; // Bumped 2026-04-19: Fix duplicate payment rows (Arjun ₹7000 bug), correct badge types
 const AMOUNT_EPSILON = 0.01;
 
 // ── TRANSACTION TYPE MAP (from real DB audit — all known transaction_type values) ──────────────
@@ -356,18 +356,57 @@ const getEntryGroupKey = (entry: any) => {
     const flow = inferVoucherFlow(entry);
     const refKey = entry.reference_id ? String(entry.reference_id) : '';
     
-    // SALES: group by settlement key so sale + receipt merge into one card
-    if (flow === 'sale' || flow === 'sale_payment' || flow === 'receive_receipt') {
+    // SALES: group by settlement key so sale + payment receipt merge into one card
+    // (sale + receipt may be separate vouchers linked by invoice_id)
+    if (flow === 'sale' || flow === 'sale_payment') {
         const saleKey = getSaleSettlementKey(entry);
         if (saleKey) return `sale_group_${saleKey}`;
     }
 
-    // PURCHASES: group ALL legs (supplier payable + cash/bank + purchase debit)
-    if (flow === 'purchase' || flow === 'paid_receipt') {
+    // PURCHASES (arrival-linked): group all legs by arrival/reference key
+    // advance_payment + goods_arrival entries may have voucher_id=NULL so we
+    // need the reference/arrival-based key approach here.
+    if (flow === 'purchase') {
         const pKey = getPurchaseSettlementKey(entry);
         if (pKey) return `purchase_group_${pKey}`;
     }
-    
+
+    // ─── STANDALONE PAYMENTS (paid_receipt) ────────────────────────────────────
+    // The ONLY correct group key for a double-entry payment voucher is voucher_id.
+    // Both legs (Dr Party + Cr Cash) share the same voucher_id — they must
+    // always land in the same display group.
+    //
+    // NEVER use bill/voucher_no extraction here: voucher_no is a sequential
+    // counter (1, 2, 3 …) scoped per org, not per party. Using it creates
+    // contact-aware vs non-contact keys that split the same voucher into two rows.
+    //
+    // Bug reproduced: Arjun payment Dr(contact_id=X, ref_no=1) → key=purchase_contact_X_bill_1
+    //                              Cr(contact_id=NULL, ref_no=1) → key=purchase_bill_1
+    //                 → Two entries for ₹7,000 payment instead of one.
+    if (flow === 'paid_receipt') {
+        if (entry.voucher_id) return `payment_voucher_${entry.voucher_id}`;
+        // No voucher_id (legacy): fallback to purchase settlement approach
+        const pKey = getPurchaseSettlementKey(entry);
+        if (pKey) return `purchase_group_${pKey}`;
+    }
+
+    // ─── STANDALONE RECEIPTS (receive_receipt) ─────────────────────────────────
+    // Same rationale as payments above: use voucher_id when available.
+    // Invoice-linked receipts (have voucher.invoice_id) should merge with the
+    // corresponding sale group via the sale settlement key.
+    if (flow === 'receive_receipt') {
+        // Invoice-linked: merge with sale group
+        if (entry.voucher?.invoice_id) {
+            const saleKey = getSaleSettlementKey(entry);
+            if (saleKey) return `sale_group_${saleKey}`;
+        }
+        // Standalone receipt: group all legs by voucher_id
+        if (entry.voucher_id) return `receipt_voucher_${entry.voucher_id}`;
+        // Legacy fallback
+        const saleKey = getSaleSettlementKey(entry);
+        if (saleKey) return `sale_group_${saleKey}`;
+    }
+
     const invoiceId = entry.voucher?.invoice_id || (flow === 'sale' ? entry.reference_id : null);
     if (flow === 'sale' && invoiceId) {
         return `sale_invoice_${invoiceId}`;
@@ -610,14 +649,14 @@ const getTransactionScenario = (
         if (flowType === 'sale') return t('daybook.scenarios.sale_entry');
     }
 
-    if (flowType === 'receipt') {
+    if (flowType === 'receipt' || flowType === 'receive_receipt') {
         const hasWriteOff = group.some(l => (l.description || '').includes('Settlement Write-off'));
         if (hasWriteOff && !group.some(l => isLiquidAccountEntry(l) && Number(l.debit || 0) > 0)) {
             return 'SETTLEMENT WRITE-OFF';
         }
         return t('daybook.scenarios.receipt');
     }
-    if (flowType === 'payment') {
+    if (flowType === 'payment' || flowType === 'paid_receipt') {
         const hasSettlementGain = group.some(l => (l.description || '').includes('Settlement Gain'));
         if (hasSettlementGain && !group.some(l => isLiquidAccountEntry(l) && Number(l.credit || 0) > 0)) {
             return 'SETTLEMENT GAIN';
@@ -1303,22 +1342,24 @@ export default function DayBook() {
                     const legToPush = { ...mainLeg };
 
                     if (isReceipt) {
-                        legToPush.displayDebit = 0;
+                        // Money received from buyer/party — credit side goes up
+                        legToPush.displayDebit  = 0;
                         legToPush.displayCredit = singleVal;
-                        legToPush.displayLabel = 'Receipt';
-                        legToPush.displayType = 'receipt';
+                        legToPush.displayLabel  = t('daybook.labels.receive_receipt') || 'Receipt';
+                        legToPush.displayType   = 'receive_receipt';
                     } else if (isPayment) {
-                        legToPush.displayDebit = singleVal;
+                        // Money paid to supplier/farmer — debit side goes up
+                        legToPush.displayDebit  = singleVal;
                         legToPush.displayCredit = 0;
-                        legToPush.displayLabel = 'Receipt';
-                        legToPush.displayType = 'payment';
+                        legToPush.displayLabel  = t('daybook.labels.paid_receipt') || 'Payment Made';
+                        legToPush.displayType   = 'paid_receipt';
                     } else if (isExpense) {
-                        legToPush.displayDebit = singleVal;
+                        legToPush.displayDebit  = singleVal;
                         legToPush.displayCredit = 0;
-                        legToPush.displayLabel = 'Expense';
-                        legToPush.displayType = 'expense_receipt';
+                        legToPush.displayLabel  = 'Expense';
+                        legToPush.displayType   = 'expense_receipt';
                     } else {
-                        legToPush.displayDebit = Number(legToPush.debit || 0);
+                        legToPush.displayDebit  = Number(legToPush.debit  || 0);
                         legToPush.displayCredit = Number(legToPush.credit || 0);
                     }
                     legs.push(legToPush);
@@ -2052,9 +2093,10 @@ export default function DayBook() {
                                                     )}>
                                                         <span className={cn(
                                                             "text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest border shadow-sm",
-                                                            e.displayType === 'sale' || e.displayType === 'receipt' || e.displayType === 'sale_payment' || e.displayType === 'receive_receipt' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                                                            e.displayType === 'sale' || e.displayType === 'sale_payment' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                                                            e.displayType === 'receive_receipt' || e.displayType === 'receipt' ? 'bg-teal-50 text-teal-700 border-teal-100' :
                                                             e.displayType === 'purchase' ? 'bg-amber-50 text-amber-700 border-amber-100' :
-                                                            e.displayType === 'payment' || e.displayType === 'paid_receipt' ? 'bg-rose-50 text-rose-700 border-rose-100' :
+                                                            e.displayType === 'paid_receipt' || e.displayType === 'payment' ? 'bg-rose-50 text-rose-700 border-rose-100' :
                                                             e.displayType === 'expense_receipt' ? 'bg-orange-50 text-orange-700 border-orange-100' :
                                                             e.displayType === 'opening_balance' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' :
                                                                         'bg-slate-100 text-slate-500 border-slate-200'
