@@ -343,7 +343,7 @@ export function NewPaymentDialog({ onSuccess, defaultOpen, onOpenChange, initial
                 ? (selectedBankId || defaultBankId)
                 : null;
 
-            const { error } = await supabase.schema(schema).rpc('create_voucher', {
+            const { data: voucherData, error } = await supabase.schema(schema).rpc('create_voucher', {
                 p_organization_id: profile?.organization_id,
                 p_voucher_type: mode, // Dynamic type
                 p_date: values.payment_date.toISOString(),
@@ -365,6 +365,35 @@ export function NewPaymentDialog({ onSuccess, defaultOpen, onOpenChange, initial
 
             if (error) throw error;
 
+            // ──────────────────────────────────────────────────
+            // FIFO SETTLEMENT: After a supplier/farmer payment,
+            // automatically clear oldest bills first.
+            // Only runs in 'payment' mode (not 'receipt').
+            // ──────────────────────────────────────────────────
+            if (mode === 'payment' && values.party_id && values.amount > 0) {
+                try {
+                    // voucherData may be a UUID (voucher id) or object depending on create_voucher return type
+                    const voucherId = typeof voucherData === 'string'
+                        ? voucherData
+                        : (voucherData as any)?.id || null;
+
+                    const { error: fifoError } = await supabase.rpc('settle_supplier_payment', {
+                        p_organization_id: profile?.organization_id,
+                        p_contact_id:      values.party_id,
+                        p_payment_amount:  values.amount,
+                        p_payment_id:      voucherId,  // idempotency key
+                    });
+
+                    if (fifoError) {
+                        // Non-fatal: log but don't block success
+                        console.warn('[FIFO] Settlement warning:', fifoError.message);
+                    }
+                } catch (fifoErr: any) {
+                    console.warn('[FIFO] Settlement error (non-fatal):', fifoErr.message);
+                }
+            }
+            // ──────────────────────────────────────────────────
+
             toast({ title: isReceipt ? "Receipt Recorded" : "Payment Recorded", description: "Voucher created successfully." });
             setOpen(false);
             setShowConfirmation(false);
@@ -378,6 +407,7 @@ export function NewPaymentDialog({ onSuccess, defaultOpen, onOpenChange, initial
             setIsSubmitting(false);
         }
     };
+
 
     return (
         <Dialog open={open} onOpenChange={(val) => {

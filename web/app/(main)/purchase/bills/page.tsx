@@ -30,7 +30,7 @@ export default function PurchaseBillsPage() {
     const [bills, setBills] = useState<any[]>(_cached?.bills || []);
     const [groupedSuppliers, setGroupedSuppliers] = useState<any[]>(_cached?.groupedSuppliers || []);
     const [loading, setLoading] = useState(!_cached && !profile);
-    const [filter, setFilter] = useState('all');
+    const [filter, setFilter] = useState<'all'|'pending'|'partial'|'paid'>('all');
     const [search, setSearch] = useState('');
     const [selectedBillId, setSelectedBillId] = useState<string | null>(null);
     const [selectedBillLocked, setSelectedBillLocked] = useState<boolean>(false);
@@ -87,6 +87,9 @@ export default function PurchaseBillsPage() {
                     .from('lots')
                     .select(`
                         *,
+                        paid_amount,
+                        payment_status,
+                        net_payable,
                         farmer:contacts!contact_id(id, name, city),
                         item:commodities(name),
                         arrival:arrivals(arrival_date, reference_no, arrival_type, hire_charges, hamali_expenses, other_expenses, bill_no, contact_bill_no),
@@ -143,10 +146,12 @@ export default function PurchaseBillsPage() {
                 }
             }
 
-            // Per-contact: sum gross-owed across their lots using ONLY the arrival-time
-            // advance. Subsequent ledger payments are applied once per contact below so
-            // a supplier-level payment correctly settles across all their open bills.
-            const contactBalances: Record<string, { netAmount: number; advancePaid: number; hasPayment: boolean }> = {};
+            // Per-contact: Aggregate balance using DB payment_status + net_payable.
+            // payment_status is now DB-persisted by the FIFO settle_supplier_payment RPC.
+            const contactBalances: Record<string, { 
+                netAmount: number; advancePaid: number; hasPayment: boolean;
+                totalNetPayable: number; totalPaidAmount: number;
+            }> = {};
 
             if (data) {
                 data.forEach((lot: any) => {
@@ -154,36 +159,45 @@ export default function PurchaseBillsPage() {
                     if (!contactId) return;
 
                     if (!contactBalances[contactId]) {
-                        contactBalances[contactId] = { netAmount: 0, advancePaid: 0, hasPayment: false };
+                        contactBalances[contactId] = { 
+                            netAmount: 0, advancePaid: 0, hasPayment: false,
+                            totalNetPayable: 0, totalPaidAmount: 0
+                        };
                     }
 
-                    const lotGrossValue = calculateLotGrossValue(lot);
+                    // Use DB-stored net_payable (computed by FIFO migration)
+                    // Fall back to JS calculation only if DB value missing (brand-new lot)
+                    const dbNetPayable = Number(lot.net_payable || 0);
+                    const lotGrossValue = dbNetPayable > AMOUNT_EPSILON 
+                        ? dbNetPayable 
+                        : calculateLotGrossValue(lot);
+
                     const advance = Number(lot.advance || 0);
+                    const paidAmount = Number(lot.paid_amount || 0);
+                    const totalPaid = paidAmount + advance;
 
-                    // GUARD: supplier_rate not set yet → treat as nothing owed on this lot.
-                    if (lotGrossValue <= AMOUNT_EPSILON) {
-                        if (advance > AMOUNT_EPSILON) {
-                            contactBalances[contactId].hasPayment = true;
-                        }
-                        return;
-                    }
+                    // Still outstanding after FIFO payments
+                    const outstanding = Math.max(0, lotGrossValue - totalPaid);
+                    contactBalances[contactId].netAmount += outstanding;
+                    contactBalances[contactId].totalNetPayable += lotGrossValue;
+                    contactBalances[contactId].totalPaidAmount += totalPaid;
 
-                    // amountStillOwed is what's unpaid BEFORE considering ledger payments.
-                    const amountStillOwed = Math.max(0, lotGrossValue - advance);
-                    contactBalances[contactId].netAmount += amountStillOwed;
-                    if (advance > AMOUNT_EPSILON) {
+                    if (totalPaid > AMOUNT_EPSILON) {
                         contactBalances[contactId].hasPayment = true;
                     }
                 });
 
-                // Apply cleared ledger payments against per-contact outstanding.
+                // Also apply any cleared ledger voucher payments not yet FIFO-settled
                 Object.keys(contactBalances).forEach(contactId => {
                     const ledgerPaid = clearedPaymentsByContact[contactId] || 0;
-                    if (ledgerPaid > AMOUNT_EPSILON) {
+                    // Only apply ledger offset if it's more than what FIFO already tracked
+                    const alreadyFifo = contactBalances[contactId].totalPaidAmount;
+                    const extraLedger = Math.max(0, ledgerPaid - alreadyFifo);
+                    if (extraLedger > AMOUNT_EPSILON) {
                         contactBalances[contactId].hasPayment = true;
                         contactBalances[contactId].netAmount = Math.max(
                             0,
-                            contactBalances[contactId].netAmount - ledgerPaid
+                            contactBalances[contactId].netAmount - extraLedger
                         );
                     }
                 });
@@ -249,26 +263,26 @@ export default function PurchaseBillsPage() {
                 groups[contactId].balance = balanceData.netAmount;
             });
 
-            // Apply "Latest at Top" sorting and balance mapping
+            // Apply "Latest at Top" sorting and status from DB-persisted payment_status
             const sortedSuppliers = Object.values(groups)
                 .map(group => {
                     const contactId_key = group.id;
-                    const balanceData = contactBalances[contactId_key] || { netAmount: 0, advancePaid: 0, hasPayment: false };
+                    const balanceData = contactBalances[contactId_key] || { 
+                        netAmount: 0, advancePaid: 0, hasPayment: false,
+                        totalNetPayable: 0, totalPaidAmount: 0
+                    };
                     const balanceToPay = balanceData.netAmount;
 
-                    // CORRECT: Determine status based on what's ACTUALLY owed
-                    // PAID: balance ≈ 0 (whether due to all CASH or all UDHAAR paid)
-                    // PARTIAL: balance > 0 AND some payments made (partial UDHAAR or mix of CASH + UDHAAR)
-                    // PENDING: balance > 0 AND no payments (all UDHAAR unpaid)
-                    let status = 'pending';
+                    // Status derived from DB-persisted payment_status on lots (FIFO-aware)
+                    // Roll up: if ANY lot is partial → partial; all paid → paid; else pending
+                    const lotStatuses = group.lots.map((l: any) => l.payment_status || 'pending');
+                    let status: string;
                     if (Math.abs(balanceToPay) < AMOUNT_EPSILON) {
-                        // No amount owed -> PAID
                         status = 'paid';
-                    } else if (balanceToPay > AMOUNT_EPSILON && balanceData.hasPayment) {
-                        // Some amount owed AND some payment made -> PARTIAL
+                    } else if (lotStatuses.some((s: string) => s === 'paid' || s === 'partial') 
+                               || balanceData.hasPayment) {
                         status = 'partial';
-                    } else if (balanceToPay > AMOUNT_EPSILON && !balanceData.hasPayment) {
-                        // Some amount owed AND no payment -> PENDING
+                    } else {
                         status = 'pending';
                     }
 
@@ -276,6 +290,8 @@ export default function PurchaseBillsPage() {
                         ...group,
                         balance: balanceToPay,
                         netAmount: balanceData.netAmount,
+                        totalPaid: balanceData.totalPaidAmount,
+                        totalNetPayable: balanceData.totalNetPayable,
                         advancePaid: balanceData.advancePaid,
                         calculatedStatus: status
                     };
@@ -321,8 +337,9 @@ export default function PurchaseBillsPage() {
 
     const filteredSuppliers = groupedSuppliers
         .filter(supplier => {
-            if (filter === 'pending') return supplier.balance > AMOUNT_EPSILON;
-            if (filter === 'paid') return supplier.balance <= AMOUNT_EPSILON;
+            if (filter === 'pending')  return supplier.calculatedStatus === 'pending';
+            if (filter === 'partial')  return supplier.calculatedStatus === 'partial';
+            if (filter === 'paid')     return supplier.calculatedStatus === 'paid';
             return true;
         })
         .filter(supplier => {
@@ -482,12 +499,19 @@ export default function PurchaseBillsPage() {
                         <div className="h-8 w-px bg-slate-200 mx-2 hidden md:block" />
 
                         <div className="flex flex-1 md:flex-none gap-1 overflow-x-auto hide-scrollbar snap-x w-full">
-                            {['pending', 'paid', 'all'].map(f => (
+                            {(['all', 'pending', 'partial', 'paid'] as const).map(f => (
                                 <button
                                     key={f}
                                     onClick={() => setFilter(f)}
-                                    className={`h-12 flex-1 md:flex-none snap-center px-4 md:px-6 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] border transition-all ${filter === f ? 'bg-black text-white border-black shadow-lg' : 'bg-white border-slate-200 text-slate-500 hover:text-black hover:border-slate-300'
-                                        }`}
+                                    className={cn(
+                                        'h-12 flex-1 md:flex-none snap-center px-4 md:px-6 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] border transition-all',
+                                        filter === f 
+                                            ? f === 'partial' ? 'bg-amber-500 text-white border-amber-500 shadow-lg'
+                                              : f === 'paid'    ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg'
+                                              : f === 'pending' ? 'bg-rose-600 text-white border-rose-600 shadow-lg'
+                                              : 'bg-black text-white border-black shadow-lg'
+                                            : 'bg-white border-slate-200 text-slate-500 hover:text-black hover:border-slate-300'
+                                    )}
                                 >
                                     {f}
                                 </button>
@@ -551,10 +575,28 @@ export default function PurchaseBillsPage() {
                                                         </span>
                                                     ))}
                                                 </div>
-                                                {/* Balance */}
+                                                {/* Balance + Progress Bar */}
                                                 <div className={`text-sm font-mono font-black mt-2 ${ledgerBal > AMOUNT_EPSILON ? 'text-rose-600' : ledgerBal < -AMOUNT_EPSILON ? 'text-emerald-600' : 'text-slate-500'}`}>
-                                                    Total Balance: ₹ {Math.abs(ledgerBal).toLocaleString()} {ledgerBal > AMOUNT_EPSILON ? 'To Pay' : ledgerBal < -AMOUNT_EPSILON ? 'Advance' : 'Settled'}
+                                                    Balance: ₹ {Math.abs(ledgerBal).toLocaleString()} {ledgerBal > AMOUNT_EPSILON ? 'To Pay' : ledgerBal < -AMOUNT_EPSILON ? 'Advance' : 'Settled'}
                                                 </div>
+                                                {supplier.totalNetPayable > AMOUNT_EPSILON && (
+                                                    <div className="mt-2">
+                                                        <div className="flex justify-between text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">
+                                                            <span>Paid ₹{Math.round(supplier.totalPaid || 0).toLocaleString()}</span>
+                                                            <span>Total ₹{Math.round(supplier.totalNetPayable).toLocaleString()}</span>
+                                                        </div>
+                                                        <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                                            <div 
+                                                                className={cn(
+                                                                    'h-full rounded-full transition-all duration-700',
+                                                                    supplier.calculatedStatus === 'paid'    ? 'bg-emerald-500' :
+                                                                    supplier.calculatedStatus === 'partial' ? 'bg-amber-400' : 'bg-rose-300'
+                                                                )}
+                                                                style={{ width: `${Math.min(100, Math.round(((supplier.totalPaid || 0) / supplier.totalNetPayable) * 100))}%` }}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
 
