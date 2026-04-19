@@ -1,0 +1,486 @@
+"use client"
+
+import { format } from "date-fns"
+import { toWords } from "@/lib/number-to-words"
+import { usePlatformBranding } from "@/hooks/use-platform-branding"
+import { DocumentWatermark } from "@/components/common/document-branding"
+import {
+    calculateLotSettlementAmount,
+    calculateLotGrossValue,
+    calculateArrivalLevelExpenses,
+    getArrivalType,
+} from "@/lib/purchase-payables"
+
+interface PurchaseInvoiceTemplateProps {
+    lot: any
+    arrival: any
+    organization: any
+    arrivalLots?: any[]  // All lots in same arrival — for expense share calc
+}
+
+const toNumber = (v: any) => Number(v) || 0;
+
+export default function PurchaseBillInvoice({
+    lot,
+    arrival,
+    organization,
+    arrivalLots = [],
+}: PurchaseInvoiceTemplateProps) {
+    const { branding } = usePlatformBranding();
+
+    if (!lot) return null
+
+    // ── Data extraction ──────────────────────────────────────────
+    const farmerName = lot.farmer?.name || lot.contact?.name || 'Unknown Supplier'
+    const farmerCity = lot.farmer?.city || lot.contact?.city || ''
+    const itemName = lot.item?.name || 'Item'
+    const lotCode = lot.lot_code || 'N/A'
+    const unit = lot.unit || 'Unit'
+    const variety = lot.variety || ''
+    const grade = lot.grade || ''
+
+    const billNo = arrival?.contact_bill_no || arrival?.bill_no || lot.lot_code || 'N/A'
+    const referenceNo = arrival?.reference_no || ''
+    const vehicleNo = arrival?.vehicle_number || ''
+    const vehicleType = arrival?.vehicle_type || ''
+    const arrivalDate = arrival?.arrival_date || lot.created_at
+    const arrivalType = getArrivalType(lot)
+    const arrivalTypeLabel = arrivalType === 'direct' ? 'Mandi Owned (Direct)' :
+        arrivalType === 'commission' || arrivalType === 'farmer' ? 'Farmer Commission' :
+            'Supplier Commission'
+
+    // ── Financial calculations (reusing existing lib) ────────────
+    const grossQty = toNumber(lot.gross_quantity) || toNumber(lot.initial_qty)
+    const lessPercent = toNumber(lot.less_percent)
+    const lessUnits = toNumber(lot.less_units)
+    const netQty = toNumber(lot.initial_qty) // This is already net after less deduction in the lot record
+    const supplierRate = toNumber(lot.supplier_rate)
+    const commissionPercent = toNumber(lot.commission_percent)
+    const otherCut = toNumber(lot.farmer_charges)
+    const packingCost = toNumber(lot.packing_cost)
+    const loadingCost = toNumber(lot.loading_cost)
+    const advance = toNumber(lot.advance)
+
+    // Calculate adjusted qty and amounts
+    const adjustedQty = netQty - (netQty * lessPercent) / 100
+    const grossAmount = adjustedQty * supplierRate
+
+    // Sales sum for commission lots (if sold)
+    const salesSum = Array.isArray(lot.sale_items)
+        ? lot.sale_items.reduce((sum: number, item: any) => sum + toNumber(item?.amount), 0)
+        : 0
+    const effectiveGoodsValue = arrivalType !== 'direct' && salesSum > 0 ? salesSum : grossAmount
+
+    const commissionAmount = arrivalType !== 'direct'
+        ? (effectiveGoodsValue * commissionPercent) / 100
+        : 0
+
+    // Arrival-level expenses (transport share for this lot)
+    const arrivalExpenseTotal = calculateArrivalLevelExpenses(arrival)
+    let arrivalExpenseShare = 0
+    if (arrivalExpenseTotal > 0.01 && arrivalType !== 'direct') {
+        // Proportional share based on settlement value
+        const allLots = arrivalLots.length > 0 ? arrivalLots : [lot]
+        const totalSettlement = allLots.reduce((sum, l) => sum + Math.max(calculateLotSettlementAmount(l), 0), 0)
+        const thisSettlement = Math.max(calculateLotSettlementAmount(lot), 0)
+        if (totalSettlement > 0.01) {
+            arrivalExpenseShare = (thisSettlement / totalSettlement) * arrivalExpenseTotal
+        }
+    }
+
+    // Final payable uses the existing calculation engine
+    const lotSettlement = calculateLotSettlementAmount(lot)
+    const finalPayable = Math.max(0, lotSettlement - arrivalExpenseShare)
+
+    // Organization address
+    const fullAddress = [
+        organization?.address_line1,
+        organization?.address_line2,
+        organization?.city,
+        organization?.state,
+        organization?.pincode
+    ].filter(Boolean).join(", ")
+
+    const formattedDate = (() => {
+        try { return arrivalDate ? format(new Date(arrivalDate), 'dd MMM yyyy') : '-'; }
+        catch { return '-'; }
+    })()
+
+    return (
+        <div id="purchase-invoice-print" className="bg-white text-black p-6 max-w-[800px] mx-auto shadow-2xl border border-gray-100 print:shadow-none print:border-none print:p-0 relative overflow-hidden">
+
+            {/* Global Watermark */}
+            <DocumentWatermark
+                text={branding?.watermark_text}
+                enabled={branding?.is_watermark_enabled}
+            />
+
+            {/* ───── Header ───── */}
+            <div className="grid grid-cols-[minmax(0,1.35fr)_auto_minmax(180px,1fr)] gap-6 items-start border-b-4 border-black pb-3 mb-3 relative z-10 print:flex print:w-full print:justify-between">
+                {/* Left: Identity */}
+                <div className="flex items-start gap-4 min-w-0 print:w-1/3">
+                    {organization?.logo_url ? (
+                        <img src={organization.logo_url} alt="Logo" className="h-20 w-auto object-contain" style={{ borderRadius: 12 }} />
+                    ) : (
+                        <div
+                            className="h-16 w-16 bg-black flex items-center justify-center shrink-0"
+                            style={{ borderRadius: 12, width: 64, height: 64, minWidth: 64, background: '#000' }}
+                        >
+                            <span className="text-white text-3xl font-black" style={{ color: '#fff', fontSize: 28, fontWeight: 900 }}>
+                                {(organization?.name || 'M').charAt(0).toUpperCase()}
+                            </span>
+                        </div>
+                    )}
+                    <div className="space-y-1 min-w-0">
+                        <p
+                            data-invoice-org-name
+                            className="text-black text-[29px] font-black tracking-tight uppercase leading-[1.12] break-words"
+                        >
+                            {organization?.name || 'Mandi HQ Enterprise'}
+                        </p>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-gray-900 max-w-[250px] leading-relaxed">
+                            {fullAddress || 'Market Yard, Sector 4, Fruit Market'}
+                        </p>
+                        {organization?.settings?.mandi_license && (
+                            <p className="text-[9px] font-black uppercase text-slate-500 mt-1">
+                                License: {organization.settings.mandi_license}
+                            </p>
+                        )}
+                    </div>
+                </div>
+
+                {/* Center: Title */}
+                <div className="self-center flex flex-col items-center text-center print:w-1/3 print:shrink-0">
+                    <h2
+                        data-invoice-title
+                        className="text-2xl font-black uppercase tracking-[0.2em] leading-[1.08] text-black"
+                    >
+                        Purchase
+                    </h2>
+                    <h2 className="text-2xl font-black uppercase tracking-[0.2em] leading-[1.08] text-black -mt-1">
+                        Bill
+                    </h2>
+                    <div className="h-1 w-12 bg-black mx-auto mt-2 rounded-full" />
+                </div>
+
+                {/* Right: Contact Details */}
+                <div className="text-right space-y-0.5 print:w-1/3 print:flex print:flex-col print:items-end">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Contact Details</p>
+                    <div className="space-y-0 text-xs font-black">
+                        <p>Ph: {organization?.phone || '+91 98765 43210'}</p>
+                        {organization?.gstin && <p className="italic">GST: {organization.gstin}</p>}
+                        {organization?.email && (
+                            <p className="text-[10px] lowercase border-t border-gray-100 pt-0.5 mt-0.5">{organization.email}</p>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* ───── Parties & Bill Details ───── */}
+            <div className="py-2 grid grid-cols-2 gap-8 border-b border-gray-100 mb-2 relative z-10 print:flex print:w-full print:justify-between">
+                {/* Left: Purchased From */}
+                <div className="space-y-1 print:w-1/2">
+                    <p className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em]">Purchased From</p>
+                    <h3 className="text-2xl font-black tracking-tight">{farmerName}</h3>
+                    <p className="text-gray-500 font-bold uppercase text-xs tracking-widest">{farmerCity || 'Local'}</p>
+                    <p className="text-[9px] font-black uppercase text-purple-600 tracking-widest mt-1 bg-purple-50 inline-block px-2 py-0.5 rounded">
+                        {arrivalTypeLabel}
+                    </p>
+                </div>
+
+                {/* Right: Bill Details */}
+                <div className="text-right space-y-0.5 text-xs self-end print:w-1/2 print:flex print:flex-col print:items-end">
+                    <div className="flex justify-end gap-2">
+                        <span className="text-gray-400 font-bold uppercase">Bill No:</span>
+                        <span className="font-black">#{billNo}</span>
+                    </div>
+                    {referenceNo && (
+                        <div className="flex justify-end gap-2">
+                            <span className="text-gray-400 font-bold uppercase">Book/Ref No:</span>
+                            <span className="font-black">{referenceNo}</span>
+                        </div>
+                    )}
+                    <div className="flex justify-end gap-2">
+                        <span className="text-gray-400 font-bold uppercase">Date:</span>
+                        <span className="font-black">{formattedDate}</span>
+                    </div>
+                    {vehicleNo && (
+                        <div className="flex justify-end gap-2">
+                            <span className="text-gray-400 font-bold uppercase">Vehicle:</span>
+                            <span className="font-black tracking-wider">{vehicleNo}{vehicleType ? ` (${vehicleType})` : ''}</span>
+                        </div>
+                    )}
+                    <div className="flex justify-end gap-2">
+                        <span className="text-gray-400 font-bold uppercase">Lot No:</span>
+                        <span className="font-black text-orange-600">{lotCode}</span>
+                    </div>
+                </div>
+            </div>
+
+            {/* ───── Items Table ───── */}
+            <div className="relative z-10">
+                <table className="w-full text-left">
+                    <thead>
+                        <tr className="border-b-2 border-black">
+                            <th className="py-2 text-[10px] font-black uppercase tracking-[0.2em] text-black text-left">Item / Lot</th>
+                            <th className="py-2 text-[10px] font-black uppercase tracking-[0.2em] text-black text-center">Gross Qty</th>
+                            <th className="py-2 text-[10px] font-black uppercase tracking-[0.2em] text-black text-center">Less %</th>
+                            <th className="py-2 text-[10px] font-black uppercase tracking-[0.2em] text-black text-center">Net Qty</th>
+                            <th className="py-2 text-[10px] font-black uppercase tracking-[0.2em] text-black text-right">Rate</th>
+                            <th className="py-2 text-[10px] font-black uppercase tracking-[0.2em] text-black text-right">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                        <tr>
+                            <td className="py-2">
+                                <p className="font-black text-xs tracking-tight uppercase leading-none">{itemName}</p>
+                                <div className="flex flex-col gap-0 mt-0.5">
+                                    <p className="text-[8px] font-black text-orange-600 tracking-tighter uppercase tabular-nums">
+                                        {lotCode}
+                                    </p>
+                                    {(variety || grade) && (
+                                        <p className="text-[7px] text-gray-400 font-bold uppercase tracking-widest opacity-70">
+                                            {variety}{variety && grade ? ' • ' : ''}{grade}
+                                        </p>
+                                    )}
+                                </div>
+                            </td>
+                            <td className="py-2 text-center font-bold text-sm tracking-tighter">
+                                {grossQty} <span className="text-[7px] text-gray-400 font-normal">{unit}</span>
+                            </td>
+                            <td className="py-2 text-center font-bold text-sm tracking-tighter">
+                                {lessPercent > 0 ? `${lessPercent}%` : '—'}
+                                {lessUnits > 0 && (
+                                    <span className="block text-[7px] text-gray-400 font-normal">({lessUnits} units)</span>
+                                )}
+                            </td>
+                            <td className="py-2 text-center font-bold text-sm tracking-tighter">
+                                {Math.round(adjustedQty * 100) / 100} <span className="text-[7px] text-gray-400 font-normal">{unit}</span>
+                            </td>
+                            <td className="py-2 text-right font-bold text-sm tracking-tighter">
+                                ₹{supplierRate.toLocaleString()}
+                            </td>
+                            <td className="py-2 text-right font-black text-sm tracking-tighter">
+                                ₹{Math.round(grossAmount).toLocaleString()}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            {/* ───── Settlement Breakdown ───── */}
+            <div className="mt-6 grid grid-cols-2 gap-8 items-start relative z-10">
+
+                {/* Left Side: Transport & Arrival Info */}
+                <div className="space-y-4">
+                    {/* Transport Details Card */}
+                    {(vehicleNo || arrival?.driver_name || arrival?.guarantor) && (
+                        <div className="space-y-2">
+                            <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 block border-b border-gray-100 pb-1">
+                                Transport Details
+                            </span>
+                            <div className="grid grid-cols-[80px_1fr] gap-x-2 gap-y-0.5 text-[10px]">
+                                {vehicleNo && (
+                                    <>
+                                        <span className="text-gray-400 font-bold uppercase">Vehicle</span>
+                                        <span className="font-black text-gray-800 tracking-wider">{vehicleNo}</span>
+                                    </>
+                                )}
+                                {arrival?.driver_name && (
+                                    <>
+                                        <span className="text-gray-400 font-bold uppercase">Driver</span>
+                                        <span className="font-black text-gray-800">{arrival.driver_name}</span>
+                                    </>
+                                )}
+                                {arrival?.driver_mobile && (
+                                    <>
+                                        <span className="text-gray-400 font-bold uppercase">Mobile</span>
+                                        <span className="font-black text-gray-800">{arrival.driver_mobile}</span>
+                                    </>
+                                )}
+                                {arrival?.guarantor && (
+                                    <>
+                                        <span className="text-gray-400 font-bold uppercase">Guarantor</span>
+                                        <span className="font-black text-gray-800">{arrival.guarantor}</span>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Arrival Expenses Breakdown */}
+                    {arrivalExpenseTotal > 0.01 && (
+                        <div className="space-y-2">
+                            <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 block border-b border-gray-100 pb-1">
+                                Arrival Expenses (Shared)
+                            </span>
+                            <div className="grid grid-cols-[120px_1fr] gap-x-2 gap-y-0.5 text-[10px]">
+                                {toNumber(arrival?.hire_charges) > 0 && (
+                                    <>
+                                        <span className="text-gray-400 font-bold uppercase">Hire/Transport</span>
+                                        <span className="font-black text-gray-800">₹{toNumber(arrival.hire_charges).toLocaleString()}</span>
+                                    </>
+                                )}
+                                {toNumber(arrival?.hamali_expenses) > 0 && (
+                                    <>
+                                        <span className="text-gray-400 font-bold uppercase">Hamali/Loading</span>
+                                        <span className="font-black text-gray-800">₹{toNumber(arrival.hamali_expenses).toLocaleString()}</span>
+                                    </>
+                                )}
+                                {toNumber(arrival?.other_expenses) > 0 && (
+                                    <>
+                                        <span className="text-gray-400 font-bold uppercase">Other Expenses</span>
+                                        <span className="font-black text-gray-800">₹{toNumber(arrival.other_expenses).toLocaleString()}</span>
+                                    </>
+                                )}
+                                <span className="text-gray-600 font-bold uppercase border-t border-gray-100 pt-1">This Lot's Share</span>
+                                <span className="font-black text-gray-800 border-t border-gray-100 pt-1">₹{Math.round(arrivalExpenseShare).toLocaleString()}</span>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Right Side: Totals & Settlement */}
+                <div className="space-y-6">
+                    <div className="space-y-1.5 border-t-2 border-black pt-4">
+                        {/* Gross Amount */}
+                        <div className="flex justify-between items-center text-xs">
+                            <span className="font-bold text-gray-500 uppercase">Gross Amount</span>
+                            <span className="font-bold">₹{Math.round(grossAmount).toLocaleString()}</span>
+                        </div>
+
+                        {/* Less Deduction */}
+                        {lessPercent > 0 && (
+                            <div className="flex justify-between items-center text-xs">
+                                <span className="text-gray-400 font-bold uppercase tracking-widest">Less ({lessPercent}%)</span>
+                                <span className="font-bold text-red-500">
+                                    − ₹{Math.round((netQty * lessPercent / 100) * supplierRate).toLocaleString()}
+                                </span>
+                            </div>
+                        )}
+
+                        {/* Other Charges */}
+                        {otherCut > 0 && (
+                            <div className="flex justify-between items-center text-xs">
+                                <span className="text-gray-400 font-bold uppercase tracking-widest">Other Charges</span>
+                                <span className="font-bold text-red-500">− ₹{Math.round(otherCut).toLocaleString()}</span>
+                            </div>
+                        )}
+
+                        {/* Commission — only for commission types */}
+                        {commissionAmount > 0.01 && (
+                            <div className="flex justify-between items-center text-xs border-t border-gray-100 pt-1">
+                                <span className="font-bold text-purple-600 uppercase">
+                                    Commission ({commissionPercent}%)
+                                </span>
+                                <span className="font-bold text-purple-600">
+                                    − ₹{Math.round(commissionAmount).toLocaleString()}
+                                </span>
+                            </div>
+                        )}
+
+                        {/* Loading Cost */}
+                        {loadingCost > 0 && (
+                            <div className="flex justify-between items-center text-xs">
+                                <span className="text-gray-400 font-bold uppercase tracking-widest">Loading Cost</span>
+                                <span className="font-bold text-red-500">− ₹{Math.round(loadingCost).toLocaleString()}</span>
+                            </div>
+                        )}
+
+                        {/* Packing Cost */}
+                        {packingCost > 0 && (
+                            <div className="flex justify-between items-center text-xs">
+                                <span className="text-gray-400 font-bold uppercase tracking-widest">Packing Cost</span>
+                                <span className="font-bold text-red-500">− ₹{Math.round(packingCost).toLocaleString()}</span>
+                            </div>
+                        )}
+
+                        {/* Transport Share */}
+                        {arrivalExpenseShare > 0.01 && (
+                            <div className="flex justify-between items-center text-xs">
+                                <span className="text-gray-400 font-bold uppercase tracking-widest">Transport Share</span>
+                                <span className="font-bold text-red-500">− ₹{Math.round(arrivalExpenseShare).toLocaleString()}</span>
+                            </div>
+                        )}
+
+                        {/* Advance Paid */}
+                        {advance > 0 && (
+                            <div className="flex justify-between items-center text-xs border-t border-gray-100 pt-1">
+                                <span className="text-emerald-600 font-bold uppercase tracking-widest">Advance Paid</span>
+                                <span className="font-bold text-emerald-600">
+                                    − ₹{Math.round(advance).toLocaleString()}
+                                </span>
+                            </div>
+                        )}
+
+                        {/* Sales Revenue (for commission lots that have been sold) */}
+                        {arrivalType !== 'direct' && salesSum > 0 && (
+                            <div className="flex justify-between items-center text-xs border-t border-dashed border-gray-100 pt-1.5">
+                                <span className="text-blue-500 font-bold uppercase tracking-widest text-[9px]">Sale Revenue (Basis)</span>
+                                <span className="font-bold text-blue-500 text-[10px]">₹{Math.round(salesSum).toLocaleString()}</span>
+                            </div>
+                        )}
+
+                        {/* ── FINAL PAYABLE ── */}
+                        <div className="flex justify-between items-center pt-2 border-t-2 border-black mt-2">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">
+                                Net Payable to Farmer
+                            </span>
+                            <span className="text-2xl font-black tracking-tighter tabular-nums text-black">
+                                ₹{Math.round(finalPayable).toLocaleString()}
+                            </span>
+                        </div>
+
+                        {/* Amount in Words */}
+                        <div className="text-right mt-2">
+                            <p className="text-[9px] font-bold text-gray-400 italic uppercase leading-none">
+                                Rupees {toWords(Math.round(finalPayable))} Only
+                            </p>
+                        </div>
+
+                        {/* Payment Status Badge */}
+                        {advance > 0 && (
+                            <div className={`mt-2 p-1.5 rounded flex justify-between items-center ${finalPayable > 0.01 ? "bg-amber-50" : "bg-emerald-50"
+                                }`}>
+                                <span className={`text-[10px] font-black uppercase tracking-widest ${finalPayable > 0.01 ? "text-amber-400" : "text-emerald-400"
+                                    }`}>
+                                    {finalPayable > 0.01 ? "Balance Pending" : "Fully Settled"}
+                                </span>
+                                <span className={`text-xl font-black tracking-tighter ${finalPayable > 0.01 ? "text-amber-600" : "text-emerald-600"
+                                    }`}>
+                                    ₹{Math.round(finalPayable).toLocaleString()}
+                                </span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* ───── Footer ───── */}
+            <div className="mt-12 pt-6 border-t border-black grid grid-cols-2 relative z-10">
+                <div className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em]">
+                    <p>Farmer / Supplier Signature</p>
+                    <div className="mt-6 h-px w-32 bg-gray-200" />
+                </div>
+                <div className="text-right text-[10px] font-black text-gray-400 flex flex-col items-end gap-1 uppercase tracking-widest">
+                    <span>{branding?.document_footer_presented_by_text || 'Presented by MandiGrow'}</span>
+                    <span className="text-gray-900 border-t border-gray-100 mt-1 pt-1">
+                        {branding?.document_footer_powered_by_text || 'Powered by MindT Corporation'}
+                    </span>
+                    <span className="text-[8px] font-bold text-gray-300 italic">
+                        {branding?.document_footer_developed_by_text || 'Developed by MindT Solutions'}
+                    </span>
+                </div>
+            </div>
+
+            <style jsx>{`
+                @media print {
+                    @page { margin: 0; }
+                    body { background: white; }
+                    #purchase-invoice-print { width: 100%; max-width: none; border: none; shadow: none; }
+                    .no-print { display: none !important; }
+                }
+            `}</style>
+        </div>
+    )
+}

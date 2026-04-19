@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Info, Edit, CreditCard, ChevronDown, ChevronRight, ShieldCheck, Box, X, Calendar as CalendarIcon, Search, Filter } from "lucide-react";
+import { Info, Edit, CreditCard, ChevronDown, ChevronRight, ShieldCheck, Box, X, Calendar as CalendarIcon, Search, Filter, FileText } from "lucide-react";
 import { format, subDays, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -29,6 +30,7 @@ interface SupplierInwardsDialogProps {
 }
 
 export function SupplierInwardsDialog({ supplier, isOpen, onClose, onEditLot, onPay }: SupplierInwardsDialogProps) {
+    const router = useRouter();
     const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
     const [inwardSearch, setInwardSearch] = useState("");
     const [dateRange, setDateRange] = useState<DateRange | undefined>({
@@ -395,6 +397,14 @@ export function SupplierInwardsDialog({ supplier, isOpen, onClose, onEditLot, on
                                                                             </div>
                                                                         </div>
                                                                         <div className="flex items-center gap-2 pl-3 border-l border-slate-50">
+                                                                            <Button
+                                                                                size="sm"
+                                                                                onClick={() => router.push(`/purchase/bills/invoice/${lot.id}`)}
+                                                                                className="h-7 px-3 rounded-lg transition-all text-[9px] font-black uppercase tracking-tighter bg-purple-600 text-white hover:bg-purple-700"
+                                                                            >
+                                                                                <FileText className="w-3 h-3 mr-1" />
+                                                                                Bill
+                                                                            </Button>
                                                                             <Button
                                                                                 size="sm"
                                                                                 onClick={() => onEditLot(lot.id, isLocked)}
