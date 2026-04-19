@@ -74,6 +74,19 @@
 }
 
 /* 
+   GLOBAL: HIDE NUMBER INPUT SPINNERS
+   Removes the "arrow marks" from numeric fields for a cleaner UI.
+*/
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+input[type=number] {
+    -moz-appearance: textfield;
+}
+
+/* 
    CAPACITOR MOBILE OVERRIDES
    These rules activate inside the native WebView. The web build is
    unaffected because .capacitor-native is only added by CapacitorProvider
