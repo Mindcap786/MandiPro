@@ -151,7 +151,7 @@ BEGIN
             p_items            := v_final_sale_items,
             p_loading_charges  := COALESCE(v_session.buyer_loading_charges, 0),
             p_other_expenses   := COALESCE(v_session.buyer_packing_charges, 0),
-            p_idempotency_key  := p_session_id -- Use UUID session_id directly
+            p_idempotency_key  := p_session_id::TEXT -- Cast to TEXT to match confirm_sale_transaction signature
         );
     END IF;
 
