@@ -133,55 +133,31 @@ BEGIN
         );
     END LOOP;
     
-    -- ── STEP 2: Create Buyer Sale Bill (isolated) ───────
+    -- Call Buyer Bill with NAMED PARAMETERS for safety (Immune to signature changes)
     IF v_session.buyer_id IS NOT NULL AND v_total_net_qty > 0 THEN
-        v_item_amount := v_session.buyer_payable - 
-                         COALESCE(v_session.buyer_loading_charges, 0) -
-                         COALESCE(v_session.buyer_packing_charges, 0);
+        v_item_amount := v_session.buyer_payable - COALESCE(v_session.buyer_loading_charges, 0) - COALESCE(v_session.buyer_packing_charges, 0);
+        v_sale_rate := ROUND(v_item_amount / v_total_net_qty, 2);
         
-        v_sale_rate := CASE WHEN v_total_net_qty > 0 THEN v_item_amount / v_total_net_qty ELSE 0 END;
-        
-        FOR v_item IN SELECT * FROM jsonb_array_elements(v_sale_items_tmp)
-        LOOP
-            v_final_sale_items := v_final_sale_items || (
-                v_item || jsonb_build_object(
-                    'rate',   v_sale_rate,
-                    'amount', ROUND((v_item->>'qty')::NUMERIC * v_sale_rate, 2)
-                )
-            );
+        FOR v_item IN SELECT * FROM jsonb_array_elements(v_sale_items_tmp) LOOP
+            v_final_sale_items := v_final_sale_items || (v_item || jsonb_build_object('rate', v_sale_rate, 'amount', ROUND((v_item->>'qty')::NUMERIC * v_sale_rate, 2)));
         END LOOP;
-        
-        -- Call standard sale confirmation (isolated to this transaction)
+
         PERFORM mandi.confirm_sale_transaction(
-            p_organization_id := v_org_id,
-            p_buyer_id        := v_session.buyer_id,
-            p_sale_date       := v_session.session_date,
-            p_payment_mode    := 'credit',
-            p_total_amount    := v_item_amount,
-            p_items           := v_final_sale_items,
-            p_loading_charges := COALESCE(v_session.buyer_loading_charges, 0),
-            p_unloading_charges := 0,
-            p_other_expenses  := COALESCE(v_session.buyer_packing_charges, 0),
-            p_amount_received := 0,
-            p_idempotency_key := 'mcs-' || p_session_id::TEXT
+            p_organization_id   := v_org_id,
+            p_buyer_id         := v_session.buyer_id,
+            p_sale_date        := v_session.session_date,
+            p_payment_mode     := 'credit',
+            p_total_amount     := v_item_amount,
+            p_items            := v_final_sale_items,
+            p_loading_charges  := COALESCE(v_session.buyer_loading_charges, 0),
+            p_other_expenses   := COALESCE(v_session.buyer_packing_charges, 0),
+            p_idempotency_key  := p_session_id -- Use UUID session_id directly
         );
     END IF;
-    
-    -- ── STEP 3: Update session ──────────────────────
-    UPDATE mandi.mandi_sessions SET
-        status          = 'committed',
-        total_purchase  = v_total_purchase,
-        total_commission = v_total_commission,
-        updated_at      = NOW()
-    WHERE id = p_session_id;
-    
-    RETURN jsonb_build_object(
-        'success',           true,
-        'purchase_bill_ids', to_jsonb(v_arrival_ids),
-        'total_commission',  v_total_commission,
-        'total_purchase',    v_total_purchase,
-        'total_net_qty',     v_total_net_qty
-    );
+
+    UPDATE mandi.mandi_sessions SET status = 'committed', total_purchase = v_total_purchase, total_commission = v_total_commission, updated_at = NOW() WHERE id = p_session_id;
+
+    RETURN jsonb_build_object('success', true, 'purchase_bill_ids', to_jsonb(v_arrival_ids), 'total_commission', v_total_commission, 'total_purchase', v_total_purchase);
 END;
 $function$;
 
