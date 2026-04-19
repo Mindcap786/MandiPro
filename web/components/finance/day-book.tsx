@@ -27,7 +27,7 @@ import { formatCurrency, roundTo2 } from "@/lib/accounting-logic";
 import { cacheGet, cacheSet } from "@/lib/data-cache";
 import { findImbalancedVoucherIds, summarizeVoucherHealth } from "@/lib/finance/voucher-integrity";
 
-const DAYBOOK_CACHE_VERSION = 'v2.4'; // Bumped 2026-04-19: Fix duplicate payment rows (Arjun ₹7000 bug), correct badge types
+const DAYBOOK_CACHE_VERSION = 'v2.5'; // Bumped 2026-04-19: Fix Arjun double purchase row + Mubarak invisible entries
 const AMOUNT_EPSILON = 0.01;
 
 // ── TRANSACTION TYPE MAP (from real DB audit — all known transaction_type values) ──────────────
