@@ -16,7 +16,7 @@ export default function ItemsPage() {
     const [items, setItems] = useState<any[]>(() => {
         // Hydrate from cache immediately if available
         if (typeof window !== 'undefined') {
-            const orgId = localStorage.getItem('mandi_org_id');
+            const orgId = localStorage.getItem('mandi_profile_cache_org_id');
             if (orgId) return cacheGet<any[]>('commodity_master', orgId) || [];
         }
         return [];
@@ -24,7 +24,7 @@ export default function ItemsPage() {
     const [loading, setLoading] = useState(() => {
         // If we have cached items, don't show the initial loader
         if (typeof window !== 'undefined') {
-            const orgId = localStorage.getItem('mandi_org_id');
+            const orgId = localStorage.getItem('mandi_profile_cache_org_id');
             const cached = orgId ? cacheGet<any[]>('commodity_master', orgId) : null;
             return !cached || cached.length === 0;
         }

@@ -57,7 +57,7 @@ export default function PrivacyPolicyPage() {
 
                     <h2 className="text-2xl font-black text-gray-900 mt-0 mb-3">1. Introduction</h2>
                     <p className="text-gray-700 leading-relaxed mb-6">
-                        MindT Enterprises (&quot;MandiGrow&quot;, &quot;we&quot;, &quot;us&quot;, or &quot;our&quot;) operates the MandiGrow SaaS platform (the &quot;Service&quot;),
+                        MINDT Private Limited (&quot;MandiGrow&quot;, &quot;we&quot;, &quot;us&quot;, or &quot;our&quot;) operates the MandiGrow SaaS platform (the &quot;Service&quot;),
                         a mandi ERP solution for fruits &amp; vegetable commission agents, wholesalers and traders across India. This Privacy Policy
                         explains what information we collect, why we collect it, how we use it, and the rights you have over your data.
                     </p>

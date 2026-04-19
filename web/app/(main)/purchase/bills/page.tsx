@@ -15,6 +15,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DateRange } from "react-day-picker";
 import { cacheGet, cacheSet, cacheIsStale } from "@/lib/data-cache";
+import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { calculateArrivalLevelExpenses, calculateLotSettlementAmount, calculateLotGrossValue } from "@/lib/purchase-payables";
 
 const AMOUNT_EPSILON = 0.01;
@@ -108,8 +109,16 @@ export default function PurchaseBillsPage() {
                 return query;
             };
 
-            const { data, error: fetchError } = await buildLotsQuery();
+            const { data, error: fetchError, timedOut } = await fetchWithTimeout(
+                buildLotsQuery(),
+                12000,
+                'purchaseBills.lots',
+            );
 
+            if (timedOut) {
+                console.warn('[PurchaseBills] lots fetch timed out — keeping cached data visible');
+                return;
+            }
             if (fetchError) throw fetchError;
 
             console.log(`[PurchaseBills] Fetched ${data?.length || 0} lots for org ${orgId}`);

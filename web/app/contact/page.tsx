@@ -33,7 +33,7 @@ type ContactSettings = {
 };
 
 const FALLBACK: ContactSettings = {
-    company_name: 'MindT Enterprises',
+    company_name: 'MINDT Private Limited',
     tagline: "India's #1 Mandi ERP for fruits & vegetable traders",
     phone: '+91 82609 21301',
     whatsapp: '+91 82609 21301',

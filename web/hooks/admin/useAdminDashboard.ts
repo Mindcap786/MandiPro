@@ -8,6 +8,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from "react"
+import { supabase } from "@/lib/supabaseClient"
 
 interface PlatformMetrics {
   total_mandis: number
@@ -43,7 +44,13 @@ export function useAdminMetrics(autoRefreshMs = 30_000) {
 
   const fetchMetrics = useCallback(async () => {
     try {
-      const res = await fetch('/api/admin/metrics')
+      const { data: { session } } = await supabase.auth.getSession()
+      const headers: Record<string, string> = {}
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`
+      }
+
+      const res = await fetch('/api/admin/metrics', { headers })
       if (res.status === 403) {
         setError('Access denied — super admin required')
         setLoading(false)

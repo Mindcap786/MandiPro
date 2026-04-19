@@ -19,6 +19,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { LotStockDialog } from "@/components/inventory/lot-stock-dialog"
 import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from "framer-motion"
 import { cacheGet, cacheSet, cacheIsStale } from "@/lib/data-cache"
+import { fetchWithTimeout } from "@/lib/fetch-with-timeout"
 import { isNativePlatform } from "@/lib/capacitor-utils"
 import { cn } from "@/lib/utils"
 
@@ -258,14 +259,14 @@ function AssetCard({ item, onOpen }: { item: any; onOpen: () => void }) {
 export default function StockPage() {
     const { profile } = useAuth()
     const { t } = useLanguage()
-    const _orgId = typeof window !== 'undefined' ? localStorage.getItem('mandi_org_id') : profile?.organization_id
+    const _orgId = typeof window !== 'undefined' ? localStorage.getItem('mandi_profile_cache_org_id') : profile?.organization_id
     const _cached = _orgId ? cacheGet<any[]>('stock_main', _orgId) : null
 
     const [stocks, setStocks] = useState<any[]>(_cached || [])
     const [locations, setLocations] = useState<string[]>(['All', 'Mandi', 'Cold Storage'])
     const [loading, setLoading] = useState(() => {
         if (typeof window !== 'undefined') {
-            const orgId = localStorage.getItem('mandi_org_id')
+            const orgId = localStorage.getItem('mandi_profile_cache_org_id')
             const cached = orgId ? cacheGet<any[]>('stock_main', orgId) : null
             return !cached || cached.length === 0
         }
@@ -305,12 +306,20 @@ export default function StockPage() {
 
         try {
             // SINGLE QUERY: view_location_stock now contains total_value and last_arrival_date
-            const { data: stockData, error: stockErr } = await supabase
-                .schema('mandi')
-                .from('view_location_stock')
-                .select('*')
-                .eq('organization_id', orgId)
+            const { data: stockData, error: stockErr, timedOut } = await fetchWithTimeout(
+                supabase
+                    .schema('mandi')
+                    .from('view_location_stock')
+                    .select('*')
+                    .eq('organization_id', orgId),
+                10000,
+                'stock.view_location_stock',
+            )
 
+            if (timedOut) {
+                console.warn('[Stock] view_location_stock fetch timed out — keeping cached data visible')
+                return
+            }
             if (stockErr) throw stockErr
 
             let validStockData: any[] = stockData || []

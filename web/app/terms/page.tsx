@@ -58,7 +58,7 @@ export default function TermsPage() {
                     <h2 className="text-2xl font-black text-gray-900 mt-0 mb-3">1. Acceptance of Terms</h2>
                     <p className="text-gray-700 leading-relaxed mb-6">
                         These Terms &amp; Conditions (&quot;Terms&quot;) form a legally binding agreement between you, or the entity you represent
-                        (&quot;Customer&quot;, &quot;you&quot;), and MindT Enterprises (&quot;MandiGrow&quot;, &quot;we&quot;, &quot;us&quot;), governing
+                        (&quot;Customer&quot;, &quot;you&quot;), and MINDT Private Limited (&quot;MandiGrow&quot;, &quot;we&quot;, &quot;us&quot;), governing
                         access to and use of the MandiGrow SaaS platform, mobile applications, APIs and related services (the &quot;Service&quot;).
                         By creating an account, subscribing or using the Service, you confirm that you have read, understood and agree to be bound by
                         these Terms and our Privacy Policy.

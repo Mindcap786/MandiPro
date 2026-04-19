@@ -18,6 +18,7 @@ import { NewPaymentDialog } from "@/components/finance/new-payment-dialog";
 import { VoucherDetailsDialog } from "@/components/finance/voucher-details-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { cacheGet, cacheSet, cacheIsStale } from "@/lib/data-cache";
+import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { isVoucherWellFormed, getVoucherImbalance } from "@/lib/finance/voucher-integrity";
 
 export default function PaymentsPage() {
@@ -166,8 +167,17 @@ export default function PaymentsPage() {
             const to = from + pageSize - 1;
             query = query.range(from, to);
 
-            const { data: vouchers, error, count } = await query;
+            const { data: vouchers, error, timedOut } = await fetchWithTimeout<any[]>(
+                query,
+                12000,
+                'finance.vouchers',
+            );
+            const count = (vouchers as any)?.length ?? 0;
 
+            if (timedOut) {
+                console.warn('[Payments] vouchers fetch timed out — keeping cached data visible');
+                return;
+            }
             if (error) throw error;
 
             if (vouchers) {
