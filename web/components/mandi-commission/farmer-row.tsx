@@ -33,10 +33,22 @@ export function AddedFarmerCard({
                 <div className="text-sm font-black text-slate-900 truncate">
                     {row.farmerName || "Unknown Farmer"}
                 </div>
-                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider truncate flex gap-2">
-                    <span>{row.itemName || "Item"}</span>
-                    <span className="text-slate-300">•</span>
-                    <span>{row.qty} {row.unit}</span>
+                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider truncate flex items-center gap-1.5">
+                    <span className="text-emerald-600">{row.itemName || "Item"}</span>
+                    {row.variety && (
+                        <>
+                            <span className="text-slate-300">/</span>
+                            <span>{row.variety}</span>
+                        </>
+                    )}
+                    {row.grade && (
+                        <>
+                            <span className="text-slate-300">/</span>
+                            <span>{row.grade}</span>
+                        </>
+                    )}
+                    <span className="text-slate-300 ml-1">•</span>
+                    <span className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-700">{row.qty} {row.unit}</span>
                 </div>
             </div>
 

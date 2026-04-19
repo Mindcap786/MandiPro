@@ -41,6 +41,7 @@ export interface MandiSessionFarmerRow {
     commissionAmount: number;
     netPayable: number;
     netQty: number;
+    internalCode?: string;
     _lastEdited?: "lessPercent" | "lessUnits";
 }
 
@@ -83,9 +84,9 @@ export function computeFarmerRow(row: Partial<MandiSessionFarmerRow>): Partial<M
     let lessPercent = Number(row.lessPercent) || 0;
 
     // Bidirectional Less logic
-    if (row._lastEdited === "lessPercent" && lessPercent > 0) {
+    if (row._lastEdited === "lessPercent") {
         lessUnits = parseFloat((qty * lessPercent / 100).toFixed(3));
-    } else if (row._lastEdited === "lessUnits" && lessUnits > 0) {
+    } else if (row._lastEdited === "lessUnits") {
         lessPercent = qty > 0 ? parseFloat((lessUnits / qty * 100).toFixed(2)) : 0;
     }
 
