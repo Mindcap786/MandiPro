@@ -65,6 +65,7 @@ export function MandiCommissionForm() {
     const lessPercentRef = useRef<HTMLInputElement>(null);
     const lessUnitsRef = useRef<HTMLInputElement>(null);
     const loadingRef = useRef<HTMLInputElement>(null);
+    const otherChargesRef = useRef<HTMLInputElement>(null);
     const commPctRef = useRef<HTMLInputElement>(null);
     const addBtnRef = useRef<HTMLButtonElement>(null);
     const buyerSearchRef = useRef<HTMLButtonElement>(null);
@@ -82,7 +83,7 @@ export function MandiCommissionForm() {
             const [contactsRes, commRes, setsRes, unitsRes] = await Promise.all([
                 supabase.schema('mandi').from("contacts").select("id, name, type, city").eq("organization_id", orgId).order("name"),
                 supabase.schema('mandi').from("commodities").select("*").eq("organization_id", orgId).order("name"),
-                supabase.schema('mandi').from("settings").select("*").eq("organization_id", orgId).single(),
+                supabase.schema('mandi').from("mandi_settings" as any).select("*").eq("organization_id", orgId).maybeSingle(),
                 supabase.schema('mandi').from("units").select("name").eq("organization_id", orgId),
             ]);
 
@@ -93,7 +94,7 @@ export function MandiCommissionForm() {
             if (commRes.data) setCommodities(commRes.data);
             if (setsRes.data) {
                 setSettings(setsRes.data);
-                resetCurrentRow(setsRes.data.default_commission_percent);
+                resetCurrentRow(setsRes.data.commission_rate_default);
             }
             if (unitsRes.data?.length) {
                 setUnits(Array.from(new Set([...unitsRes.data.map(u => u.name), "Kg", "Box"])));
@@ -106,7 +107,7 @@ export function MandiCommissionForm() {
     // ─────────────────────────────────────────────────────────────
     // Handlers
     // ─────────────────────────────────────────────────────────────
-    const resetCurrentRow = (defaultComm = settings?.default_commission_percent || 0) => {
+    const resetCurrentRow = (defaultComm = settings?.commission_rate_default || 0) => {
         setCurrentRow(prev => ({
             id: generateUUID(),
             farmerId: prev.farmerId || "",
@@ -429,8 +430,13 @@ export function MandiCommissionForm() {
                             </div>
                         </div>
 
-                         <div>
-                            <Input ref={loadingRef} type="number" min={0} step="any" value={currentRow.loadingCharges || ""} onChange={(e) => handleCurrentRowChange("loadingCharges", parseFloat(e.target.value) || 0)} onKeyDown={(e) => handleKeyDown(e, commPctRef)} className={inputCls} placeholder="Loading Charges" />
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <Input ref={loadingRef} type="number" min={0} step="any" value={currentRow.loadingCharges || ""} onChange={(e) => handleCurrentRowChange("loadingCharges", parseFloat(e.target.value) || 0)} onKeyDown={(e) => handleKeyDown(e, otherChargesRef)} className={inputCls} placeholder="Loading Charges" />
+                            </div>
+                            <div>
+                                <Input ref={otherChargesRef} type="number" min={0} step="any" value={currentRow.otherCharges || ""} onChange={(e) => handleCurrentRowChange("otherCharges", parseFloat(e.target.value) || 0)} onKeyDown={(e) => handleKeyDown(e, commPctRef)} className={inputCls} placeholder="Other Charges" />
+                            </div>
                         </div>
                         
                         <div>
