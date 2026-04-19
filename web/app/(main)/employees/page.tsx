@@ -21,6 +21,7 @@ import { useToast } from '@/hooks/use-toast'
 import { format } from 'date-fns'
 import { ExpenseDialog } from '@/components/finance/expense-dialog'
 import { PermissionMatrix } from '@/components/rbac/permission-matrix'
+import { useCachedEmployees } from '@/hooks/use-cached-lists'
 
 const ROLES = ['Owner', 'Manager', 'Accountant', 'Salesman', 'Loader', 'Driver', 'Watchman', 'Other']
 const SALARY_TYPES = ['monthly', 'weekly', 'daily']
@@ -34,8 +35,7 @@ const defaultForm = {
 export default function EmployeesPage() {
     const { profile } = useAuth()
     const { toast } = useToast()
-    const [employees, setEmployees] = useState<any[]>([])
-    const [loading, setLoading] = useState(true)
+    const { data: employees, loading, refresh: fetchEmployees } = useCachedEmployees(profile?.organization_id)
     const [search, setSearch] = useState('')
     const [dialogOpen, setDialogOpen] = useState(false)
     const [saving, setSaving] = useState(false)
@@ -48,22 +48,9 @@ export default function EmployeesPage() {
 
     useEffect(() => {
         if (profile?.organization_id) {
-            fetchEmployees()
             fetchSalaryStatus()
         }
     }, [profile])
-
-    const fetchEmployees = async () => {
-        setLoading(true)
-        const { data } = await supabase
-            .schema('mandi')
-            .from('employees')
-            .select('*')
-            .eq('organization_id', profile!.organization_id)
-            .order('created_at', { ascending: false })
-        setEmployees(data || [])
-        setLoading(false)
-    }
 
     const fetchSalaryStatus = async () => {
         if (!profile?.organization_id) return

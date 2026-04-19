@@ -1202,7 +1202,7 @@ export default function TenantDetailPage() {
                 {/* 2. Health */}
                 <Card className="bg-white shadow-sm border-slate-200 relative group">
                     <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button size="sm" variant="secondary" className="h-6 text-[10px]" onClick={() => window.location.href = `/admin/support?id=${id}`}>
+                        <Button size="sm" variant="secondary" className="h-6 text-[10px]" onClick={() => router.push(`/admin/support?id=${id}`)}>
                             <Activity className="w-3 h-3 mr-1" /> Open Console
                         </Button>
                     </div>

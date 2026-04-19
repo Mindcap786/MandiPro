@@ -5,11 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { AlertCircle, CheckCircle2, CreditCard, Loader2, LogOut, Zap } from 'lucide-react';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 
 export default function BillingRenewalPage() {
     const { profile, signOut, refreshOrg } = useAuth();
     const { toast } = useToast();
+    const router = useRouter();
     const [loading, setLoading] = useState(false);
 
     if (!profile) return null;
@@ -97,7 +99,7 @@ export default function BillingRenewalPage() {
                             <div className="flex items-center gap-4">
                                 <Button 
                                     variant="outline"
-                                    onClick={() => window.location.href = '/subscribe'}
+                                    onClick={() => router.push('/subscribe')}
                                     className="flex-1 h-16 rounded-2xl border-[#c8d6b0] text-gray-700 font-black text-lg hover:bg-white/50"
                                 >
                                     <CreditCard className="w-5 h-5 mr-2" /> Upgrade Plan

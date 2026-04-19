@@ -41,6 +41,7 @@ export interface MandiSessionFarmerRow {
     commissionAmount: number;
     netPayable: number;
     netQty: number;
+    _lastEdited?: "lessPercent" | "lessUnits";
 }
 
 export interface MandiSessionInput {

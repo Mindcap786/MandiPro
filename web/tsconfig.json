@@ -21,7 +21,11 @@
         "name": "next"
       }
     ],
+    "baseUrl": ".",
     "paths": {
+      "zod": [
+        "node_modules/zod"
+      ],
       "@/*": [
         "./*"
       ],
@@ -38,6 +42,8 @@
     ".next/types/**/*.ts",
     "**/*.ts",
     "**/*.tsx",
+    "../packages/validation/src/**/*.ts",
+    "../packages/domain/src/**/*.ts",
     "/tmp/mandipro-next/types/**/*.ts"
   ],
   "exclude": [

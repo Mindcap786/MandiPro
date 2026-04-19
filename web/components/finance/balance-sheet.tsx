@@ -197,7 +197,7 @@ export default function BalanceSheet() {
             Balance: retainedPL
         });
 
-        const filename = `BalanceSheet_${profile?.organization_name || 'Organization'}_${new Date().toISOString().split('T')[0]}.csv`;
+        const filename = `BalanceSheet_${profile?.organization?.name || 'Organization'}_${new Date().toISOString().split('T')[0]}.csv`;
         exportToCSV(exportData, filename);
     };
 

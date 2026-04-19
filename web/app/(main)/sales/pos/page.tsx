@@ -131,7 +131,8 @@ export default function POSPage() {
     // Global tax/charge settings from mandi_settings
     const [taxSettings, setTaxSettings] = useState({ 
         market_fee_percent: 0, nirashrit_percent: 0, misc_fee_percent: 0,
-        gst_enabled: false, gst_type: 'intra', cgst_percent: 0, sgst_percent: 0, igst_percent: 0 
+        gst_enabled: false, gst_type: 'intra', cgst_percent: 0, sgst_percent: 0, igst_percent: 0,
+        state_code: null as string | null
     })
     
     // Additional Charges
@@ -272,10 +273,10 @@ export default function POSPage() {
             // 1. Run independent master data fetches in parallel
             const [accsRes, buyersRes, orgRes, brandingRes, settingsRes] = await Promise.all([
                 supabase.schema(schema).from('accounts').select('id,name,type,account_sub_type,is_default,description').eq('organization_id', orgId).in('type', ['asset', 'income']).eq('is_active', true).order('name'),
-                supabase.schema(schema).from('contacts').select('id,name,city').eq('organization_id', orgId).eq('contact_type', 'buyer').neq('status', 'deleted').order('name'),
+                supabase.schema(schema).from('contacts').select('id,name,city,state_code,gstin').eq('organization_id', orgId).eq('contact_type', 'buyer').neq('status', 'deleted').order('name'),
                 supabase.schema('core').from('organizations').select('name, settings').eq('id', orgId).single(),
                 supabase.schema('core').from('platform_branding_settings').select('document_footer_powered_by_text, support_phone').maybeSingle(),
-                supabase.schema(schema).from('mandi_settings' as any).select('market_fee_percent,nirashrit_percent,misc_fee_percent,gst_enabled,gst_type,cgst_percent,sgst_percent,igst_percent,max_invoice_amount').eq('organization_id', orgId).maybeSingle()
+                supabase.schema(schema).from('mandi_settings' as any).select('market_fee_percent,nirashrit_percent,misc_fee_percent,gst_enabled,gst_type,cgst_percent,sgst_percent,igst_percent,max_invoice_amount,state_code').eq('organization_id', orgId).maybeSingle()
             ]);
 
             // Update partial states as they arrive
@@ -300,6 +301,7 @@ export default function POSPage() {
                     cgst_percent: Number(settingsRes.data.cgst_percent) || 0,
                     sgst_percent: Number(settingsRes.data.sgst_percent) || 0,
                     igst_percent: Number(settingsRes.data.igst_percent) || 0,
+                    state_code: settingsRes.data.state_code || null
                 });
                 if (settingsRes.data.max_invoice_amount != null) {
                     setMaxInvoiceAmount(Number(settingsRes.data.max_invoice_amount));

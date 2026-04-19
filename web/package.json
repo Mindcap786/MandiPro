@@ -14,7 +14,8 @@
     "open:live": "NEXT_PUBLIC_CAPACITOR=true npx next dev & sleep 4 && npx cap run ios --livereload --external",
     "security:check": "npm audit --omit=dev --audit-level=critical",
     "security:check:all": "npm audit --omit=dev",
-    "predeploy": "npm run security:check && npm run lint"
+    "typecheck": "tsc --noEmit",
+    "predeploy": "npm run security:check && npm run lint && npm run typecheck"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.0",

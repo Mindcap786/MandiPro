@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { format } from "date-fns";
-import { Plus, Search, Scale, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, Search, Scale, Package, ChevronRight, User } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useToast } from "@/hooks/use-toast";
@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 
 import { useMandiSession, MandiSessionInput, MandiSessionFarmerRow, computeFarmerRow } from "@/hooks/mandi/useMandiSession";
-import { FarmerRowHeaders, FarmerRow } from "./farmer-row";
+import { AddedFarmerCard } from "./farmer-row";
 import { SummaryPanel } from "./summary-panel";
 import { SessionBillsView } from "./session-bills-view";
 
@@ -34,27 +34,33 @@ export function MandiCommissionForm() {
     const [settings, setSettings] = useState<any>(null);
 
     // ─────────────────────────────────────────────────────────────
-    // Local UI State
-    // ─────────────────────────────────────────────────────────────
-    const [showBuyer, setShowBuyer] = useState(false);
-    const [committedSessionData, setCommittedSessionData] = useState<any>(null);
-
-    // ─────────────────────────────────────────────────────────────
-    // Form State (Header + Farmer Rows + Buyer)
+    // Form Variables
     // ─────────────────────────────────────────────────────────────
     const [sessionDate, setSessionDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
     const [lotNo, setLotNo] = useState("");
     const [vehicleNo, setVehicleNo] = useState("");
     const [bookNo, setBookNo] = useState("");
 
+    // The list of COMMITTED local rows for this session
     const [rows, setRows] = useState<MandiSessionFarmerRow[]>([]);
+    
+    // The active, DRAFT row being edited in the Master-Detail right pane
+    const [currentRow, setCurrentRow] = useState<Partial<MandiSessionFarmerRow>>({});
 
     const [buyerId, setBuyerId] = useState<string | null>(null);
     const [saleRate, setSaleRate] = useState<number>(0);
     const [buyerLoading, setBuyerLoading] = useState<number>(0);
     const [buyerPacking, setBuyerPacking] = useState<number>(0);
 
-    // Initial load
+    const [committedSessionData, setCommittedSessionData] = useState<any>(null);
+
+    // Refs for keyboard navigation
+    const formRef = useRef<HTMLDivElement>(null);
+    const buyerRef = useRef<HTMLDivElement>(null);
+
+    // ─────────────────────────────────────────────────────────────
+    // Initial Load
+    // ─────────────────────────────────────────────────────────────
     useEffect(() => {
         if (!profile?.organization_id) return;
         const loadMasterData = async () => {
@@ -71,73 +77,23 @@ export function MandiCommissionForm() {
                 setBuyers(contactsRes.data.filter(c => c.type === 'customer' || c.type === 'both'));
             }
             if (commRes.data) setCommodities(commRes.data);
-            if (setsRes.data) setSettings(setsRes.data);
+            if (setsRes.data) {
+                setSettings(setsRes.data);
+                resetCurrentRow(setsRes.data.default_commission_percent);
+            }
             if (unitsRes.data?.length) {
                 setUnits(Array.from(new Set([...unitsRes.data.map(u => u.name), "Kg", "Box"])));
             }
-
-            // Start with one empty row
-            handleAddRow();
         };
         loadMasterData();
+        // eslint-disable-next-hooks react-hooks/exhaustive-deps
     }, [profile]);
 
     // ─────────────────────────────────────────────────────────────
     // Handlers
     // ─────────────────────────────────────────────────────────────
-    const handleAddRow = () => {
-        setRows(prev => [
-            ...prev,
-            {
-                id: generateUUID(),
-                farmerId: "",
-                farmerName: "",
-                itemId: "",
-                itemName: "",
-                variety: "",
-                grade: "A",
-                qty: 0,
-                unit: "Kg",
-                rate: 0,
-                lessPercent: 0,
-                lessUnits: 0,
-                loadingCharges: 0,
-                otherCharges: 0,
-                commissionPercent: settings?.default_commission_percent || 0,
-                grossAmount: 0,
-                lessAmount: 0,
-                netAmount: 0,
-                commissionAmount: 0,
-                netPayable: 0,
-                netQty: 0,
-            }
-        ]);
-    };
-
-    const handleUpdateRow = (index: number, updated: Partial<MandiSessionFarmerRow>) => {
-        setRows(prev => {
-            const next = [...prev];
-            next[index] = { ...next[index], ...updated };
-            return next;
-        });
-    };
-
-    const handleDeleteRow = (index: number) => {
-        setRows(prev => prev.filter((_, i) => i !== index));
-        if (rows.length === 1) handleAddRow(); // keep at least one
-    };
-
-    const handleReset = () => {
-        setLotNo("");
-        setVehicleNo("");
-        setBookNo("");
-        setBuyerId(null);
-        setSaleRate(0);
-        setBuyerLoading(0);
-        setBuyerPacking(0);
-        setShowBuyer(false);
-        setCommittedSessionData(null);
-        setRows([{
+    const resetCurrentRow = (defaultComm = settings?.default_commission_percent || 0) => {
+        setCurrentRow({
             id: generateUUID(),
             farmerId: "",
             farmerName: "",
@@ -152,23 +108,122 @@ export function MandiCommissionForm() {
             lessUnits: 0,
             loadingCharges: 0,
             otherCharges: 0,
-            commissionPercent: settings?.default_commission_percent || 0,
+            commissionPercent: defaultComm,
             grossAmount: 0,
             lessAmount: 0,
             netAmount: 0,
             commissionAmount: 0,
             netPayable: 0,
             netQty: 0,
-        }]);
+        });
+        
+        // Auto-focus first field when resetting
+        setTimeout(() => {
+            if (formRef.current) {
+                const firstInput = formRef.current.querySelector('input, select, button') as HTMLElement;
+                if (firstInput) firstInput.focus();
+            }
+        }, 50);
     };
+
+    const handleCurrentRowChange = useCallback(
+        (field: keyof MandiSessionFarmerRow, value: any, editedField?: "lessPercent" | "lessUnits") => {
+            setCurrentRow(prev => {
+                const patch: Partial<MandiSessionFarmerRow> & { _lastEdited?: string } = {
+                    ...prev,
+                    [field]: value,
+                    _lastEdited: editedField,
+                };
+                return computeFarmerRow(patch) as Partial<MandiSessionFarmerRow>;
+            });
+        },
+        []
+    );
+
+    const handleFarmerSelect = useCallback(
+        (farmerId: string) => {
+            const farmer = farmers.find((f) => f.id === farmerId);
+            handleCurrentRowChange("farmerId", farmerId);
+            handleCurrentRowChange("farmerName", farmer?.name || "");
+        },
+        [farmers, handleCurrentRowChange]
+    );
+
+    const handleItemSelect = useCallback(
+        (itemId: string) => {
+            const item = commodities.find((i) => i.id === itemId);
+            setCurrentRow(prev => computeFarmerRow({
+                ...prev,
+                itemId,
+                itemName: item?.name || "",
+                variety: item?.variety || "",
+                grade: item?.grade || "A",
+                unit: item?.default_unit || prev.unit || "Kg",
+            }) as Partial<MandiSessionFarmerRow>);
+        },
+        [commodities]
+    );
+
+    const handleAddRow = () => {
+        if (!currentRow.farmerId || !currentRow.itemId || !currentRow.qty || !currentRow.rate) {
+            toast({ title: "Validation Check", description: "Farmer, Item, Qty, and Rate are required to add.", variant: "destructive" });
+            return;
+        }
+
+        // Add to list and clear current
+        setRows(prev => [...prev, currentRow as MandiSessionFarmerRow]);
+        resetCurrentRow();
+    };
+
+    const handleDeleteRow = (index: number) => {
+        setRows(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const handleLoadRowToEdit = (index: number) => {
+        const rowToEdit = rows[index];
+        setCurrentRow(rowToEdit);
+        setRows(prev => prev.filter((_, i) => i !== index));
+        toast({ title: "Row loaded", description: "Editing farmer details.", variant: "default" });
+    };
+
+    // Keyboard Navigation Logic
+    const handleKeyDown = useCallback(
+        (e: React.KeyboardEvent<HTMLElement>, isLast: boolean) => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                if (isLast) {
+                    handleAddRow();
+                } else {
+                    // Focus next input in the form
+                    if (formRef.current) {
+                        const formElements = Array.from(
+                            formRef.current.querySelectorAll("input:not([disabled]), select:not([disabled]), button.add-btn")
+                        ) as HTMLElement[];
+                        const currentIdx = formElements.findIndex(el => el === e.target || el.contains(e.target as Node));
+                        if (currentIdx !== -1 && currentIdx < formElements.length - 1) {
+                            formElements[currentIdx + 1].focus();
+                        } else if (currentIdx === formElements.length - 1) {
+                             // Also trigger add if focusing button
+                             handleAddRow();
+                        }
+                    }
+                }
+            } else if (e.key === "Tab" && isLast) {
+                // If it's the tab out of the Add button or last field, maybe go down to buyer section
+                // Default browser tab action actually acts fine, but we can explicitly focus buyer if we want.
+                // Let browser handle standard tab flow.
+            }
+        },
+        [currentRow, formRef]
+    );
+
 
     const handleSubmit = async () => {
         if (!profile?.organization_id) return;
 
-        // Validation
         const validFarmers = rows.filter(r => r.farmerId && r.itemId && r.qty > 0 && r.rate > 0);
         if (validFarmers.length === 0) {
-            toast({ title: "Validation Error", description: "At least one complete farmer row is required (Farmer, Item, Qty, Rate).", variant: "destructive" });
+            toast({ title: "Validation Error", description: "Please add at least one complete farmer row first.", variant: "destructive" });
             return;
         }
 
@@ -201,186 +256,198 @@ export function MandiCommissionForm() {
         const res = await commitSession(input);
         if (res?.sessionId) {
             toast({ title: "Session Committed", description: "Records generated successfully." });
-            // Fetch detailed view for the success screen
             const detail = await fetchSessionDetail(res.sessionId);
             setCommittedSessionData(detail);
         }
     };
 
+    const handleReset = () => {
+        setLotNo("");
+        setVehicleNo("");
+        setBookNo("");
+        setBuyerId(null);
+        setSaleRate(0);
+        setBuyerLoading(0);
+        setBuyerPacking(0);
+        setCommittedSessionData(null);
+        setRows([]);
+        resetCurrentRow();
+    };
+
     // ─────────────────────────────────────────────────────────────
-    // Render: View Mode
+    // Renders
     // ─────────────────────────────────────────────────────────────
+    const buildItemLabel = (item: any) => {
+        const parts = [item.name];
+        if (item.variety) parts.push(item.variety);
+        if (item.grade && item.grade !== "A") parts.push(`Gr.${item.grade}`);
+        return parts.join(" – ");
+    };
+
     if (committedSessionData) {
         return <SessionBillsView sessionData={committedSessionData} onNewSession={handleReset} />;
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // Render: Edit Mode
-    // ─────────────────────────────────────────────────────────────
-    const validFarmers = rows.filter(r => r.qty > 0 && r.rate > 0); // For dynamic summary rendering calculations
+    const inputCls = "h-10 text-base font-bold text-slate-900 bg-white border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 rounded-xl px-3 transition-all";
 
-    // Custom Enter key global capture for Submit if focused on button
     return (
-        <div className="max-w-[1400px] mx-auto space-y-6">
+        <div className="max-w-[1400px] mx-auto space-y-4">
             <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center text-white shadow-sm">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center text-white shadow-sm">
                     <Scale className="w-5 h-5" />
                 </div>
                 <div>
-                    <h1 className="text-2xl font-black text-slate-900 tracking-tight leading-none">Mandi Commission</h1>
-                    <p className="text-[12px] font-bold text-slate-500 uppercase tracking-widest mt-1">Single-Screen Purchase & Sale</p>
+                    <h1 className="text-2xl font-black text-slate-900 tracking-tight leading-none">Purchase + Sale (Commission)</h1>
+                    <p className="text-[12px] font-bold text-slate-500 uppercase tracking-widest mt-1">Single-Screen Native Application</p>
                 </div>
             </div>
 
-            {/* HEADER */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex items-center gap-6">
-                <div className="flex-1 grid grid-cols-4 gap-4">
-                    <div>
-                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Date</Label>
-                        <Input type="date" value={sessionDate} onChange={(e) => setSessionDate(e.target.value)} className="h-10 font-bold bg-slate-50 mt-1" />
+            {/* Global Header */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm grid grid-cols-4 gap-4">
+                <div>
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Date</Label>
+                    <Input type="date" value={sessionDate} onChange={(e) => setSessionDate(e.target.value)} className="h-10 font-bold bg-slate-50 mt-1 rounded-lg" />
+                </div>
+                <div>
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Lot No.</Label>
+                    <div className="relative mt-1">
+                        <Input placeholder="LOT NBS" value={lotNo} onChange={(e) => setLotNo(e.target.value)} className="h-10 font-bold font-mono tracking-widest uppercase pl-10 rounded-lg" />
+                        <Package className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                     </div>
-                    <div>
-                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Lot Prefix</Label>
-                        <Input placeholder="e.g. LOT-42" value={lotNo} onChange={(e) => setLotNo(e.target.value)} className="h-10 font-bold font-mono tracking-widest uppercase mt-1 focus:ring-2 focus:ring-emerald-500/20" />
-                    </div>
-                    <div>
-                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Vehicle No</Label>
-                        <Input placeholder="XX-00-YY-0000" value={vehicleNo} onChange={(e) => setVehicleNo(e.target.value)} className="h-10 font-bold uppercase mt-1 focus:ring-2 focus:ring-emerald-500/20" />
-                    </div>
-                    <div>
-                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Reference / Book No</Label>
-                        <Input placeholder="Book-123" value={bookNo} onChange={(e) => setBookNo(e.target.value)} className="h-10 font-bold uppercase mt-1 focus:ring-2 focus:ring-emerald-500/20" />
-                    </div>
+                </div>
+                <div>
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Vehicle No</Label>
+                    <Input placeholder="XX-00-YY-0000" value={vehicleNo} onChange={(e) => setVehicleNo(e.target.value)} className="h-10 font-bold uppercase mt-1 rounded-lg" />
+                </div>
+                <div>
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Book No.</Label>
+                    <Input placeholder="Book-123" value={bookNo} onChange={(e) => setBookNo(e.target.value)} className="h-10 font-bold uppercase mt-1 rounded-lg" />
                 </div>
             </div>
 
-            <div className="grid grid-cols-[1fr_320px] gap-6 items-start">
-                {/* LEFT COLLUMN: Grid + Buyer */}
-                <div className="space-y-6">
-                    {/* FARMER GRID */}
-                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 shadow-sm overflow-x-auto custom-scrollbar">
-                        <div className="min-w-[1000px]">
-                            <FarmerRowHeaders />
-                            <div className="space-y-2 mt-2">
-                                {rows.map((row, idx) => (
-                                    <FarmerRow
-                                        key={row.id}
-                                        index={idx}
-                                        row={row}
-                                        farmers={farmers}
-                                        items={commodities}
-                                        units={units}
-                                        defaultCommissionPercent={settings?.default_commission_percent || 5}
-                                        canDelete={rows.length > 1}
-                                        isLastRow={idx === rows.length - 1}
-                                        onUpdate={handleUpdateRow}
-                                        onDelete={handleDeleteRow}
-                                        onEnterLast={handleAddRow}
-                                    />
-                                ))}
+            {/* Main 3-Column Layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px_320px] gap-4 items-start">
+                
+                {/* 1. Added Farmers List */}
+                <div className="bg-slate-50/50 border border-slate-200 rounded-2xl p-4 min-h-[480px]">
+                    <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 mb-4 flex items-center gap-2">
+                        <User className="w-4 h-4 text-emerald-600" /> Latest Arrivals ({rows.length})
+                    </h3>
+                    
+                    {rows.length === 0 ? (
+                        <div className="h-full flex flex-col items-center justify-center text-slate-400 mt-20">
+                            <Plus className="w-10 h-10 mb-2 opacity-20" />
+                            <p className="text-sm font-bold">No farmers added</p>
+                            <p className="text-xs">Fill the details and click Add</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-2">
+                            {rows.map((row, idx) => (
+                                <AddedFarmerCard 
+                                    key={row.id || idx} 
+                                    index={idx} 
+                                    row={row} 
+                                    onDelete={handleDeleteRow}
+                                    onClick={() => handleLoadRowToEdit(idx)} 
+                                />
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {/* 2. Farmer Details Form (Active) */}
+                <div ref={formRef} className="bg-white border-2 border-emerald-100 rounded-2xl p-5 shadow-lg shadow-emerald-500/5 relative overflow-hidden">
+                    <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-emerald-400 to-teal-400"></div>
+                    <div className="flex flex-col items-center mb-6 mt-2">
+                        <div className="w-16 h-16 rounded-full bg-emerald-50 border-4 border-white shadow flex items-center justify-center mb-3 text-emerald-600">
+                            <User className="w-8 h-8" />
+                        </div>
+                        <h2 className="text-xl font-black text-slate-800 tracking-tight">Farmer details</h2>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div>
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-emerald-600 ml-1">Name</Label>
+                            <SearchableSelect
+                                options={farmers.map((f) => ({
+                                    label: `${f.name}${f.city ? ` (${f.city})` : ""}`,
+                                    value: f.id,
+                                }))}
+                                value={currentRow.farmerId || ""}
+                                onChange={handleFarmerSelect}
+                                placeholder="Search farmer..."
+                                className="h-12 text-base font-bold border-2 border-slate-200 mt-1 rounded-xl"
+                            />
+                        </div>
+
+                        <div>
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-emerald-600 ml-1">Item / Variety</Label>
+                            <SearchableSelect
+                                options={commodities.map((i) => ({
+                                    label: buildItemLabel(i),
+                                    value: i.id,
+                                }))}
+                                value={currentRow.itemId || ""}
+                                onChange={handleItemSelect}
+                                placeholder="Search item..."
+                                className="h-12 text-base font-bold border-2 border-slate-200 mt-1 rounded-xl"
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <Label className="text-[10px] font-black uppercase tracking-widest text-emerald-600 ml-1">Qty</Label>
+                                <div className="flex gap-2 mt-1">
+                                    <Input type="number" min={0} step="any" value={currentRow.qty || ""} onChange={(e) => handleCurrentRowChange("qty", parseFloat(e.target.value) || 0)} onKeyDown={(e) => handleKeyDown(e, false)} className={inputCls} placeholder="0" />
+                                    <select value={currentRow.unit || "Kg"} onChange={(e) => handleCurrentRowChange("unit", e.target.value)} className="h-10 rounded-xl border border-slate-200 bg-slate-50 text-sm font-bold text-slate-900 px-3 w-28">
+                                        {units.map((u) => (<option key={u} value={u}>{u}</option>))}
+                                    </select>
+                                </div>
                             </div>
-                            <div className="mt-4 px-3 flex justify-start">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    className="bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50 font-bold shadow-sm"
-                                    onClick={handleAddRow}
-                                >
-                                    <Plus className="w-4 h-4 mr-1.5" />
-                                    Add Farmer Row (Enter on last field)
-                                </Button>
+                            <div>
+                                <Label className="text-[10px] font-black uppercase tracking-widest text-emerald-600 ml-1">Price (₹)</Label>
+                                <Input type="number" min={0} step="any" value={currentRow.rate || ""} onChange={(e) => handleCurrentRowChange("rate", parseFloat(e.target.value) || 0)} onKeyDown={(e) => handleKeyDown(e, false)} className={inputCls + " mt-1"} placeholder="0.00" />
                             </div>
                         </div>
-                    </div>
 
-                    {/* BUYER SECTION */}
-                    <div className="bg-white border border-blue-200 rounded-2xl overflow-hidden shadow-sm transition-all group">
-                        <button
-                            type="button"
-                            className="w-full px-5 py-4 flex items-center justify-between bg-blue-50/50 hover:bg-blue-50 transition-colors"
-                            onClick={() => setShowBuyer(!showBuyer)}
-                        >
-                            <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
-                                    <Search className="w-4 h-4" />
-                                </div>
-                                <div className="text-left">
-                                    <span className="text-sm font-black uppercase tracking-widest text-blue-900 block leading-none mb-1">Select Buyer (Sale)</span>
-                                    <span className="text-[10px] font-bold text-blue-600/70 tracking-wide">Enter buyer details to generate a sale bill natively. Leave closed for pure purchase.</span>
-                                </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <Label className="text-[10px] font-black uppercase tracking-widest text-emerald-600 ml-1">Less %</Label>
+                                <Input type="number" min={0} step="any" value={currentRow.lessPercent || ""} onChange={(e) => handleCurrentRowChange("lessPercent", parseFloat(e.target.value) || 0, "lessPercent")} onKeyDown={(e) => handleKeyDown(e, false)} className={inputCls + " mt-1 text-red-600"} placeholder="0%" />
                             </div>
-                            {showBuyer ? <ChevronUp className="w-5 h-5 text-blue-400" /> : <ChevronDown className="w-5 h-5 text-blue-400" />}
-                        </button>
+                            <div>
+                                <Label className="text-[10px] font-black uppercase tracking-widest text-emerald-600 ml-1">Less Weight</Label>
+                                <Input type="number" min={0} step="any" value={currentRow.lessUnits || ""} onChange={(e) => handleCurrentRowChange("lessUnits", parseFloat(e.target.value) || 0, "lessUnits")} onKeyDown={(e) => handleKeyDown(e, false)} className={inputCls + " mt-1 text-red-600"} placeholder="0" />
+                            </div>
+                        </div>
 
-                        {showBuyer && (
-                            <div className="p-5 bg-white border-t border-blue-100 animate-in slide-in-from-top-2">
-                                <div className="grid grid-cols-4 gap-5 items-end">
-                                    <div className="col-span-2">
-                                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Buyer Account</Label>
-                                        <div className="mt-1">
-                                            <SearchableSelect
-                                                options={buyers.map(b => ({ label: `${b.name}${b.city ? ` (${b.city})` : ""}`, value: b.id }))}
-                                                value={buyerId || ""}
-                                                onChange={setBuyerId}
-                                                placeholder="Search buyer..."
-                                                className="h-10 text-sm font-bold border-blue-200 focus:border-blue-500 bg-blue-50/30"
-                                            />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Sale Rate (₹)</Label>
-                                        <Input
-                                            type="number"
-                                            min={0}
-                                            step="any"
-                                            placeholder="0.00"
-                                            value={saleRate || ""}
-                                            onChange={(e) => setSaleRate(parseFloat(e.target.value) || 0)}
-                                            className="h-10 text-sm font-bold border-blue-200 focus:border-blue-500 bg-blue-50/30 mt-1"
-                                        />
-                                    </div>
-                                    <div>
-                                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Loading (₹)</Label>
-                                        <Input
-                                            type="number"
-                                            min={0}
-                                            step="any"
-                                            placeholder="0"
-                                            value={buyerLoading || ""}
-                                            onChange={(e) => setBuyerLoading(parseFloat(e.target.value) || 0)}
-                                            className="h-10 text-sm font-bold border-blue-200 focus:border-blue-500 bg-blue-50/30 mt-1"
-                                        />
-                                    </div>
-                                    <div>
-                                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Packing/Other (₹)</Label>
-                                        <Input
-                                            type="number"
-                                            min={0}
-                                            step="any"
-                                            placeholder="0"
-                                            value={buyerPacking || ""}
-                                            onChange={(e) => setBuyerPacking(parseFloat(e.target.value) || 0)}
-                                            className="h-10 text-sm font-bold border-blue-200 focus:border-blue-500 bg-blue-50/30 mt-1"
-                                        />
-                                    </div>
-                                    {buyerId && (
-                                        <div className="col-span-3 flex justify-end">
-                                            <Button type="button" variant="ghost" size="sm" onClick={() => { setBuyerId(null); setSaleRate(0); setShowBuyer(false); }} className="text-red-500 hover:text-red-600 hover:bg-red-50">
-                                                Remove Buyer
-                                            </Button>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        )}
+                        <div>
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-emerald-600 ml-1">Loading Charges</Label>
+                            <Input type="number" min={0} step="any" value={currentRow.loadingCharges || ""} onChange={(e) => handleCurrentRowChange("loadingCharges", parseFloat(e.target.value) || 0)} onKeyDown={(e) => handleKeyDown(e, false)} className={inputCls + " mt-1"} placeholder="0" />
+                        </div>
+                        
+                        <div>
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-emerald-600 ml-1">Default Commission (%)</Label>
+                            <Input type="number" min={0} step="any" value={currentRow.commissionPercent || ""} onChange={(e) => handleCurrentRowChange("commissionPercent", parseFloat(e.target.value) || 0)} onKeyDown={(e) => handleKeyDown(e, false)} className={inputCls + " mt-1"} placeholder="0" />
+                        </div>
+
+                        <div className="pt-2">
+                            <Button 
+                                type="button"
+                                onClick={handleAddRow}
+                                onKeyDown={(e) => { if(e.key === 'Enter') handleAddRow(); }}
+                                className="add-btn w-full h-14 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black text-xl tracking-widest shadow-lg shadow-emerald-500/20 shadow-[inset_0px_1px_1px_rgba(255,255,255,0.4)] transition-all"
+                            >
+                                [Add] <Plus className="ml-2 w-6 h-6" />
+                            </Button>
+                        </div>
                     </div>
                 </div>
 
-                {/* RIGHT COLUMN: Summary & Submit */}
-                <div className="space-y-6">
+                {/* 3. Summary Panel */}
+                <div className="space-y-4">
                     <SummaryPanel
-                        farmers={validFarmers}
+                        farmers={rows}
                         hasBuyer={!!buyerId}
                         buyerName={buyers.find(b => b.id === buyerId)?.name}
                         saleRate={saleRate}
@@ -388,15 +455,56 @@ export function MandiCommissionForm() {
                         buyerPackingCharges={buyerPacking}
                     />
 
+                    {/* Compact submit button right below the summary */}
                     <Button
-                        className="w-full h-14 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-lg uppercase tracking-widest shadow-xl shadow-emerald-500/20"
+                        className="w-full h-14 bg-slate-900 hover:bg-black text-white rounded-xl font-black text-lg tracking-widest shadow-xl flex items-center justify-center gap-2 mt-4"
                         onClick={handleSubmit}
                         disabled={isCommitting}
                     >
-                        {isCommitting ? "PROCESSING..." : "SUBMIT SESSION"}
+                        {isCommitting ? "PROCESSING..." : "SUBMIT & PRINT"}
+                        <ChevronRight className="w-5 h-5" />
                     </Button>
                 </div>
             </div>
+
+            {/* Bottom 3-Box Layout for Buyer directly based on Sci-Fi Mockup */}
+            <div ref={buyerRef} className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6 p-1 border-t border-slate-200/50 pt-6">
+                <div className="bg-blue-50/50 border-2 border-blue-200 rounded-xl p-4">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-blue-600 ml-1 flex items-center gap-2 mb-2">
+                        🤝 Buyer Name (Sale)
+                    </Label>
+                    <SearchableSelect
+                        options={buyers.map(b => ({ label: `${b.name}${b.city ? ` (${b.city})` : ""}`, value: b.id }))}
+                        value={buyerId || ""}
+                        onChange={setBuyerId}
+                        placeholder="Search buyer..."
+                        className="h-12 text-base font-bold border-blue-200 focus:border-blue-500 bg-white rounded-xl"
+                    />
+                     {buyerId && (
+                        <div className="grid grid-cols-2 gap-2 mt-3">
+                             <div>
+                                <Label className="text-[9px] font-bold text-blue-500 ml-1 mb-1 block">Sale Rate (₹)</Label>
+                                <Input type="number" min={0} step="any" placeholder="0.00" value={saleRate || ""} onChange={(e) => setSaleRate(parseFloat(e.target.value) || 0)} className="h-10 font-bold border-blue-200 bg-white rounded-lg" />
+                             </div>
+                        </div>
+                    )}
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col justify-center">
+                     <Label className="text-[10px] font-black uppercase tracking-widest text-slate-600 ml-1 flex items-center gap-2 mb-2">
+                        📦 Loading/crate charges (₹)
+                    </Label>
+                    <Input type="number" min={0} step="any" placeholder="0" value={buyerLoading || ""} onChange={(e) => setBuyerLoading(parseFloat(e.target.value) || 0)} className="h-12 text-xl font-bold bg-white border-slate-200 rounded-xl" />
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col justify-center">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-600 ml-1 flex items-center gap-2 mb-2">
+                        📦 Packing charge (₹)
+                    </Label>
+                    <Input type="number" min={0} step="any" placeholder="0" value={buyerPacking || ""} onChange={(e) => setBuyerPacking(parseFloat(e.target.value) || 0)} className="h-12 text-xl font-bold bg-white border-slate-200 rounded-xl" />
+                </div>
+            </div>
+
         </div>
     );
 }

@@ -9,7 +9,7 @@ import { Loader2, ShieldAlert } from 'lucide-react';
 
 interface ProtectedRouteProps {
     children: React.ReactNode;
-    requiredPermission: Permission;
+    requiredPermission?: Permission;
     // Optional: also allow if a specific nav key is granted in the matrix
     navKey?: string;
 }
@@ -33,7 +33,7 @@ export function ProtectedRoute({ children, requiredPermission, navKey }: Protect
     const isLoading = authLoading || matrixLoading;
 
     // Check 1: Role-based permission (classic check)
-    const hasRolePerm = hasPermission(role, requiredPermission);
+    const hasRolePerm = requiredPermission ? hasPermission(role, requiredPermission) : true;
 
     // Check 2: Matrix-based nav access (respects rbac_matrix grants)
     const mappedNavKey = navKey || PERMISSION_TO_NAV_KEY[requiredPermission];

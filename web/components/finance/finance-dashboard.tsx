@@ -170,7 +170,7 @@ export default function FinancialDashboard() {
         // FIX: Add cache-busting to prevent 304 responses with empty data
         const timestamp = Date.now();
 
-        const { data: accounts } = await supabase
+        const { data: accounts, error: accountError } = await supabase
             .schema('mandi')
             .from('accounts')
             .select('id, name, opening_balance, description, account_sub_type')
@@ -178,11 +178,12 @@ export default function FinancialDashboard() {
             .eq('type', 'asset')
             .eq('is_active', true)
             .or("account_sub_type.eq.bank,name.ilike.%bank%,name.ilike.%HDFC%,name.ilike.%SBI%")
-            .order('name')
-            .then(res => {
-                // Force cache revalidation on every fetch
-                return { ...res, count: timestamp };
-            });
+            .order('name');
+
+        if (accountError) {
+            console.error('[BankFetch]', accountError);
+            return;
+        }
 
         if (!accounts || accounts.length === 0) {
             setBankAccounts([]);

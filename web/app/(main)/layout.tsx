@@ -24,12 +24,13 @@ export default function MainLayout({
 }: {
     children: React.ReactNode
 }) {
+    // Default to desktop (web) layout. If we're actually on a native shell,
+    // the effect below flips isNative before paint completes. This avoids
+    // the bare-slate flash that made every navigation feel like a hard refresh.
     const [isNative, setIsNative] = useState(false);
     const [sidebarWidth, setSidebarWidth] = useState<number>(288);
-    const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
-        setMounted(true);
         // Initial detection
         setIsNative(isNativePlatform());
 
@@ -45,10 +46,6 @@ export default function MainLayout({
         window.addEventListener('sidebar-collapse', handler);
         return () => window.removeEventListener('sidebar-collapse', handler);
     }, []);
-
-
-    // Prevent hydration mismatch by returning a skeleton or desktop layout initially
-    if (!mounted) return <div className="min-h-screen bg-slate-50" />;
 
     // ── NATIVE MOBILE LAYOUT ───────────────────────────────────────────────────
     if (isNative) {

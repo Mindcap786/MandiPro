@@ -6,7 +6,7 @@
  * Duplicate key returns 409 with the original record — safe to retry.
  */
 import { NextRequest, NextResponse } from 'next/server'
-import { createMandiServerClient, requireAuth, apiError, auditLog } from '../_lib/server-client'
+import { createMandiServerClient, requireAuth, apiError, auditLog, validateRole } from '../_lib/server-client'
 
 import { CreatePaymentSchema } from '@mandi-pro/validation'
 
@@ -65,9 +65,10 @@ export async function POST(request: NextRequest) {
     const { ok, response: accessErr } = validateRole(profile, ['manager', 'staff'])
     if (!ok) return accessErr!
 
+    const body = await request.json()
     const result = CreatePaymentSchema.safeParse(body)
     if (!result.success) {
-        return apiError.validation(result.error.errors.map(e => `${e.path.join('.')}: ${e.message}`))
+        return apiError.validation(result.error.issues.map(e => `${e.path.join('.')}: ${e.message}`))
     }
     const payload = result.data
 

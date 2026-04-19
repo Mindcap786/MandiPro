@@ -38,7 +38,7 @@ export function useArrivals() {
 
       toast({
         title: "Arrival Created",
-        description: `Successfully recorded ${payload.num_lots} lots for arrival.`,
+        description: `Successfully recorded ${payload.items.length} lots for arrival.`,
       })
 
       return result

@@ -844,7 +844,7 @@ export default function DayBook() {
     const [date, setDate] = useState<Date>(new Date());
     const [datePickerOpen, setDatePickerOpen] = useState(false);
     const [viewMode, setViewMode] = useState<'cash' | 'all'>('all');
-    const [cashFilter, setCashFilter] = useState<'all' | 'inflow' | 'outflow' | 'sales' | 'purchases'>('all');
+    const [cashFilter, setCashFilter] = useState<'all' | 'inflow' | 'outflow' | 'sales' | 'purchases' | 'liquid' | 'expenses'>('all');
     const tableContainerRef = React.useRef<HTMLDivElement>(null);
     
     const orgId = profile?.organization_id;

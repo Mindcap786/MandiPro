@@ -35,7 +35,7 @@ export default function PurchaseBillsPage() {
     const [selectedBillId, setSelectedBillId] = useState<string | null>(null);
     const [selectedBillLocked, setSelectedBillLocked] = useState<boolean>(false);
     const [selectedSupplier, setSelectedSupplier] = useState<any | null>(null);
-    const [paymentInitialValues, setPaymentInitialValues] = useState<{ party_id: string, amount: number, remarks: string, invoice_id?: string, lot_id?: string, arrival_id?: string } | null>(null);
+    const [paymentInitialValues, setPaymentInitialValues] = useState<{ party_id: string, amount: number, currentBalance?: number, remarks: string, invoice_id?: string, lot_id?: string, arrival_id?: string } | null>(null);
     const [dateRange, setDateRange] = useState<DateRange | undefined>({
         from: subDays(new Date(), 30),
         to: new Date(),

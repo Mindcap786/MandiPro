@@ -15,17 +15,20 @@ interface NativeCardProps {
     children: React.ReactNode;
     className?: string;
     onPress?: () => void;
+    /** Alias for onPress to support standard React event naming */
+    onClick?: () => void;
     /** If true, adds divide-y between direct children */
     divided?: boolean;
     /** Pending: skeleton loading state */
     loading?: boolean;
 }
 
-export function NativeCard({ children, className, onPress, divided, loading }: NativeCardProps) {
-    const Tag = onPress ? "button" : "div";
+export function NativeCard({ children, className, onPress, onClick, divided, loading }: NativeCardProps) {
+    const activeHandler = onPress || onClick;
+    const Tag = activeHandler ? "button" : "div";
     return (
         <Tag
-            onClick={onPress}
+            onClick={activeHandler}
             className={cn(
                 "w-full bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.08)]",
                 "overflow-hidden text-left",

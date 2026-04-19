@@ -13,7 +13,7 @@ import { z } from "zod"
 
 export const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD")
 export const uuid = z.string().uuid()
-export const positiveNumber = z.coerce.number({ invalid_type_error: "Must be a number" }).positive("Must be > 0")
+export const positiveNumber = z.coerce.number().positive("Must be > 0")
 export const nonNegativeNumber = z.coerce.number().min(0, "Must be ≥ 0")
 export const percentRange = z.coerce.number().min(0, "Min 0").max(100, "Max 100")
 

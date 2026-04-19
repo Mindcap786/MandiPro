@@ -24,9 +24,39 @@ interface CacheEntry<T> {
 // Global store - lives for the lifetime of the browser session
 const store = new Map<string, CacheEntry<any>>();
 
-// Cache TTL in ms (30 seconds - data refreshes in background after this)
+// Default cache TTL in ms (30 seconds - data refreshes in background after this)
 const TTL = 30 * 1000;
 const STORAGE_KEY = 'mandi_data_cache_v2'; // bumped to v2 — old v1 keys are user-unscoped
+
+// ── Tiered TTL ──────────────────────────────────────────────────────────────
+// Different data has different volatility. Matching TTL to the data type
+// removes unnecessary re-fetches on navigation for data that barely changes.
+//
+//   STATIC (24h)   — parties / items / units / GST rates / mandi profile
+//   SEMI (5 min)   — stock status / cheques / outstanding balances
+//   LIVE (30 sec)  — daybook / dashboard / finance totals
+//
+// Keys are matched by prefix so callers can pass e.g. `contacts_all`
+// or `items_org_<x>` and still land in the STATIC tier.
+const SECOND = 1000;
+const MINUTE = 60 * SECOND;
+const HOUR = 60 * MINUTE;
+
+const STATIC_TTL = 24 * HOUR;
+const SEMI_TTL = 5 * MINUTE;
+const LIVE_TTL = 30 * SECOND;
+
+const STATIC_PREFIXES = ['contacts_', 'items_all', 'items_', 'units_', 'gst_', 'parties_', 'commodities_', 'locations_', 'employees_'];
+const SEMI_PREFIXES   = ['stock_', 'cheques_', 'outstanding_', 'lots_', 'warehouse_', 'inventory_'];
+const LIVE_PREFIXES   = ['daybook_', 'dashboard', 'finance_summary_', 'trend_', 'activity_'];
+
+function ttlFor(key: string): number {
+    for (const p of STATIC_PREFIXES) if (key.startsWith(p)) return STATIC_TTL;
+    for (const p of SEMI_PREFIXES)   if (key.startsWith(p)) return SEMI_TTL;
+    for (const p of LIVE_PREFIXES)   if (key.startsWith(p)) return LIVE_TTL;
+    return TTL;
+}
+// ────────────────────────────────────────────────────────────────────────────
 const MAX_PERSIST_AGE = 12 * 60 * 60 * 1000;
 let hydrated = false;
 
@@ -115,7 +145,7 @@ export function cacheIsStale(key: string, orgId: string): boolean {
     const userId = _activeUserId ?? 'anonymous';
     const entry = store.get(makeKey(key, orgId, userId));
     if (!entry) return true;
-    return Date.now() - entry.timestamp > TTL;
+    return Date.now() - entry.timestamp > ttlFor(key);
 }
 
 export function cacheDelete(key: string, orgId: string): void {

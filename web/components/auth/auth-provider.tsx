@@ -273,7 +273,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                             )
                         ]);
                         
-                        const { data: { user }, error: userError } = await getUserWithTimeout;
+                        const { data: { user }, error: userError } = await (getUserWithTimeout as any);
                         authenticatedUser = user;
                         if (userError) {
                             console.warn("[Auth] getUser() returned error:", userError.message);
@@ -424,7 +424,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 try {
                     // Verify JWT is still valid via a lightweight DB query.
                     // Avoids calling getUser() which causes GoTrue lock contention.
-                    const { error } = await supabase.schema('core')
+                    const { error, status } = await supabase.schema('core')
                         .from('profiles')
                         .select('id', { count: 'exact' })
                         .limit(1);
@@ -432,7 +432,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     if (error) {
                         // Only evict if it's a definitive Auth failure (401 or 403)
                         // Ignore general network errors or 5xx which might be temporary
-                        if (error.status === 401 || error.status === 403 || error.message?.toLowerCase().includes('unauthorized')) {
+                        if (status === 401 || status === 403 || error.message?.toLowerCase().includes('unauthorized')) {
                             console.warn('[Auth] Definitive session invalidation detected:', error.message);
                             stopPolling();
                             handleSessionEviction('revoked');

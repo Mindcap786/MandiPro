@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
     Settings, Shield, Server, Globe, Bell, Database, RefreshCw, Clock,
     Loader2, CheckCircle2, Save, AlertTriangle, Printer, Calendar, CreditCard
@@ -17,6 +18,7 @@ import { cn } from '@/lib/utils';
 
 export default function AdminSettingsPage() {
     const { toast } = useToast();
+    const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [savingBranding, setSavingBranding] = useState(false);
@@ -199,7 +201,7 @@ export default function AdminSettingsPage() {
                         <Button
                             variant="outline"
                             className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10 w-full"
-                            onClick={() => window.location.href = '/admin/features'}
+                            onClick={() => router.push('/admin/features')}
                         >
                             Manage Feature Flags →
                         </Button>
@@ -220,7 +222,7 @@ export default function AdminSettingsPage() {
                         <Button
                             variant="outline"
                             className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 w-full"
-                            onClick={() => window.location.href = '/admin/billing/plans'}
+                            onClick={() => router.push('/admin/billing/plans')}
                         >
                             Manage Plans →
                         </Button>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { useEnterToTab } from "@/hooks/use-enter-to-tab";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -709,7 +710,7 @@ export function NewPaymentDialog({ onSuccess, defaultOpen, onOpenChange, initial
                                             </SelectContent>
                                         </Select>
                                     ) : (
-                                        <p className="text-[10px] text-red-500 font-bold italic">No banks added. You must add a bank account to use this payment mode. <a href="/settings/banks" className="underline font-black">Add a bank →</a></p>
+                                        <p className="text-[10px] text-red-500 font-bold italic">No banks added. You must add a bank account to use this payment mode. <Link href="/settings/banks" className="underline font-black">Add a bank →</Link></p>
                                     )}
                                 </div>
                             )}
@@ -879,7 +880,7 @@ export function NewPaymentDialog({ onSuccess, defaultOpen, onOpenChange, initial
                                                 </SelectContent>
                                             </Select>
                                         ) : (
-                                            <p className="text-[10px] text-red-500 font-bold">No bank accounts configured. You must add one. <a href="/settings/banks" className="underline font-black">Add one →</a></p>
+                                            <p className="text-[10px] text-red-500 font-bold">No bank accounts configured. You must add one. <Link href="/settings/banks" className="underline font-black">Add one →</Link></p>
                                         )}
                                     </div>
                                     {/* Only show clearing date if NOT instant */}

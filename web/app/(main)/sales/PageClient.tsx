@@ -179,7 +179,13 @@ export default function Sales() {
             const { data: tableData, error: tableError } = await tableQuery;
             if (tableError) throw tableError;
             setSales(tableData || []);
-            cacheSet("sales_page", profile.organization_id, { sales: tableData || [], totalCount: statsData?.length || 0, totalRevenue: calculateGrossRevenue((statsData as any) || []), debtors: debtorsRes.count || 0, creditors: creditorsRes.count || 0 });
+            cacheSet("sales_page", profile.organization_id, { 
+                sales: tableData || [], 
+                totalCount: statsData?.length || 0, 
+                totalRevenue: calculateGrossRevenue((statsData as any) || []), 
+                debtors: debtorsCount, 
+                creditors: creditorsCount 
+            });
         } catch (err) {
             console.error("Error fetching sales:", err);
         } finally {

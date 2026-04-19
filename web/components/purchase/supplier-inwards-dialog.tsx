@@ -121,8 +121,8 @@ export function SupplierInwardsDialog({ supplier, isOpen, onClose, onEditLot, on
             const totalAmount = Number(group.totalAmount || 0);
             
             // Sum of unique arrival advances + all lot-level advances
-            const totalArrivalAdvance = Object.values(group.arrivalAdvances || {}).reduce((sum: number, val: any) => sum + Number(val), 0);
-            const totalAdvance = Number(group.totalLotAdvance || 0) + totalArrivalAdvance;
+            const totalArrivalAdvance = Object.values(group.arrivalAdvances || {}).reduce((sum: number, val: any) => sum + Number(val), 0) as number;
+            const totalAdvance = (Number(group.totalLotAdvance || 0) as number) + totalArrivalAdvance;
             
             // Balance to pay = total amount - what's already paid via advance
             const balanceToPay = totalAmount - totalAdvance;

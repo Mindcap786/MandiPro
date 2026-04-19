@@ -424,7 +424,6 @@ export const translations = {
             settings: "सेटिंग्स",
             balance_sheet: "बैलेंस शीट",
             bank_reconcile: "बैंक मिलान",
-            reminders: "रिमाइंडर",
             live_auction: "लाइव नीलामी",
             price_forecast: "भाव अनुमान",
             branding: "ब्रांडिंग",

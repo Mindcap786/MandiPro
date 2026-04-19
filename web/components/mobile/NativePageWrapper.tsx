@@ -20,6 +20,8 @@ interface NativePageWrapperProps {
     children: React.ReactNode
     /** Extra CSS classes for the native wrapper div */
     className?: string
+    /** Header title (optional, might be used by parent/wrapper) */
+    title?: string
     /** Override bottom padding on native (e.g. if page has its own FAB) */
     noBottomPad?: boolean
 }

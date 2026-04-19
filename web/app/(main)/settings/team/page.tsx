@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/components/auth/auth-provider';
 import { Button } from '@/components/ui/button';
@@ -23,6 +24,7 @@ import { snackbar } from '@/components/mobile/Snackbar';
 
 export default function TeamPage() {
     const { profile } = useAuth();
+    const router = useRouter();
     const [members, setMembers] = useState<any[]>([]);
     const [employees, setEmployees] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -403,7 +405,7 @@ export default function TeamPage() {
                         </p>
                         <Button 
                             className="mt-8 bg-black text-white hover:bg-slate-800 font-black uppercase tracking-widest h-14 px-8 rounded-2xl"
-                            onClick={() => window.location.href = '/dashboard'}
+                            onClick={() => router.push('/dashboard')}
                         >
                             Return to Dashboard
                         </Button>

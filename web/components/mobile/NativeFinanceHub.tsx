@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { useAuth } from "@/components/auth/auth-provider"
 import { supabase } from "@/lib/supabaseClient"
-import { cacheGet, cacheSet } from "@/lib/data-cache"
+import { cacheGet, cacheSet, cacheIsStale } from "@/lib/data-cache"
 import { cn } from "@/lib/utils"
 import {
     BookOpen, BarChart3, FileText, Scale, Wallet, Landmark,
@@ -13,7 +13,7 @@ import {
     Truck, Gavel, Store, RotateCcw, IndianRupee, Zap,
     PieChart, PackageSearch, LineChart, Tractor, UserCheck, MapPin,
     Warehouse, Settings, Shield, Palette, CreditCard, ShieldCheck, QrCode, Sliders,
-    Briefcase,
+    Briefcase, ArrowDownLeft, ArrowUpRight
 } from "lucide-react"
 import Link from "next/link"
 import { NativeCard } from "@/components/mobile/NativeCard"

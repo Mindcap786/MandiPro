@@ -8,6 +8,7 @@ import { NativePageWrapper } from "@/components/mobile/NativePageWrapper"
 import { NativeCard } from "@/components/mobile/NativeCard"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Activity, User, Truck, AlertCircle, FileText, ArrowUpRight, ArrowDownLeft, Wallet, TrendingUp, Search, Download, ChevronRight } from 'lucide-react'
+import { cn } from "@/lib/utils"
 
 interface LedgerSummary {
     entity_id: string
@@ -15,7 +16,9 @@ interface LedgerSummary {
     entity_type: string
     total_debit: number
     total_credit: number
-    net_balance: number // +ve means Payable (Credit), -ve means Receivable (Debit)
+    net_balance: number // +ve means Receivable (Debit), -ve means Payable (Credit)
+    current_balance?: number
+    city?: string
 }
 
 export default function Ledgers() {
@@ -190,7 +193,9 @@ export default function Ledgers() {
                     // View doesn't have total credit/debit, so we set to 0 to keep interface happy for now
                     total_debit: 0,
                     total_credit: 0,
-                    net_balance: Number(row.net_balance)
+                    net_balance: Number(row.net_balance),
+                    current_balance: Number(row.current_balance || 0),
+                    city: row.city || ""
                 }
 
                 if (row.contact_type === 'farmer') {

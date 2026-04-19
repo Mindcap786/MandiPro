@@ -6,7 +6,7 @@ import { usePermission } from "@/hooks/use-permission";
 import { SettingsSkeleton } from "@/components/settings/settings-skeleton";
 import {
     Loader2, Save, Eye, EyeOff, Lock, Settings2,
-    RefreshCw, Trash2, Plus, Terminal, Package
+    RefreshCw, Trash2, Plus, Terminal, Package, Settings
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";

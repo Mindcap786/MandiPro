@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
 
   const result = CreateSaleSchema.safeParse(body)
   if (!result.success) {
-    return apiError.validation(result.error.errors.map(e => `${e.path.join('.')}: ${e.message}`))
+    return apiError.validation(result.error.issues.map(e => `${e.path.join('.')}: ${e.message}`))
   }
   const payload = result.data
   const items = payload.items

@@ -97,7 +97,7 @@ export default function LoginClient() {
         const rawValue: any = settingsRes?.value;
         if (rawValue) {
             // Robustly extract numeric value from potential { value: N } object structure
-            let finalVal: number | NaN = NaN;
+            let finalVal: number = NaN;
             if (typeof rawValue === 'object' && rawValue.value !== undefined) {
                 finalVal = Number(rawValue.value);
             } else {

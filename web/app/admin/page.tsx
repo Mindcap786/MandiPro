@@ -63,8 +63,8 @@ const NAV_TILES = [
 export default function AdminDashboard() {
     // ✅ REFACTORED: typed hook replaces 50+ lines of raw Supabase state + fetchAll
     const { metrics, loading, lastUpdated, error: metricsError, refetch } = useAdminMetrics(30_000);
-    const [recentTenants, setRecentTenants] = useState<Array<{ id: string; name: string; status: string; trial_ends_at: string | null; [key: string]: unknown }>>([]);
-    const [monitoring, setMonitoring] = useState<{ platform_status: string; critical_alerts: Array<{ message: string }>; warning_alerts: unknown[] }>({ platform_status: 'checking', critical_alerts: [], warning_alerts: [] });
+    const [recentTenants, setRecentTenants] = useState<Array<{ id: string; name: string; status: string; trial_ends_at: string | null; subscription_tier?: string; is_active?: boolean; [key: string]: unknown }>>([]);
+    const [monitoring, setMonitoring] = useState<{ platform_status: string; critical_alerts: Array<{ message: string }>; warning_alerts: Array<{ message: string }> }>({ platform_status: 'checking', critical_alerts: [], warning_alerts: [] });
 
     const fetchAll = useCallback(async () => {
         // Trigger lifecycle sync + fetch ancillary data

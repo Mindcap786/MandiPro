@@ -16,6 +16,7 @@ import { NativeCard } from "@/components/mobile/NativeCard";
 import { NativeSectionLabel } from "@/components/mobile/NativeInput";
 import { cn } from "@/lib/utils";
 import { cacheGet, cacheSet, cacheIsStale } from "@/lib/data-cache";
+import { formatCurrency } from "@/lib/accounting-logic";
 
 interface StatementViewerProps {
     contactId: string;

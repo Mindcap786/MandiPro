@@ -1,17 +1,17 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 
 import { supabase } from '@/lib/supabaseClient'
 import { DataTable } from '@/components/ui/data-table'
 import { Plus, Users, Search, Loader2 } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { useAuth } from '@/components/auth/auth-provider'
+import { useCachedFarmers } from '@/hooks/use-cached-lists'
 
 export default function FarmersPage() {
     const { user, profile } = useAuth()
-    const [farmers, setFarmers] = useState<any[]>([])
-    const [loading, setLoading] = useState(true)
+    const { data: farmers, loading, refresh: fetchFarmers } = useCachedFarmers(profile?.organization_id)
     const [search, setSearch] = useState('')
     const [modalOpen, setModalOpen] = useState(false)
     const [formData, setFormData] = useState({
@@ -22,23 +22,6 @@ export default function FarmersPage() {
         trading_model: 'commission'
     })
     const [submitting, setSubmitting] = useState(false)
-
-    useEffect(() => {
-        fetchFarmers()
-    }, [])
-
-    async function fetchFarmers() {
-        setLoading(true)
-        const { data, error } = await supabase
-            .schema('mandi')
-            .from('contacts')
-            .select('*')
-            .eq('contact_type', 'supplier')
-            .order('created_at', { ascending: false })
-
-        if (data) setFarmers(data)
-        setLoading(false)
-    }
 
     async function handleCreate(e: React.FormEvent) {
         e.preventDefault()
