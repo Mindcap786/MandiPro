@@ -308,7 +308,15 @@ export const translations = {
                 items_sold: "Items Sold",
                 items_received: "Items Received",
                 purchase_payment: "Purchase Payment",
-                reversed: "REVERSED"
+                reversed: "REVERSED",
+                // Labels for real DB transaction_type values (fixes DAYBOOK.LABELS.GOODS_ARRIVAL bug)
+                goods_arrival: "Goods Arrival",
+                advance_payment: "Advance Payment",
+                cash_receipt: "Cash Receipt",
+                cash_payment: "Cash Payment",
+                v_party: "Party Entry",
+                opening_balance: "Opening Balance",
+                purchase_draft: "Purchase Draft"
             },
             descriptions: {
                 cash_paid_to: "Cash paid to {name}",

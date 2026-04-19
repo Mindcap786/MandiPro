@@ -27,48 +27,82 @@ import { formatCurrency, roundTo2 } from "@/lib/accounting-logic";
 import { cacheGet, cacheSet } from "@/lib/data-cache";
 import { findImbalancedVoucherIds, summarizeVoucherHealth } from "@/lib/finance/voucher-integrity";
 
-const DAYBOOK_CACHE_VERSION = 'v2.2'; // Increment for clean data refresh
+const DAYBOOK_CACHE_VERSION = 'v2.3'; // Bumped 2026-04-19: Fix Sales=0, Liquid=-85500, i18n GOODS_ARRIVAL bug
 const AMOUNT_EPSILON = 0.01;
+
+// ── TRANSACTION TYPE MAP (from real DB audit — all known transaction_type values) ──────────────
+// Maps raw DB transaction_type strings to Day Book flow categories.
+// goods_arrival  → purchase (Cr to supplier, goods received by mandi)
+// advance_payment → purchase (Dr advance paid to farmer at arrival time)
+// purchase_draft  → purchase (legacy draft entries — treated as purchase for display)
+// sale           → sale
+// sale_payment   → sale_payment (partial payment leg on a sale)
+// cash_receipt   → receive_receipt (cash counter-leg, money received from buyer)
+// cash_payment   → paid_receipt (cash counter-leg, money paid to supplier)
+// v_party        → depends on context (party credit/debit leg)
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+const TX_TYPE_FLOW_MAP: Record<string, string> = {
+    goods_arrival:    'purchase',
+    advance_payment:  'purchase',
+    purchase_draft:   'purchase',
+    purchase:         'purchase',
+    purchase_payment: 'paid_receipt',
+    sale:             'sale',
+    sale_payment:     'sale_payment',
+    // cash_receipt is a cash counter-leg (Dr Cash) for a receipt — money received
+    // NOT the same as sale_payment (which is a partial payment on a sale)
+    cash_receipt:     'receive_receipt',
+    // cash_payment is a cash counter-leg (Cr Cash) for a payment — money paid out
+    cash_payment:     'paid_receipt',
+    payment:          'paid_receipt',
+    receipt:          'receive_receipt',
+    opening_balance:  'opening_balance',
+};
 
 const inferVoucherFlow = (entry: any) => {
     const rawType = String(entry.transaction_type || entry.voucher?.type || "").toLowerCase();
     const text = `${entry.description || ""} ${entry.voucher?.narration || ""} ${entry.voucher?.source || ""}`.toLowerCase();
 
-    if (rawType === 'opening_balance' || text.includes('opening balance')) return 'opening_balance';
+    // Step 1: Explicit mapping from real DB transaction_type values (fastest, most accurate)
+    if (TX_TYPE_FLOW_MAP[rawType]) {
+        const mapped = TX_TYPE_FLOW_MAP[rawType];
+        // For 'receive_receipt', check if it's actually an expense
+        if (mapped === 'receive_receipt' && (text.includes('expense') || entry.account?.type === 'expense')) {
+            return 'expense_receipt';
+        }
+        // For 'paid_receipt', check if it's an expense outflow
+        if (mapped === 'paid_receipt' && (text.includes('expense') || entry.account?.type === 'expense')) {
+            return 'expense_receipt';
+        }
+        return mapped;
+    }
 
-    // Priority 1: Sale payments — receipts tied to a sale invoice / partial settlement
-    // These are the CREDIT leg on the buyer (cash received from buyer for a sale)
+    // Step 2: opening balance override (before text heuristics)
+    if (text.includes('opening balance')) return 'opening_balance';
+
+    // Step 3: Text-based heuristics for legacy/unmapped types
+    // Sale payment: receipt tied to a sale invoice / partial settlement
     if (
-        rawType.includes('sale_payment') ||
-        rawType === 'cash_receipt' ||
         text.includes('sale payment') ||
         (text.includes('partial payment') && text.includes('sale')) ||
         ((text.includes('payment received') || text.includes('payment recvd')) &&
             (text.includes('invoice #') || text.includes('inv #') || text.includes('sale #')))
     ) return 'sale_payment';
 
-    // Priority 2: Receipts — money received from buyer (manual Receive Money dialog)
-    if (rawType === 'receipt' || (rawType.includes('receipt') && rawType !== 'cash_receipt')) {
-        // If it's an expense account or text suggests expense
-        if (text.includes('expense') || entry.account?.type === 'expense') return 'expense_receipt';
-        return 'receive_receipt';
-    }
-
-    // Priority 3: Purchases — from Arrival tab (direct or commission)
+    // Purchase: arrivals, advance payments, lot purchases
     if (
-        rawType.includes('purchase') || 
-        text.includes('bill for arrival') || 
-        text.includes('bill for lot') || 
-        text.includes('lot_purchase') || 
-        text.includes('direct purchase') || 
-        text.includes('commission arrival') || 
+        text.includes('bill for arrival') ||
+        text.includes('bill for lot') ||
+        text.includes('lot_purchase') ||
+        text.includes('direct purchase') ||
+        text.includes('commission arrival') ||
         text.includes('advance paid') ||
+        text.includes('inward purchase') ||
         (text.includes('cash paid') && (text.includes('arrival') || text.includes('lot')))
     ) return 'purchase';
 
-    // Priority 4: Payments / Expenses — money paid out (manual payment dialog / mandi expense)
+    // Expense / Payment out
     if (
-        rawType === 'payment' ||
         rawType.includes('payment') ||
         rawType.includes('expense') ||
         text.includes('expense') ||
@@ -78,8 +112,20 @@ const inferVoucherFlow = (entry: any) => {
         return 'paid_receipt';
     }
 
-    // Priority 5: Sales — from Sale tab
+    // Receipt / money in
+    if (rawType.includes('receipt')) {
+        if (text.includes('expense') || entry.account?.type === 'expense') return 'expense_receipt';
+        return 'receive_receipt';
+    }
+
+    // Sale
     if (rawType.includes('sale') || text.includes('sale invoice') || text.includes('invoice #')) return 'sale';
+
+    // v_party: context-dependent — check debit/credit orientation
+    if (rawType === 'v_party') {
+        if (Number(entry.credit || 0) > 0) return 'receive_receipt'; // money received
+        if (Number(entry.debit || 0) > 0) return 'paid_receipt';    // money paid
+    }
 
     return rawType || 'transaction';
 };
@@ -98,13 +144,18 @@ const extractVoucherBillNo = (entry: any) => {
 const getDuplicateSaleKey = (entry: any) => {
     if (inferVoucherFlow(entry) !== 'sale') return null;
 
+    // Only deduplicate DEBIT legs (goods sold = money owed by buyer).
+    // Income-account counter-legs (Cr to 'Direct Sales Revenue') should NOT
+    // participate in deduplication — they must not shadow the buyer debit leg that
+    // carries contact_id and reference_id, otherwise totalSaleValue = 0.
+    if (Number(entry.debit || 0) <= 0) return null;
+
     const invoiceId = entry.voucher?.invoice_id || entry.reference_id;
     if (invoiceId) {
         return `sale_invoice_${invoiceId}`;
     }
 
     if (!entry.contact_id) return null;
-    if (Number(entry.debit || 0) <= 0) return null;
 
     const billNo = extractVoucherBillNo(entry);
     if (!billNo) return null;
@@ -817,7 +868,25 @@ export default function DayBook() {
             if (error) throw error;
             if (!data) return;
 
-            const activeEntries = data.filter((entry: any) => entry.status !== 'reversed');
+            const activeEntries = data.filter((entry: any) => {
+                // Remove reversed entries
+                if (entry.status === 'reversed') return false;
+
+                // Remove legacy purchase_draft entries — these are unconfirmed arrivals
+                // that should not appear in Day Book financial summaries
+                if (entry.transaction_type === 'purchase_draft') return false;
+
+                // Remove pure balancing counter-legs written by the v5.26 integrity
+                // migration (description='Cash Settlement', type cash_receipt/cash_payment).
+                // These are not real cash flows — they were added to satisfy double-entry
+                // math on legacy single-leg vouchers and should not inflate Day Book.
+                if (
+                    (entry.transaction_type === 'cash_receipt' || entry.transaction_type === 'cash_payment') &&
+                    (entry.description === 'Cash Settlement' || entry.narration === 'Cash Settlement')
+                ) return false;
+
+                return true;
+            });
             const normalizedEntries = activeEntries.filter((entry: any) => !shouldHideDuplicateSaleEntry(entry, activeEntries));
 
             const purchaseReferenceIds = Array.from(new Set(
@@ -1300,20 +1369,34 @@ export default function DayBook() {
                 const type = leg.displayType as string;
 
                 // 1. PURCHASE → Only Purchase Insights
+                //    displayCredit = total purchase value (goods received from supplier)
+                //    displayDebit  = cash paid immediately at time of purchase
                 if (type === 'purchase') {
-                    totalPurchases += (leg.displayCredit || 0);  // Total purchase value
-                    cashPurchases  += (leg.displayDebit  || 0);  // Cash paid immediately
+                    totalPurchases += (leg.displayCredit || 0);  // goods received value
+                    cashPurchases  += (leg.displayDebit  || 0);  // cash paid out
                     return;
                 }
 
                 // 2. SALE → Only Sales Summary
+                //    displayDebit  = total sale value (goods sold to buyer)
+                //    displayCredit = cash collected at time of sale
                 if (type === 'sale') {
-                    totalSales += (leg.displayDebit  || 0);  // Total sale value
-                    cashSales  += (leg.displayCredit || 0);  // Cash / paid portion
+                    totalSales += (leg.displayDebit  || 0);  // goods sold value
+                    cashSales  += (leg.displayCredit || 0);  // cash/bank collected
                     return;
                 }
 
-                // 3. MANUAL RECEIPT → Only Liquid Assets (Inflow)
+                // 2b. SALE PAYMENT → counted under Sales (cash collected after the fact)
+                //     These are partial/later payments from buyer against a sale invoice.
+                //     They add to cashSales but NOT to totalSales (already counted on sale day).
+                if (type === 'sale_payment') {
+                    cashSales += Math.max(leg.displayDebit || 0, leg.displayCredit || 0);
+                    return;
+                }
+
+                // 3. MANUAL RECEIPT (money received from buyer — standalone Receive Money)
+                //    → Only Liquid Assets Inflow
+                //    Does NOT add to Sales (already captured in sale card above)
                 if (type === 'receipt' || type === 'receive_receipt') {
                     const val = Math.max(leg.displayDebit || 0, leg.displayCredit || 0);
                     const isBank = String(leg.account?.account_sub_type || '').toLowerCase() === 'bank'
@@ -1323,7 +1406,9 @@ export default function DayBook() {
                     return;
                 }
 
-                // 4. MANUAL PAYMENT → Only Liquid Assets (Outflow)
+                // 4. MANUAL PAYMENT (money paid to supplier/farmer — standalone Pay Money)
+                //    → Only Liquid Assets Outflow
+                //    Does NOT affect Purchase Insights
                 if (type === 'payment' || type === 'paid_receipt') {
                     const val = Math.max(leg.displayDebit || 0, leg.displayCredit || 0);
                     const isBank = String(leg.account?.account_sub_type || '').toLowerCase() === 'bank'
