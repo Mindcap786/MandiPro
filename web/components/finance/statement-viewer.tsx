@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -21,6 +22,7 @@ interface StatementViewerProps {
 export default function StatementViewer({ contactId, contactName, contactType, onClose }: StatementViewerProps) {
     const { profile } = useAuth();
     const { branding } = usePlatformBranding();
+    const { toast } = useToast();
     const [loading, setLoading] = useState(false);
     const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>(() => {
         const endOfDay = new Date();

@@ -96,7 +96,14 @@ export const CreateArrivalSchema = z.object({
 
   items: z.array(ArrivalItemSchema).min(1, 'At least one item is required')
 }).refine(
-  data => new Date(data.arrival_date) <= new Date(),
+  data => {
+    // Compare date strings only — avoids UTC vs IST midnight boundary issues.
+    // +1 day buffer so IST users are never blocked for "today"
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+    return data.arrival_date <= tomorrowStr;
+  },
   { message: "Arrival date cannot be in the future", path: ["arrival_date"] }
 )
 
