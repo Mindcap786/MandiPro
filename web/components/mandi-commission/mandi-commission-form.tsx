@@ -30,7 +30,8 @@ export function MandiCommissionForm() {
     const [farmers, setFarmers] = useState<any[]>([]);
     const [buyers, setBuyers] = useState<any[]>([]);
     const [commodities, setCommodities] = useState<any[]>([]);
-    const [units, setUnits] = useState<string[]>(["Kg", "Box", "Gram", "Quintal", "Ton"]);
+    const [units, setUnits] = useState<string[]>(["Box", "Crate", "Kgs", "Tons", "Nug", "Pieces", "Carton"]);
+    const [globalUnit, setGlobalUnit] = useState<string>("Box");
     const [settings, setSettings] = useState<any>(null);
 
     // ─────────────────────────────────────────────────────────────
@@ -113,7 +114,7 @@ export function MandiCommissionForm() {
             variety: "",
             grade: "A",
             qty: 0,
-            unit: "Kg",
+            unit: globalUnit,
             rate: 0,
             lessPercent: 0,
             lessUnits: 0,
@@ -166,10 +167,10 @@ export function MandiCommissionForm() {
                 itemName: item?.name || "",
                 variety: item?.variety || "",
                 grade: item?.grade || "A",
-                unit: item?.default_unit || prev.unit || "Kg",
+                unit: globalUnit,
             }) as Partial<MandiSessionFarmerRow>);
         },
-        [commodities]
+        [commodities, globalUnit]
     );
 
     const handleAddRow = () => {
@@ -296,7 +297,7 @@ export function MandiCommissionForm() {
             </div>
 
             {/* Global Header */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm grid grid-cols-4 gap-4">
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm grid grid-cols-5 gap-4">
                 <div>
                     <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Date</Label>
                     <Input type="date" value={sessionDate} onChange={(e) => setSessionDate(e.target.value)} className="h-10 font-bold bg-slate-50 mt-1 rounded-lg" />
@@ -309,6 +310,16 @@ export function MandiCommissionForm() {
                     </div>
                 </div>
                 <div>
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Unit</Label>
+                    <select 
+                        value={globalUnit} 
+                        onChange={(e) => setGlobalUnit(e.target.value)} 
+                        className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 text-sm font-bold text-slate-900 px-3 mt-1"
+                    >
+                        {units.map((u) => (<option key={u} value={u}>{u}</option>))}
+                    </select>
+                </div>
+                <div>
                     <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Vehicle No</Label>
                     <Input placeholder="XX-00-YY-0000" value={vehicleNo} onChange={(e) => setVehicleNo(e.target.value)} className="h-10 font-bold uppercase mt-1 rounded-lg" />
                 </div>
@@ -319,7 +330,7 @@ export function MandiCommissionForm() {
             </div>
 
             {/* Main 3-Column Layout */}
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px_320px] gap-4 items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
                 
                 {/* 1. Added Farmers List */}
                 <div className="bg-slate-50/50 border border-slate-200 rounded-2xl p-4 min-h-[480px]">
@@ -360,7 +371,6 @@ export function MandiCommissionForm() {
 
                     <div className="space-y-4">
                         <div>
-                            <Label className="text-[10px] font-black uppercase tracking-widest text-emerald-600 ml-1">Name</Label>
                              <SearchableSelect
                                 ref={farmerSearchRef}
                                 options={farmers.map((f) => ({
@@ -370,13 +380,12 @@ export function MandiCommissionForm() {
                                 value={currentRow.farmerId || ""}
                                 onChange={handleFarmerSelect}
                                 onSelected={() => itemSearchRef.current?.focus()}
-                                placeholder="Search farmer..."
+                                placeholder="Search Farmer Name..."
                                 className="h-12 text-base font-bold border-2 border-slate-200 mt-1 rounded-xl"
                             />
                         </div>
-
+ 
                         <div>
-                            <Label className="text-[10px] font-black uppercase tracking-widest text-emerald-600 ml-1">Item / Variety</Label>
                             <SearchableSelect
                                 ref={itemSearchRef}
                                 options={commodities.map((i) => ({
@@ -386,48 +395,37 @@ export function MandiCommissionForm() {
                                 value={currentRow.itemId || ""}
                                 onChange={handleItemSelect}
                                 onSelected={() => qtyRef.current?.focus()}
-                                placeholder="Search item..."
+                                placeholder="Search Item / Variety..."
                                 className="h-12 text-base font-bold border-2 border-slate-200 mt-1 rounded-xl"
                             />
                         </div>
-
+ 
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <Label className="text-[10px] font-black uppercase tracking-widest text-emerald-600 ml-1">Qty</Label>
-                                <div className="flex gap-2 mt-1">
-                                    <Input ref={qtyRef} type="number" min={0} step="any" value={currentRow.qty || ""} onChange={(e) => handleCurrentRowChange("qty", parseFloat(e.target.value) || 0)} onKeyDown={(e) => handleKeyDown(e, rateRef)} className={inputCls} placeholder="0" />
-                                    <select value={currentRow.unit || "Kg"} onChange={(e) => handleCurrentRowChange("unit", e.target.value)} className="h-10 rounded-xl border border-slate-200 bg-slate-50 text-sm font-bold text-slate-900 px-3 w-28">
-                                        {units.map((u) => (<option key={u} value={u}>{u}</option>))}
-                                    </select>
-                                </div>
+                                <Input ref={qtyRef} type="number" min={0} step="any" value={currentRow.qty || ""} onChange={(e) => handleCurrentRowChange("qty", parseFloat(e.target.value) || 0)} onKeyDown={(e) => handleKeyDown(e, rateRef)} className={inputCls} placeholder="Qty" />
                             </div>
                              <div>
-                                <Label className="text-[10px] font-black uppercase tracking-widest text-emerald-600 ml-1">Price (₹)</Label>
-                                <Input ref={rateRef} type="number" min={0} step="any" value={currentRow.rate || ""} onChange={(e) => handleCurrentRowChange("rate", parseFloat(e.target.value) || 0)} onKeyDown={(e) => handleKeyDown(e, lessPercentRef)} className={inputCls + " mt-1"} placeholder="0.00" />
+                                <Input ref={rateRef} type="number" min={0} step="any" value={currentRow.rate || ""} onChange={(e) => handleCurrentRowChange("rate", parseFloat(e.target.value) || 0)} onKeyDown={(e) => handleKeyDown(e, lessPercentRef)} className={inputCls} placeholder="Price (₹)" />
                             </div>
                         </div>
-
+ 
                         <div className="grid grid-cols-2 gap-4">
                              <div>
-                                <Label className="text-[10px] font-black uppercase tracking-widest text-emerald-600 ml-1">Less %</Label>
-                                <Input ref={lessPercentRef} type="number" min={0} step="any" value={currentRow.lessPercent || ""} onChange={(e) => handleCurrentRowChange("lessPercent", parseFloat(e.target.value) || 0, "lessPercent")} onKeyDown={(e) => handleKeyDown(e, lessUnitsRef)} className={inputCls + " mt-1 text-red-600"} placeholder="0%" />
+                                <Input ref={lessPercentRef} type="number" min={0} step="any" value={currentRow.lessPercent || ""} onChange={(e) => handleCurrentRowChange("lessPercent", parseFloat(e.target.value) || 0, "lessPercent")} onKeyDown={(e) => handleKeyDown(e, lessUnitsRef)} className={inputCls + " text-red-600"} placeholder="Less %" />
                             </div>
                             <div>
-                                <Label className="text-[10px] font-black uppercase tracking-widest text-emerald-600 ml-1">Less Weight</Label>
-                                <Input ref={lessUnitsRef} type="number" min={0} step="any" value={currentRow.lessUnits || ""} onChange={(e) => handleCurrentRowChange("lessUnits", parseFloat(e.target.value) || 0, "lessUnits")} onKeyDown={(e) => handleKeyDown(e, loadingRef)} className={inputCls + " mt-1 text-red-600"} placeholder="0" />
+                                <Input ref={lessUnitsRef} type="number" min={0} step="any" value={currentRow.lessUnits || ""} onChange={(e) => handleCurrentRowChange("lessUnits", parseFloat(e.target.value) || 0, "lessUnits")} onKeyDown={(e) => handleKeyDown(e, loadingRef)} className={inputCls + " text-red-600"} placeholder="Less Weight" />
                             </div>
                         </div>
-
+ 
                          <div>
-                            <Label className="text-[10px] font-black uppercase tracking-widest text-emerald-600 ml-1">Loading Charges</Label>
-                            <Input ref={loadingRef} type="number" min={0} step="any" value={currentRow.loadingCharges || ""} onChange={(e) => handleCurrentRowChange("loadingCharges", parseFloat(e.target.value) || 0)} onKeyDown={(e) => handleKeyDown(e, commPctRef)} className={inputCls + " mt-1"} placeholder="0" />
+                            <Input ref={loadingRef} type="number" min={0} step="any" value={currentRow.loadingCharges || ""} onChange={(e) => handleCurrentRowChange("loadingCharges", parseFloat(e.target.value) || 0)} onKeyDown={(e) => handleKeyDown(e, commPctRef)} className={inputCls} placeholder="Loading Charges" />
                         </div>
                         
                         <div>
-                            <Label className="text-[10px] font-black uppercase tracking-widest text-emerald-600 ml-1">Default Commission (%)</Label>
-                            <Input ref={commPctRef} type="number" min={0} step="any" value={currentRow.commissionPercent || ""} onChange={(e) => handleCurrentRowChange("commissionPercent", parseFloat(e.target.value) || 0)} onKeyDown={(e) => handleKeyDown(e, addBtnRef)} className={inputCls + " mt-1"} placeholder="0" />
+                            <Input ref={commPctRef} type="number" min={0} step="any" value={currentRow.commissionPercent || ""} onChange={(e) => handleCurrentRowChange("commissionPercent", parseFloat(e.target.value) || 0)} onKeyDown={(e) => handleKeyDown(e, addBtnRef)} className={inputCls} placeholder="Commission %" />
                         </div>
-
+ 
                         <div className="pt-2">
                              <Button 
                                 ref={addBtnRef}
