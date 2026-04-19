@@ -31,8 +31,10 @@ export function SummaryPanel({
     const totalFarmerPayable = farmers.reduce((s, f) => s + (f.netPayable || 0), 0);
 
     // Buyer calculation
-    const buyerItemAmount = totalNetQty * saleRate;
-    const buyerPayable = buyerItemAmount + buyerLoadingCharges + buyerPackingCharges;
+    const buyerGross = farmers.reduce((s, f) => s + (f.grossAmount || 0), 0);
+    const buyerLess = farmers.reduce((s, f) => s + (f.lessAmount || 0), 0);
+    const buyerNet = farmers.reduce((s, f) => s + (f.netAmount || 0), 0);
+    const buyerPayable = buyerNet + buyerLoadingCharges + buyerPackingCharges;
 
     // Mandi earnings
     const mandiEarnings = totalCommission + totalLoading + totalOther;
@@ -86,7 +88,12 @@ export function SummaryPanel({
                         </div>
                     </div>
                     <div className="p-3 space-y-1.5">
-                        <SummaryLine label={`Qty × Rate (${fmtQty(totalNetQty)} × ₹${saleRate})`} value={fmt(buyerItemAmount)} />
+                        <SummaryLine label="Gross Amount" value={fmt(buyerGross)} />
+                        {buyerLess > 0 && (
+                            <SummaryLine label="Less (Deduction)" value={`− ${fmt(buyerLess)}`} dim />
+                        )}
+                        <SummaryLine label="Net Amount" value={fmt(buyerNet)} highlight />
+                        
                         {buyerLoadingCharges > 0 && (
                             <SummaryLine label="Loading Charges" value={`+ ${fmt(buyerLoadingCharges)}`} />
                         )}
