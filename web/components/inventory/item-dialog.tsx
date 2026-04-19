@@ -68,6 +68,8 @@ const itemSchema = z.object({
     tracking_type: z.string().optional(),
     custom_attributes: z.record(z.string(), z.string()).optional(),
     internal_id: z.string().optional().or(z.literal("")),
+    variety: z.string().optional().default(""),
+    grade: z.string().optional().default(""),
 })
 
 type ItemFormValues = z.infer<typeof itemSchema>
@@ -187,8 +189,31 @@ export function ItemDialog({ children, onSuccess, initialItem }: ItemDialogProps
             tracking_type: initialItem?.tracking_type || "none",
             custom_attributes: initialItem?.custom_attributes || {},
             internal_id: initialItem?.internal_id || "",
+            variety: initialItem?.variety || "",
+            grade: initialItem?.grade || "",
         }
     })
+
+    const checkUniqueCombination = async (name: string, variety: string, grade: string) => {
+        if (!name || !profile?.organization_id || initialItem) return
+        const { data } = await supabase
+            .schema('mandi')
+            .from('commodities')
+            .select('id, internal_id')
+            .eq('organization_id', String(profile.organization_id))
+            .ilike('name', name)
+            .ilike('variety', variety || "")
+            .ilike('grade', grade || "")
+            .maybeSingle()
+        
+        if (data) {
+            toast({
+                title: "Duplicate Variant",
+                description: `This Name + Variety + Grade already exists (Code: ${data.internal_id || 'N/A'}).`,
+                variant: "destructive"
+            })
+        }
+    }
 
     const checkIdUniqueness = async (id: string) => {
         if (!id || !profile?.organization_id || initialItem) {
@@ -245,6 +270,8 @@ export function ItemDialog({ children, onSuccess, initialItem }: ItemDialogProps
                 gst_rate: 0,
                 tracking_type: "none",
                 ...sanitized,
+                variety: initialItem?.variety || "",
+                grade: initialItem?.grade || "",
                 custom_attributes: initialAttrs,
             })
             setSelectedImages([])
@@ -328,6 +355,8 @@ export function ItemDialog({ children, onSuccess, initialItem }: ItemDialogProps
                         average_cost: data.average_cost,
                         min_stock_level: data.min_stock_level,
                         internal_id: normalizedInternalId,
+                        variety: data.variety || "",
+                        grade: data.grade || "",
                     })
                     .eq("id", initialItem.id) as any)
                     .abortSignal(controller.signal)
@@ -365,6 +394,8 @@ export function ItemDialog({ children, onSuccess, initialItem }: ItemDialogProps
                         average_cost: data.average_cost || 0,
                         min_stock_level: data.min_stock_level || 0,
                         internal_id: normalizedInternalId,
+                        variety: data.variety || "",
+                        grade: data.grade || "",
                     })
                     .select('id')
                     .single() as any)
@@ -600,26 +631,47 @@ export function ItemDialog({ children, onSuccess, initialItem }: ItemDialogProps
                                             {...form.register("internal_id")}
                                             onBlur={(e) => checkIdUniqueness(e.target.value)}
                                         />
-                                        <p className="text-[9px] text-gray-500 font-medium pl-1">Leave blank — system will assign one.</p>
+                                        <p className="text-[9px] text-gray-500 font-medium pl-1">Each code must be unique in your Mandi.</p>
                                         {idConflict && (
                                             <p className="text-[9px] text-red-600 font-bold uppercase tracking-tight">{idConflict}</p>
                                         )}
                                     </div>
                                     <div className="space-y-2">
-                                        <div className="flex justify-between items-center">
-                                            <Label className="text-[10px] font-black uppercase tracking-widest text-gray-700">Barcode / EAN</Label>
+                                        <Label className="text-[10px] font-black uppercase tracking-widest text-gray-700">Barcode / EAN</Label>
+                                        <div className="relative">
+                                            <Input
+                                                placeholder="Scan or enter barcode"
+                                                className="w-full bg-white border-gray-300 text-gray-900 font-bold h-12 rounded-xl focus:border-indigo-500 transition-all font-mono"
+                                                {...form.register("barcode")}
+                                            />
                                             <button
                                                 type="button"
                                                 onClick={() => form.setValue('barcode', String(Math.floor(Math.random() * 1000000000000)).padStart(12, '0'))}
-                                                className="text-[9px] font-black text-indigo-600 hover:underline px-1 uppercase flex items-center gap-1"
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-indigo-600 hover:text-indigo-700"
                                             >
-                                                <QrCode className="w-3 h-3" /> Generate
+                                                <QrCode className="w-4 h-4" />
                                             </button>
                                         </div>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label className="text-[10px] font-black uppercase tracking-widest text-gray-700">Variety</Label>
                                         <Input
-                                            placeholder="Scan or enter barcode"
-                                            className="w-full bg-white border-gray-300 text-gray-900 font-bold h-12 rounded-xl focus:border-indigo-500 transition-all font-mono"
-                                            {...form.register("barcode")}
+                                            placeholder="e.g. Kashmiri"
+                                            className="w-full bg-white border-gray-300 text-gray-900 font-bold h-12 rounded-xl focus:border-blue-500 transition-all"
+                                            {...form.register("variety")}
+                                            onBlur={() => checkUniqueCombination(form.getValues("name"), form.getValues("variety"), form.getValues("grade"))}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-[10px] font-black uppercase tracking-widest text-gray-700">Grade</Label>
+                                        <Input
+                                            placeholder="e.g. A1"
+                                            className="w-full bg-white border-gray-300 text-gray-900 font-bold h-12 rounded-xl focus:border-blue-500 transition-all"
+                                            {...form.register("grade")}
+                                            onBlur={() => checkUniqueCombination(form.getValues("name"), form.getValues("variety"), form.getValues("grade"))}
                                         />
                                     </div>
                                 </div>

@@ -6,7 +6,6 @@ import { MandiSessionFarmerRow } from "@/hooks/mandi/useMandiSession";
 
 interface SummaryPanelProps {
     farmers: MandiSessionFarmerRow[];
-    saleRate: number;
     buyerLoadingCharges: number;
     buyerPackingCharges: number;
     hasBuyer: boolean;
@@ -15,7 +14,6 @@ interface SummaryPanelProps {
 
 export function SummaryPanel({
     farmers,
-    saleRate,
     buyerLoadingCharges,
     buyerPackingCharges,
     hasBuyer,

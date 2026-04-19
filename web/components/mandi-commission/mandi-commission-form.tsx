@@ -57,9 +57,6 @@ export function MandiCommissionForm() {
     // Refs for keyboard navigation
     const farmerSearchRef = useRef<HTMLButtonElement>(null);
     const itemSearchRef = useRef<HTMLButtonElement>(null);
-    const internalCodeRef = useRef<HTMLInputElement>(null);
-    const varietyRef = useRef<HTMLInputElement>(null);
-    const gradeRef = useRef<HTMLInputElement>(null);
     const qtyRef = useRef<HTMLInputElement>(null);
     const rateRef = useRef<HTMLInputElement>(null);
     const lessPercentRef = useRef<HTMLInputElement>(null);
@@ -169,10 +166,10 @@ export function MandiCommissionForm() {
                 ...prev,
                 itemId,
                 itemName: item?.name || "",
-                internalCode: item?.internal_code || item?.code || "",
+                internalCode: item?.internal_id || "",
                 variety: item?.variety || "",
-                grade: item?.grade || "A",
-                unit: globalUnit,
+                grade: item?.grade || "",
+                unit: item?.default_unit || globalUnit,
             }) as Partial<MandiSessionFarmerRow>);
         },
         [commodities, globalUnit]
@@ -281,9 +278,8 @@ export function MandiCommissionForm() {
     // Renders
     // ─────────────────────────────────────────────────────────────
     const buildItemLabel = (item: any) => {
-        const code = item.internal_code || item.code || "";
         const parts = [];
-        if (code) parts.push(`[${code}]`);
+        if (item.internal_id) parts.push(`[${item.internal_id}]`);
         parts.push(item.name);
         if (item.variety) parts.push(`- ${item.variety}`);
         if (item.grade) parts.push(`(${item.grade})`);
@@ -400,16 +396,10 @@ export function MandiCommissionForm() {
                                 }))}
                                 value={currentRow.itemId || ""}
                                 onChange={handleItemSelect}
-                                onSelected={() => internalCodeRef.current?.focus()}
+                                onSelected={() => qtyRef.current?.focus()}
                                 placeholder="Search Item / Variety..."
                                 className="h-12 text-base font-bold border-2 border-slate-200 mt-1 rounded-xl"
                             />
-                        </div>
-
-                        <div className="grid grid-cols-3 gap-2">
-                             <Input ref={internalCodeRef} value={currentRow.internalCode || ""} onChange={(e) => handleCurrentRowChange("internalCode", e.target.value)} onKeyDown={(e) => handleKeyDown(e, varietyRef)} className={inputCls} placeholder="Code" />
-                             <Input ref={varietyRef} value={currentRow.variety || ""} onChange={(e) => handleCurrentRowChange("variety", e.target.value)} onKeyDown={(e) => handleKeyDown(e, gradeRef)} className={inputCls} placeholder="Variety" />
-                             <Input ref={gradeRef} value={currentRow.grade || ""} onChange={(e) => handleCurrentRowChange("grade", e.target.value)} onKeyDown={(e) => handleKeyDown(e, qtyRef)} className={inputCls} placeholder="Grade" />
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
@@ -463,7 +453,6 @@ export function MandiCommissionForm() {
                         farmers={rows}
                         hasBuyer={!!buyerId}
                         buyerName={buyers.find(b => b.id === buyerId)?.name}
-                        saleRate={0} // saleRate field removed from summary too as it's derived
                         buyerLoadingCharges={buyerLoading}
                         buyerPackingCharges={buyerPacking}
                     />
