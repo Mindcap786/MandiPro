@@ -55,6 +55,17 @@ export function MandiCommissionForm() {
     const [committedSessionData, setCommittedSessionData] = useState<any>(null);
 
     // Refs for keyboard navigation
+    const farmerSearchRef = useRef<HTMLButtonElement>(null);
+    const itemSearchRef = useRef<HTMLButtonElement>(null);
+    const qtyRef = useRef<HTMLInputElement>(null);
+    const rateRef = useRef<HTMLInputElement>(null);
+    const lessPercentRef = useRef<HTMLInputElement>(null);
+    const lessUnitsRef = useRef<HTMLInputElement>(null);
+    const loadingRef = useRef<HTMLInputElement>(null);
+    const commPctRef = useRef<HTMLInputElement>(null);
+    const addBtnRef = useRef<HTMLButtonElement>(null);
+    const buyerSearchRef = useRef<HTMLButtonElement>(null);
+    const saleRateRef = useRef<HTMLInputElement>(null);
     const formRef = useRef<HTMLDivElement>(null);
     const buyerRef = useRef<HTMLDivElement>(null);
 
@@ -119,10 +130,7 @@ export function MandiCommissionForm() {
         
         // Auto-focus first field when resetting
         setTimeout(() => {
-            if (formRef.current) {
-                const firstInput = formRef.current.querySelector('input, select, button') as HTMLElement;
-                if (firstInput) firstInput.focus();
-            }
+            farmerSearchRef.current?.focus();
         }, 50);
     };
 
@@ -188,33 +196,18 @@ export function MandiCommissionForm() {
 
     // Keyboard Navigation Logic
     const handleKeyDown = useCallback(
-        (e: React.KeyboardEvent<HTMLElement>, isLast: boolean) => {
+        (e: React.KeyboardEvent<HTMLElement>, nextField?: React.RefObject<any>) => {
             if (e.key === "Enter") {
                 e.preventDefault();
-                if (isLast) {
+                if (nextField?.current) {
+                    nextField.current.focus();
+                } else if (e.currentTarget.classList.contains("add-btn")) {
                     handleAddRow();
-                } else {
-                    // Focus next input in the form
-                    if (formRef.current) {
-                        const formElements = Array.from(
-                            formRef.current.querySelectorAll("input:not([disabled]), select:not([disabled]), button.add-btn")
-                        ) as HTMLElement[];
-                        const currentIdx = formElements.findIndex(el => el === e.target || el.contains(e.target as Node));
-                        if (currentIdx !== -1 && currentIdx < formElements.length - 1) {
-                            formElements[currentIdx + 1].focus();
-                        } else if (currentIdx === formElements.length - 1) {
-                             // Also trigger add if focusing button
-                             handleAddRow();
-                        }
-                    }
                 }
-            } else if (e.key === "Tab" && isLast) {
-                // If it's the tab out of the Add button or last field, maybe go down to buyer section
-                // Default browser tab action actually acts fine, but we can explicitly focus buyer if we want.
-                // Let browser handle standard tab flow.
             }
         },
-        [currentRow, formRef]
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [currentRow]
     );
 
 
@@ -368,13 +361,15 @@ export function MandiCommissionForm() {
                     <div className="space-y-4">
                         <div>
                             <Label className="text-[10px] font-black uppercase tracking-widest text-emerald-600 ml-1">Name</Label>
-                            <SearchableSelect
+                             <SearchableSelect
+                                ref={farmerSearchRef}
                                 options={farmers.map((f) => ({
                                     label: `${f.name}${f.city ? ` (${f.city})` : ""}`,
                                     value: f.id,
                                 }))}
                                 value={currentRow.farmerId || ""}
                                 onChange={handleFarmerSelect}
+                                onSelected={() => itemSearchRef.current?.focus()}
                                 placeholder="Search farmer..."
                                 className="h-12 text-base font-bold border-2 border-slate-200 mt-1 rounded-xl"
                             />
@@ -383,12 +378,14 @@ export function MandiCommissionForm() {
                         <div>
                             <Label className="text-[10px] font-black uppercase tracking-widest text-emerald-600 ml-1">Item / Variety</Label>
                             <SearchableSelect
+                                ref={itemSearchRef}
                                 options={commodities.map((i) => ({
                                     label: buildItemLabel(i),
                                     value: i.id,
                                 }))}
                                 value={currentRow.itemId || ""}
                                 onChange={handleItemSelect}
+                                onSelected={() => qtyRef.current?.focus()}
                                 placeholder="Search item..."
                                 className="h-12 text-base font-bold border-2 border-slate-200 mt-1 rounded-xl"
                             />
@@ -398,44 +395,45 @@ export function MandiCommissionForm() {
                             <div>
                                 <Label className="text-[10px] font-black uppercase tracking-widest text-emerald-600 ml-1">Qty</Label>
                                 <div className="flex gap-2 mt-1">
-                                    <Input type="number" min={0} step="any" value={currentRow.qty || ""} onChange={(e) => handleCurrentRowChange("qty", parseFloat(e.target.value) || 0)} onKeyDown={(e) => handleKeyDown(e, false)} className={inputCls} placeholder="0" />
+                                    <Input ref={qtyRef} type="number" min={0} step="any" value={currentRow.qty || ""} onChange={(e) => handleCurrentRowChange("qty", parseFloat(e.target.value) || 0)} onKeyDown={(e) => handleKeyDown(e, rateRef)} className={inputCls} placeholder="0" />
                                     <select value={currentRow.unit || "Kg"} onChange={(e) => handleCurrentRowChange("unit", e.target.value)} className="h-10 rounded-xl border border-slate-200 bg-slate-50 text-sm font-bold text-slate-900 px-3 w-28">
                                         {units.map((u) => (<option key={u} value={u}>{u}</option>))}
                                     </select>
                                 </div>
                             </div>
-                            <div>
+                             <div>
                                 <Label className="text-[10px] font-black uppercase tracking-widest text-emerald-600 ml-1">Price (₹)</Label>
-                                <Input type="number" min={0} step="any" value={currentRow.rate || ""} onChange={(e) => handleCurrentRowChange("rate", parseFloat(e.target.value) || 0)} onKeyDown={(e) => handleKeyDown(e, false)} className={inputCls + " mt-1"} placeholder="0.00" />
+                                <Input ref={rateRef} type="number" min={0} step="any" value={currentRow.rate || ""} onChange={(e) => handleCurrentRowChange("rate", parseFloat(e.target.value) || 0)} onKeyDown={(e) => handleKeyDown(e, lessPercentRef)} className={inputCls + " mt-1"} placeholder="0.00" />
                             </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
-                            <div>
+                             <div>
                                 <Label className="text-[10px] font-black uppercase tracking-widest text-emerald-600 ml-1">Less %</Label>
-                                <Input type="number" min={0} step="any" value={currentRow.lessPercent || ""} onChange={(e) => handleCurrentRowChange("lessPercent", parseFloat(e.target.value) || 0, "lessPercent")} onKeyDown={(e) => handleKeyDown(e, false)} className={inputCls + " mt-1 text-red-600"} placeholder="0%" />
+                                <Input ref={lessPercentRef} type="number" min={0} step="any" value={currentRow.lessPercent || ""} onChange={(e) => handleCurrentRowChange("lessPercent", parseFloat(e.target.value) || 0, "lessPercent")} onKeyDown={(e) => handleKeyDown(e, lessUnitsRef)} className={inputCls + " mt-1 text-red-600"} placeholder="0%" />
                             </div>
                             <div>
                                 <Label className="text-[10px] font-black uppercase tracking-widest text-emerald-600 ml-1">Less Weight</Label>
-                                <Input type="number" min={0} step="any" value={currentRow.lessUnits || ""} onChange={(e) => handleCurrentRowChange("lessUnits", parseFloat(e.target.value) || 0, "lessUnits")} onKeyDown={(e) => handleKeyDown(e, false)} className={inputCls + " mt-1 text-red-600"} placeholder="0" />
+                                <Input ref={lessUnitsRef} type="number" min={0} step="any" value={currentRow.lessUnits || ""} onChange={(e) => handleCurrentRowChange("lessUnits", parseFloat(e.target.value) || 0, "lessUnits")} onKeyDown={(e) => handleKeyDown(e, loadingRef)} className={inputCls + " mt-1 text-red-600"} placeholder="0" />
                             </div>
                         </div>
 
-                        <div>
+                         <div>
                             <Label className="text-[10px] font-black uppercase tracking-widest text-emerald-600 ml-1">Loading Charges</Label>
-                            <Input type="number" min={0} step="any" value={currentRow.loadingCharges || ""} onChange={(e) => handleCurrentRowChange("loadingCharges", parseFloat(e.target.value) || 0)} onKeyDown={(e) => handleKeyDown(e, false)} className={inputCls + " mt-1"} placeholder="0" />
+                            <Input ref={loadingRef} type="number" min={0} step="any" value={currentRow.loadingCharges || ""} onChange={(e) => handleCurrentRowChange("loadingCharges", parseFloat(e.target.value) || 0)} onKeyDown={(e) => handleKeyDown(e, commPctRef)} className={inputCls + " mt-1"} placeholder="0" />
                         </div>
                         
                         <div>
                             <Label className="text-[10px] font-black uppercase tracking-widest text-emerald-600 ml-1">Default Commission (%)</Label>
-                            <Input type="number" min={0} step="any" value={currentRow.commissionPercent || ""} onChange={(e) => handleCurrentRowChange("commissionPercent", parseFloat(e.target.value) || 0)} onKeyDown={(e) => handleKeyDown(e, false)} className={inputCls + " mt-1"} placeholder="0" />
+                            <Input ref={commPctRef} type="number" min={0} step="any" value={currentRow.commissionPercent || ""} onChange={(e) => handleCurrentRowChange("commissionPercent", parseFloat(e.target.value) || 0)} onKeyDown={(e) => handleKeyDown(e, addBtnRef)} className={inputCls + " mt-1"} placeholder="0" />
                         </div>
 
                         <div className="pt-2">
-                            <Button 
+                             <Button 
+                                ref={addBtnRef}
                                 type="button"
                                 onClick={handleAddRow}
-                                onKeyDown={(e) => { if(e.key === 'Enter') handleAddRow(); }}
+                                onKeyDown={(e) => handleKeyDown(e)}
                                 className="add-btn w-full h-14 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black text-xl tracking-widest shadow-lg shadow-emerald-500/20 shadow-[inset_0px_1px_1px_rgba(255,255,255,0.4)] transition-all"
                             >
                                 [Add] <Plus className="ml-2 w-6 h-6" />
@@ -473,18 +471,20 @@ export function MandiCommissionForm() {
                     <Label className="text-[10px] font-black uppercase tracking-widest text-blue-600 ml-1 flex items-center gap-2 mb-2">
                         🤝 Buyer Name (Sale)
                     </Label>
-                    <SearchableSelect
+                     <SearchableSelect
+                        ref={buyerSearchRef}
                         options={buyers.map(b => ({ label: `${b.name}${b.city ? ` (${b.city})` : ""}`, value: b.id }))}
                         value={buyerId || ""}
                         onChange={setBuyerId}
+                        onSelected={() => saleRateRef.current?.focus()}
                         placeholder="Search buyer..."
                         className="h-12 text-base font-bold border-blue-200 focus:border-blue-500 bg-white rounded-xl"
                     />
                      {buyerId && (
                         <div className="grid grid-cols-2 gap-2 mt-3">
-                             <div>
+                              <div>
                                 <Label className="text-[9px] font-bold text-blue-500 ml-1 mb-1 block">Sale Rate (₹)</Label>
-                                <Input type="number" min={0} step="any" placeholder="0.00" value={saleRate || ""} onChange={(e) => setSaleRate(parseFloat(e.target.value) || 0)} className="h-10 font-bold border-blue-200 bg-white rounded-lg" />
+                                <Input ref={saleRateRef} type="number" min={0} step="any" placeholder="0.00" value={saleRate || ""} onChange={(e) => setSaleRate(parseFloat(e.target.value) || 0)} className="h-10 font-bold border-blue-200 bg-white rounded-lg" />
                              </div>
                         </div>
                     )}

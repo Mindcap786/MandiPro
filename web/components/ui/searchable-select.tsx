@@ -19,19 +19,12 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover"
 
-interface SearchableSelectProps {
-    options: { label: string; value: string }[]
-    value?: string
-    onChange: (value: string) => void
-    placeholder?: string
-    searchPlaceholder?: string
-    emptyMessage?: string
-    disabled?: boolean
     className?: string
     error?: boolean
+    onSelected?: (value: string) => void
 }
 
-export function SearchableSelect({
+export const SearchableSelect = React.forwardRef<HTMLButtonElement, SearchableSelectProps>(({
     options,
     value,
     onChange,
@@ -41,7 +34,8 @@ export function SearchableSelect({
     disabled = false,
     className,
     error = false,
-}: SearchableSelectProps) {
+    onSelected,
+}, ref) => {
     const [open, setOpen] = React.useState(false)
 
     // Find the label for the current value
@@ -53,6 +47,7 @@ export function SearchableSelect({
         <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
                 <Button
+                    ref={ref}
                     variant="outline"
                     role="combobox"
                     aria-expanded={open}
@@ -89,10 +84,12 @@ export function SearchableSelect({
                                     onSelect={() => {
                                         onChange(option.value)
                                         setOpen(false)
+                                        onSelected?.(option.value)
                                     }}
                                     onClick={() => {
                                         onChange(option.value)
                                         setOpen(false)
+                                        onSelected?.(option.value)
                                     }}
                                     className="!pointer-events-auto flex items-center gap-2 px-2 py-2 rounded-md font-black text-sm text-black hover:bg-slate-100 cursor-pointer aria-selected:bg-slate-100 data-[selected='true']:bg-blue-50 data-[selected='true']:text-blue-700 transition-colors"
                                 >
