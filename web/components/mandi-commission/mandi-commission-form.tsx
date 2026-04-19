@@ -85,8 +85,8 @@ export function MandiCommissionForm() {
             ]);
 
             if (contactsRes.data) {
-                setFarmers(contactsRes.data.filter(c => c.type === 'supplier' || c.type === 'both'));
-                setBuyers(contactsRes.data.filter(c => c.type === 'customer' || c.type === 'both'));
+                setFarmers(contactsRes.data.filter(c => c.type === 'farmer' || c.type === 'supplier' || c.type === 'both'));
+                setBuyers(contactsRes.data.filter(c => c.type === 'buyer' || c.type === 'customer' || c.type === 'both'));
             }
             if (commRes.data) setCommodities(commRes.data);
             if (setsRes.data) {
@@ -360,14 +360,8 @@ export function MandiCommissionForm() {
                 </div>
 
                 {/* 2. Farmer Details Form (Active) */}
-                <div ref={formRef} className="bg-white border-2 border-emerald-100 rounded-2xl p-5 shadow-lg shadow-emerald-500/5 relative overflow-hidden">
+                <div ref={formRef} className="bg-white border-2 border-emerald-100 rounded-2xl p-5 pt-4 shadow-lg shadow-emerald-500/5 relative overflow-hidden">
                     <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-emerald-400 to-teal-400"></div>
-                    <div className="flex flex-col items-center mb-6 mt-2">
-                        <div className="w-16 h-16 rounded-full bg-emerald-50 border-4 border-white shadow flex items-center justify-center mb-3 text-emerald-600">
-                            <User className="w-8 h-8" />
-                        </div>
-                        <h2 className="text-xl font-black text-slate-800 tracking-tight">Farmer details</h2>
-                    </div>
 
                     <div className="space-y-4">
                         <div>
