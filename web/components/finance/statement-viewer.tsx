@@ -515,22 +515,14 @@ export default function StatementViewer({ contactId, contactName, contactType, o
                                                                         <div className="w-1.5 h-1.5 rounded-full bg-slate-300 mt-1.5 shrink-0"></div>
                                                                         <div className="flex flex-col gap-0.5 min-w-0">
                                                                             <span className="text-sm font-black text-slate-700">{p.name || p.item_name}</span>
-                                                                            {/* Show lot code if available */}
                                                                             {(p.lot_code || p.lot_no) && (
                                                                                 <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
                                                                                     Lot: {p.lot_code || `#${p.lot_no}`}
                                                                                 </span>
                                                                             )}
-                                                                            {/* Commission deduction detail */}
-                                                                            {asNumber(p.commission_pct) > 0 && (
-                                                                                <span className="text-[11px] text-amber-600 font-bold">
-                                                                                    Commission {p.commission_pct}%: −₹{asNumber(p.commission_amount).toLocaleString('en-IN', {maximumFractionDigits: 0})}
-                                                                                </span>
-                                                                            )}
                                                                         </div>
                                                                     </div>
                                                                     <div className="flex flex-col items-end shrink-0">
-                                                                        {/* Qty × Rate */}
                                                                         <span className="text-xs text-slate-600 font-mono font-bold">
                                                                             {asNumber(p.qty).toLocaleString('en-IN', { maximumFractionDigits: 2 })}{' '}
                                                                             <span className="opacity-70">{p.unit}</span>
@@ -538,13 +530,6 @@ export default function StatementViewer({ contactId, contactName, contactType, o
                                                                                 <> @ ₹{asNumber(p.rate).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</>
                                                                             )}
                                                                         </span>
-                                                                        {/* Gross amount (before commission) */}
-                                                                        {asNumber(p.gross_amount) > 0 && asNumber(p.commission_pct) > 0 && (
-                                                                            <span className="text-[10px] text-slate-400 font-mono line-through">
-                                                                                ₹{asNumber(p.gross_amount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-                                                                            </span>
-                                                                        )}
-                                                                        {/* Net payable to farmer */}
                                                                         <span className="text-[12px] text-emerald-600 font-black mt-0.5">
                                                                             ₹{asNumber(p.net_amount ?? p.amount ?? p.line_amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                                         </span>
