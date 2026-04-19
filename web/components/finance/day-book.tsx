@@ -224,8 +224,10 @@ const isSaleSettlementReceiptEntry = (entry: any) => {
         );
     }
     
-    // Pattern 5: Any credit entry on sale flowType (payment leg of settlement)
-    if (flowType === 'sale') return true;
+    // Pattern 5: REMOVED — Sales Revenue credit legs are accounting counter-entries,
+    // NOT payment receipts. Treating them as payments caused credit/udhaar sales to
+    // incorrectly show as "SALE - FULL AMOUNT". Actual payments are caught by
+    // Patterns 1-4 via their receipt transaction_type.
     
     return false;
 };

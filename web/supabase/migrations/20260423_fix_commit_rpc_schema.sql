@@ -102,12 +102,12 @@ BEGIN
         
         INSERT INTO mandi.lots (
             organization_id, arrival_id, item_id, lot_code, 
-            initial_qty, current_qty, gross_quantity, unit, 
+            contact_id, initial_qty, current_qty, gross_quantity, unit, 
             supplier_rate, commission_percent, less_percent, less_units,
             loading_cost, farmer_charges, variety, grade,
             arrival_type, status
         ) VALUES (
-            v_org_id, v_arrival_id, v_farmer.item_id, v_lot_code, 
+            v_org_id, v_arrival_id, v_farmer.item_id, v_lot_code, v_farmer.farmer_id, 
             v_net_qty, v_net_qty, v_farmer.qty, v_farmer.unit, 
             v_farmer.rate, v_farmer.commission_percent, v_farmer.less_percent, v_less_units_calc,
             v_farmer.loading_charges, v_farmer.other_charges, v_farmer.variety, v_farmer.grade,
