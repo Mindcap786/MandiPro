@@ -98,6 +98,44 @@ export async function middleware(request: NextRequest) {
         }
     }
 
+    // 5b. ADMIN ROLE ENFORCEMENT — server-side gate for /admin/* pages
+    //     Previously only guarded by a client-side useEffect in admin/layout.tsx,
+    //     which is bypassable if JS is disabled or the profile fetch is slow.
+    //     This block mirrors the logic in lib/admin-auth.ts (super_admin role OR
+    //     presence in core.super_admins table).
+    if (user && path.startsWith('/admin')) {
+        let authorized = false;
+        try {
+            const { data: profile } = await supabase
+                .schema('core')
+                .from('profiles')
+                .select('role')
+                .eq('id', user.id)
+                .maybeSingle();
+
+            if (profile?.role === 'super_admin') {
+                authorized = true;
+            } else {
+                const { data: superAdminRow } = await supabase
+                    .schema('core')
+                    .from('super_admins')
+                    .select('id')
+                    .eq('id', user.id)
+                    .maybeSingle();
+                if (superAdminRow) authorized = true;
+            }
+        } catch {
+            // fail-closed: on any DB error, redirect to /dashboard
+            authorized = false;
+        }
+
+        if (!authorized) {
+            const dashUrl = request.nextUrl.clone();
+            dashUrl.pathname = '/dashboard';
+            return NextResponse.redirect(dashUrl);
+        }
+    }
+
     // 6. ADMIN API PROTECTION — return 401 JSON (not redirect) for unauth'd API calls
     if (path.startsWith('/api/admin')) {
         const authHeader = request.headers.get('Authorization');

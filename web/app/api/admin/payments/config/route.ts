@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { verifyAdminAccess } from '@/lib/admin-auth';
 
 const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -8,8 +9,13 @@ const supabaseAdmin = createClient(
 );
 
 // GET: Fetch current config (Masking secrets)
-export async function GET() {
+export async function GET(req: NextRequest) {
     try {
+        const auth = await verifyAdminAccess(req, 'payments', 'read');
+        if (auth.error) {
+            return NextResponse.json({ error: auth.error }, { status: auth.status });
+        }
+
         const { data, error } = await supabaseAdmin
             .from('payment_config')
             .select('*');
@@ -32,8 +38,13 @@ export async function GET() {
 }
 
 // POST: Save config
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
     try {
+        const auth = await verifyAdminAccess(request, 'payments', 'write');
+        if (auth.error) {
+            return NextResponse.json({ error: auth.error }, { status: auth.status });
+        }
+
         const { id, gateway_type, is_active, config } = await request.json();
 
         // 1. If this gateway is being set to active, deactivate all others

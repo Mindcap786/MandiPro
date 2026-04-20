@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { verifyAdminAccess } from '@/lib/admin-auth';
 
 // Server-side route that uses the SERVICE ROLE KEY to perform administrative actions
 const supabaseAdmin = createClient(
@@ -8,8 +9,13 @@ const supabaseAdmin = createClient(
     { auth: { autoRefreshToken: false, persistSession: false } }
 );
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
     try {
+        const auth = await verifyAdminAccess(request, 'users', 'reset_password');
+        if (auth.error) {
+            return NextResponse.json({ error: auth.error }, { status: auth.status });
+        }
+
         const { userId, newPassword } = await request.json();
 
         if (!userId || !newPassword) {

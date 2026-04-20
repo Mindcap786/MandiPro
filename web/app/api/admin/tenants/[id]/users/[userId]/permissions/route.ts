@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse, NextRequest } from 'next/server';
+import { verifyAdminAccess } from '@/lib/admin-auth';
 // Static export: nested dynamic API routes need combined params shape
 export const dynamic = 'force-static';
 // Returns empty array satisfying Next.js static export requirement for both [id] and [userId]
@@ -17,6 +18,11 @@ export async function POST(
     { params }: { params: { id: string, userId: string } }
 ) {
     try {
+        const auth = await verifyAdminAccess(request, 'permissions', 'write');
+        if (auth.error) {
+            return NextResponse.json({ error: auth.error }, { status: auth.status });
+        }
+
         const { rbac_matrix } = await request.json();
         const { id: orgId, userId } = params;
 

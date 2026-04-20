@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { verifyAdminAccess } from '@/lib/admin-auth';
 
 const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -7,8 +8,13 @@ const supabaseAdmin = createClient(
     { auth: { autoRefreshToken: false, persistSession: false } }
 );
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
     try {
+        const auth = await verifyAdminAccess(request, 'employees', 'delete');
+        if (auth.error) {
+            return NextResponse.json({ error: auth.error }, { status: auth.status });
+        }
+
         const { employeeId, organizationId } = await request.json();
 
         if (!employeeId) {

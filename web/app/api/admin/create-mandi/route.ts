@@ -1,13 +1,20 @@
 import { createClient } from '@supabase/supabase-js'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { Database } from '@/lib/database.types'
+import { verifyAdminAccess } from '@/lib/admin-auth'
 
 // Initialize Supabase Admin Client
 // Note: This requires SUPABASE_SERVICE_ROLE_KEY to be set in environment variables
 // Client initialized inside handler for safety
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
     try {
+        // 0. ADMIN ACCESS GATE — super_admin only (matches /api/admin/provision)
+        const auth = await verifyAdminAccess(req, 'tenants', 'create');
+        if (auth.error) {
+            return NextResponse.json({ error: auth.error }, { status: auth.status });
+        }
+
         // 1. Check for Service Role Key (Security Check)
         if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
             return NextResponse.json(

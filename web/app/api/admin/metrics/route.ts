@@ -7,23 +7,8 @@
  * Replaces the 4 separate raw Supabase queries in admin/page.tsx fetchAll().
  * Secured: super_admin role only.
  */
-import { NextResponse } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
-
-function createAdminServerClient() {
-  const cookieStore = cookies()
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() { return cookieStore.getAll() },
-        setAll() {},
-      },
-    }
-  )
-}
+import { NextRequest, NextResponse } from 'next/server'
+import { verifyAdminAccess } from '@/lib/admin-auth'
 
 function createServiceClient() {
   const { createClient } = require('@supabase/supabase-js')
@@ -51,26 +36,11 @@ interface PlatformMetrics {
   system_status: 'healthy' | 'degraded' | 'critical'
 }
 
-export async function GET() {
-  // === TEMP AUTH BYPASS FOR DEBUG ===
-  /*
-  const supabase = createAdminServerClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+export async function GET(req: NextRequest) {
+  const auth = await verifyAdminAccess(req, 'metrics', 'read')
+  if (auth.error) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status })
   }
-
-  const { data: profile } = await supabase
-    .schema('core')
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (profile?.role !== 'super_admin') {
-    return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
-  }
-  */
 
   // Use service role for cross-tenant reads
   const admin = createServiceClient()
