@@ -215,7 +215,7 @@ const isSaleSettlementReceiptEntry = (entry: any) => {
     if (text.includes('sales revenue') && text.includes('inv #')) return true;
     
     // Pattern 4: Receipt entries linked to sales
-    if (flowType === 'receipt') {
+    if (flowType === 'receipt' || flowType === 'receive_receipt') {
         return (
             !!entry.voucher?.invoice_id ||
             text.includes('invoice #') ||
@@ -1987,7 +1987,7 @@ export default function DayBook() {
                                     if (!(g as any).hasCash) return false;
                                     if (cashFilter === 'inflow')    return g.legs.some((l: any) => (l.displayCredit || 0) > 0);
                                     if (cashFilter === 'outflow')   return g.legs.some((l: any) => (l.displayDebit || 0) > 0 && ['purchase','payment','paid_receipt','expense_receipt'].includes(l.displayType));
-                                    if (cashFilter === 'sales')     return g.legs.some((l: any) => l.displayType === 'sale' || l.displayType === 'sale_payment' || l.displayType === 'receipt');
+                                    if (cashFilter === 'sales')     return g.legs.some((l: any) => l.displayType === 'sale' || l.displayType === 'sale_payment' || l.displayType === 'receipt' || l.displayType === 'receive_receipt');
                                     if (cashFilter === 'purchases') return g.legs.some((l: any) => l.displayType === 'purchase');
                                     return true;
                                 }).length} results
