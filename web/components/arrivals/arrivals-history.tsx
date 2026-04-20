@@ -32,9 +32,11 @@ export default function ArrivalsHistory() {
     const { profile } = useAuth()
     
     // CRITICAL FIX: Validate profile data before using it
-    const _orgId = String(profile?.organization_id || "");
-    if (!_orgId || _orgId === '[object Object]' || _orgId === 'undefined') {
-        console.warn("[ArrivalsHistory] Profile not loaded or invalid organization_id:", _orgId);
+    const rawOrgId = profile?.organization_id;
+    const _orgId = (rawOrgId && typeof rawOrgId === 'string' && rawOrgId !== '[object Object]') ? rawOrgId : "";
+    
+    if (!_orgId) {
+        console.warn("[ArrivalsHistory] Invalid organization_id detected:", rawOrgId);
     }
     
     const _cached = _orgId ? cacheGet<any>('arrivals_history', _orgId) : null;
@@ -110,7 +112,10 @@ export default function ArrivalsHistory() {
         }
 
         try {
-            if (!profile?.organization_id) return;
+            if (!_orgId) {
+                setLoading(false);
+                return;
+            }
 
             const schema = 'mandi';
             
