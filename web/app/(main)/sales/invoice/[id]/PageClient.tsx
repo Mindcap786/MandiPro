@@ -87,7 +87,13 @@ export default function SaleInvoicePage() {
             const total = Number(saleResult.data.total_amount_inc_tax || saleResult.data.total_amount || 0)
             const amountReceivedFromDB = Number(saleResult.data.amount_received ?? 0);
 
-            const payment_summary = balanceData || {
+            // RCA FIX: get_invoice_balance RPC returns `amount_paid`, NOT `amount_received`.
+            // When balanceData is truthy (RPC succeeded), we must explicitly map
+            // `amount_paid` → `amount_received` so the invoice template can read it.
+            const payment_summary = balanceData ? {
+                ...balanceData,
+                amount_received: Number(balanceData.amount_paid ?? 0), // normalise field name
+            } : {
                 amount_paid: amountReceivedFromDB,
                 amount_received: amountReceivedFromDB,
                 balance_due: Math.max(0, total - amountReceivedFromDB),

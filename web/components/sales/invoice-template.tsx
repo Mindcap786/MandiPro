@@ -38,6 +38,19 @@ export default function BuyerInvoice({ sale, organization, onRefresh }: InvoiceT
     const avgRate = totalQty > 0 ? (subtotal / totalQty) : 0
     const isCreditSale = sale.payment_mode === 'credit' || !sale.payment_mode;
 
+    // ── Single source of truth for received amount ────────────────────────────
+    // IMPORTANT: get_invoice_balance RPC returns the field as `amount_paid`.
+    //            The direct mandi.sales DB column is `amount_received`.
+    //            Always chain both so we never show ₹0 when payment exists.
+    const amountReceived = Number(
+        sale.amount_received
+        ?? sale.payment_summary?.amount_received
+        ?? sale.payment_summary?.amount_paid // field name used by get_invoice_balance RPC
+        ?? 0
+    );
+    const balanceDue = Math.max(0, totalInvoiceAmount - amountReceived);
+    // ─────────────────────────────────────────────────────────────────────────
+
     const fullAddress = [
         organization?.address_line1,
         organization?.address_line2,
@@ -201,22 +214,21 @@ export default function BuyerInvoice({ sale, organization, onRefresh }: InvoiceT
                         <div className="py-4 border-t border-gray-100 flex flex-col gap-4">
                             {/* UPI QR Code for Pending Balance */}
                             {(organization?.settings?.payment?.print_upi_qr && organization?.settings?.payment?.upi_id) && (() => {
-                                const amountReceivedVal = Number(sale.amount_received ?? sale.payment_summary?.amount_received ?? 0);
-                                const pendingAmount = Math.max(0, totalInvoiceAmount - amountReceivedVal);
-                                if (pendingAmount <= 0) return null;
+                                // Use top-level normalised variable (RCA fix)
+                                if (balanceDue <= 0) return null;
 
                                 return (
                                     <div className="flex flex-col items-center gap-1.5 p-2 bg-gray-50 rounded-xl border border-gray-100 w-fit">
                                         <span className="text-[8px] font-black uppercase tracking-widest text-orange-500 italic">Scan to Pay</span>
                                         <QRCodeSVG
-                                            value={`upi://pay?pa=${organization.settings.payment.upi_id}&pn=${encodeURIComponent(organization.settings.payment.upi_name || organization.name)}&am=${pendingAmount}&cu=INR`}
+                                            value={`upi://pay?pa=${organization.settings.payment.upi_id}&pn=${encodeURIComponent(organization.settings.payment.upi_name || organization.name)}&am=${balanceDue}&cu=INR`}
                                             size={90}
                                             level="H"
                                             includeMargin={true}
                                         />
                                         <div className="flex flex-col items-center -mt-1">
                                             <span className="text-[8px] font-black text-gray-900 uppercase">Pending Amount</span>
-                                            <span className="text-[10px] font-black text-black">₹{pendingAmount.toLocaleString()}</span>
+                                            <span className="text-[10px] font-black text-black">₹{balanceDue.toLocaleString()}</span>
                                         </div>
                                         <span className="text-[7px] font-bold text-gray-400">{organization.settings.payment.upi_id}</span>
                                     </div>
@@ -360,7 +372,7 @@ export default function BuyerInvoice({ sale, organization, onRefresh }: InvoiceT
                         <div className="pt-1.5 space-y-1">
                             <div className="flex justify-between items-center text-xs">
                                 <span className="text-gray-400 font-bold uppercase tracking-widest">Amount Received</span>
-                                <span className="font-black text-emerald-600">₹{(Number(sale.amount_received ?? sale.payment_summary?.amount_received ?? 0)).toLocaleString()}</span>
+                                <span className="font-black text-emerald-600">₹{amountReceived.toLocaleString()}</span>
                             </div>
                         </div>
 
@@ -369,32 +381,13 @@ export default function BuyerInvoice({ sale, organization, onRefresh }: InvoiceT
                         </div>
 
                         {/* Status Badge */}
-                        <div className={`mt-2 p-1.5 rounded flex justify-between items-center ${(() => {
-                            const amountReceivedVal = Number(sale.amount_received ?? sale.payment_summary?.amount_received ?? 0);
-                            const pendingAmount = Math.max(0, totalInvoiceAmount - amountReceivedVal);
-                            return pendingAmount > 0 ? "bg-red-50" : "bg-emerald-50";
-                        })()}`}>
-                            <span className={`text-[10px] font-black uppercase tracking-widest ${(() => {
-                                const amountReceivedVal = Number(sale.amount_received ?? sale.payment_summary?.amount_received ?? 0);
-                                const pendingAmount = Math.max(0, totalInvoiceAmount - amountReceivedVal);
-                                return pendingAmount > 0 ? "text-red-400" : "text-emerald-400";
-                            })()}`}>
-                                {(() => {
-                                    const amountReceivedVal = Number(sale.amount_received ?? sale.payment_summary?.amount_received ?? 0);
-                                    const pendingAmount = Math.max(0, totalInvoiceAmount - amountReceivedVal);
-                                    return pendingAmount > 0 ? "Pending Payment" : "Paid Full";
-                                })()}
+                        {/* Payment Status Badge — uses top-level amountReceived / balanceDue (RCA fix) */}
+                        <div className={`mt-2 p-1.5 rounded flex justify-between items-center ${balanceDue > 0 ? "bg-red-50" : "bg-emerald-50"}`}>
+                            <span className={`text-[10px] font-black uppercase tracking-widest ${balanceDue > 0 ? "text-red-400" : "text-emerald-400"}`}>
+                                {balanceDue > 0 ? "Pending Payment" : "Paid Full"}
                             </span>
-                            <span className={`text-xl font-black tracking-tighter ${(() => {
-                                const amountReceivedVal = Number(sale.amount_received ?? sale.payment_summary?.amount_received ?? 0);
-                                const pendingAmount = Math.max(0, totalInvoiceAmount - amountReceivedVal);
-                                return pendingAmount > 0 ? "text-red-600" : "text-emerald-600";
-                            })()}`}>
-                                ₹{(() => {
-                                    const amountReceivedVal = Number(sale.amount_received ?? sale.payment_summary?.amount_received ?? 0);
-                                    const pendingAmount = Math.max(0, totalInvoiceAmount - amountReceivedVal);
-                                    return pendingAmount > 0 ? pendingAmount.toLocaleString() : "0";
-                                })()}
+                            <span className={`text-xl font-black tracking-tighter ${balanceDue > 0 ? "text-red-600" : "text-emerald-600"}`}>
+                                ₹{balanceDue > 0 ? balanceDue.toLocaleString() : "0"}
                             </span>
                         </div>
                         
