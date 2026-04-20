@@ -59,7 +59,7 @@ export default function Join() {
         if (!user) {
             // Store token and redirect to login/signup
             // For now, let's assume they MUST be logged in or we redirect to signup
-            router.push(`/login?redirectTo=/join?token=${token}`);
+            router.push(`/login?redirectTo=${encodeURIComponent(`/join?token=${token}`)}`);
             return;
         }
 

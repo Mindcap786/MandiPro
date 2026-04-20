@@ -379,6 +379,15 @@ export default function LoginClient() {
             throw new Error(t('auth.errors.decommissioned'));
         }
 
+        // Org-missing safety net: a non-super_admin profile with no organization_id
+        // means org bootstrap failed (pre-P1 legacy account, or trigger error).
+        // Don't dump them onto /dashboard — sign out with a clear message so they
+        // can contact support instead of seeing an empty app.
+        if (profile && profile.role !== 'super_admin' && !profile.organization_id) {
+            await supabase.auth.signOut();
+            throw new Error('Your account is not linked to an organization yet. Please contact support.');
+        }
+
         const redirectTo = searchParams.get('redirectedFrom') || (profile?.role === 'super_admin' ? '/admin' : '/dashboard');
         logDebug(`✅ Login successful. Redirecting to: ${redirectTo}`);
         

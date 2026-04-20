@@ -61,10 +61,6 @@ export default function SubscribePage() {
         setUser(user);
     };
 
-    useEffect(() => {
-        fetchPlans();
-    }, []);
-
     const fetchPlans = async () => {
         setLoading(true);
         try {
