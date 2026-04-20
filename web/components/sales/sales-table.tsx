@@ -180,6 +180,21 @@ export default function SalesTable({ data, isLoading }: { data: any[], isLoading
                                     <td className="text-right w-[140px] pr-8">
                                         <div className="flex flex-col items-end">
                                             <span className="font-mono font-black text-black text-lg tracking-tight">₹{grandTotal.toLocaleString()}</span>
+                                            {(() => {
+                                                const totalPaid = row.vouchers
+                                                    ?.filter((v: any) => v.type?.toLowerCase() === 'receipt')
+                                                    .filter((v: any) => v.cheque_status?.toLowerCase() !== 'cancelled' && v.cheque_status?.toLowerCase() !== 'v_cancelled')
+                                                    .reduce((sum: number, v: any) => sum + (Number(v.amount) || 0), 0) || 0;
+                                                const pendingAmt = grandTotal - totalPaid;
+                                                if (pendingAmt > 0) {
+                                                    return (
+                                                        <span className="text-[10px] font-black text-red-500 uppercase tracking-widest mt-0.5">
+                                                            Pending: ₹{pendingAmt.toLocaleString()}
+                                                        </span>
+                                                    );
+                                                }
+                                                return null;
+                                            })()}
                                         </div>
                                     </td>
                                     <td className="text-right w-[120px] pr-8 font-mono font-bold text-base tracking-tight">
