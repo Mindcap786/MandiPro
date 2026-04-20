@@ -177,8 +177,8 @@ BEGIN
         v_payment_status := 'pending'; v_received := 0;
     END IF;
 
-    -- Insert sale record (writes amount_received for get_invoice_balance Tier 2)
-    INSERT INTO mandi.sales (
+    WITH new_sale AS (
+        INSERT INTO mandi.sales (
         organization_id, buyer_id, sale_date, total_amount, total_amount_inc_tax,
         payment_mode, payment_status, amount_received,
         market_fee, nirashrit, misc_fee, loading_charges, unloading_charges, other_expenses,
@@ -194,7 +194,8 @@ BEGIN
         COALESCE(p_cgst_amount,0), COALESCE(p_sgst_amount,0), COALESCE(p_igst_amount,0), COALESCE(p_gst_total,0),
         COALESCE(p_discount_percent,0), COALESCE(p_discount_amount,0),
         p_place_of_supply, p_buyer_gstin, p_idempotency_key
-    ) RETURNING id, bill_no, contact_bill_no INTO v_sale_id, v_bill_no, v_contact_bill_no;
+    ) RETURNING id, bill_no, contact_bill_no)
+    SELECT id, bill_no, contact_bill_no INTO v_sale_id, v_bill_no, v_contact_bill_no FROM new_sale;
 
     -- Insert sale items + deduct stock
     FOR v_item IN SELECT value FROM jsonb_array_elements(p_items) LOOP
@@ -216,12 +217,15 @@ BEGIN
     SELECT COALESCE(MAX(voucher_no),0)+1 INTO v_next_voucher_no
     FROM mandi.vouchers WHERE organization_id = p_organization_id AND type = 'sale';
 
-    INSERT INTO mandi.vouchers (
-        organization_id, date, type, voucher_no, amount, narration, invoice_id
-    ) VALUES (
-        p_organization_id, p_sale_date, 'sale', v_next_voucher_no, v_total_inc_tax,
-        'Sale Invoice #' || v_bill_no, v_sale_id
-    ) RETURNING id INTO v_voucher_id;
+    WITH new_voucher AS (
+        INSERT INTO mandi.vouchers (
+            organization_id, date, type, voucher_no, amount, narration, invoice_id
+        ) VALUES (
+            p_organization_id, p_sale_date, 'sale', v_next_voucher_no, v_total_inc_tax,
+            'Sale Invoice #' || v_bill_no, v_sale_id
+        ) RETURNING id
+    )
+    SELECT id INTO v_voucher_id FROM new_voucher;
 
     -- SALE ledger entries: trigger requires reference_id → mandi.sales
     INSERT INTO mandi.ledger_entries (
@@ -250,13 +254,16 @@ BEGIN
         FROM mandi.vouchers WHERE organization_id = p_organization_id AND type = 'receipt';
 
         -- Receipt voucher: invoice_id = v_sale_id for get_invoice_balance Tier1
-        INSERT INTO mandi.vouchers (
-            organization_id, date, type, voucher_no, amount, narration, invoice_id
-        ) VALUES (
-            p_organization_id, p_sale_date, 'receipt', v_next_voucher_no, v_received,
-            'Payment on Sale #' || v_bill_no || ' via ' || COALESCE(p_payment_mode,''),
-            v_sale_id
-        ) RETURNING id INTO v_receipt_voucher_id;
+        WITH new_receipt AS (
+            INSERT INTO mandi.vouchers (
+                organization_id, date, type, voucher_no, amount, narration, invoice_id
+            ) VALUES (
+                p_organization_id, p_sale_date, 'receipt', v_next_voucher_no, v_received,
+                'Payment on Sale #' || v_bill_no || ' via ' || COALESCE(p_payment_mode,''),
+                v_sale_id
+            ) RETURNING id
+        )
+        SELECT id INTO v_receipt_voucher_id FROM new_receipt;
 
         -- RECEIPT ledger entries: trigger requires reference_id → mandi.VOUCHERS (not sales!)
         INSERT INTO mandi.ledger_entries (
