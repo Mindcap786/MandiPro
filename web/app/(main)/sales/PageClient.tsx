@@ -157,7 +157,7 @@ export default function Sales() {
             // sale_items / vouchers / sale_adjustments joins are re-fetched lazily
             // on the invoice detail screen, which is where they belong.
             let tableQuery = buildQuery(
-                "id, sale_date, bill_no, contact_bill_no, invoice_no, status, payment_status, payment_mode, subtotal, discount_amount, gst_amount, total_amount, total_amount_inc_tax, market_fee, nirashrit, misc_fee, loading_charges, unloading_charges, other_expenses, gst_total, paid_amount, balance_due, due_date, buyer_id, organization_id, created_at, contact:contacts!sales_buyer_id_fkey(id, name, phone)",
+                "id, sale_date, bill_no, contact_bill_no, invoice_no, status, payment_status, payment_mode, subtotal, discount_amount, gst_amount, total_amount, paid_amount, balance_due, due_date, buyer_id, organization_id, created_at, contact:contacts!sales_buyer_id_fkey(id, name, phone)",
                 { count: "exact" }
             ).order("created_at", { ascending: false });
 
@@ -369,7 +369,7 @@ export default function Sales() {
                                                             </div>
                                                             <div className="text-right flex-shrink-0">
                                                                 <p className="text-sm font-bold text-[#1A1A2E] tabular-nums">
-                                                                    ₹{Number(sale.total_amount_inc_tax || sale.total_amount || 0).toLocaleString()}
+                                                                    ₹{Number(sale.total_amount || 0).toLocaleString()}
                                                                 </p>
                                                                 <span
                                                                     className="inline-flex items-center gap-1 mt-1 text-[10px] font-semibold px-2 py-0.5 rounded-full"
