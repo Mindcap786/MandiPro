@@ -59,44 +59,42 @@ DECLARE
     v_rec             RECORD;
 BEGIN
     IF p_idempotency_key IS NOT NULL THEN
-        SELECT id, bill_no, contact_bill_no, payment_status, amount_received
-        INTO v_sale_id, v_bill_no, v_contact_bill_no, v_payment_status, v_received
-        FROM mandi.sales WHERE idempotency_key = p_idempotency_key LIMIT 1;
-        IF FOUND THEN
-            RETURN jsonb_build_object('success', true, 'sale_id', v_sale_id, 'bill_no', v_bill_no,
-                'contact_bill_no', v_contact_bill_no, 'payment_status', v_payment_status,
-                'amount_received', v_received, 'message', 'Idempotent request ignored');
-        END IF;
+        FOR v_rec IN (SELECT id, bill_no, contact_bill_no, payment_status, amount_received
+                      FROM mandi.sales WHERE idempotency_key = p_idempotency_key LIMIT 1) LOOP
+            RETURN jsonb_build_object('success', true, 'sale_id', v_rec.id, 'bill_no', v_rec.bill_no,
+                'contact_bill_no', v_rec.contact_bill_no, 'payment_status', v_rec.payment_status,
+                'amount_received', v_rec.amount_received, 'message', 'Idempotent request ignored');
+        END LOOP;
     END IF;
 
-    SELECT id INTO v_ar_acc_id FROM mandi.accounts
-    WHERE organization_id = p_organization_id
-      AND (code = '1100' OR account_sub_type = 'accounts_receivable')
-    ORDER BY (code = '1100') DESC LIMIT 1;
+    v_ar_acc_id := (SELECT id FROM mandi.accounts
+                    WHERE organization_id = p_organization_id
+                      AND (code = '1100' OR account_sub_type = 'accounts_receivable')
+                    ORDER BY (code = '1100') DESC LIMIT 1);
 
-    SELECT id INTO v_sales_revenue_acc_id FROM mandi.accounts
-    WHERE organization_id = p_organization_id
-      AND (code = '4001' OR name ILIKE 'Sales%Revenue%' OR name ILIKE 'Sale%')
-    ORDER BY (code = '4001') DESC LIMIT 1;
+    v_sales_revenue_acc_id := (SELECT id FROM mandi.accounts
+                               WHERE organization_id = p_organization_id
+                                 AND (code = '4001' OR name ILIKE 'Sales%Revenue%' OR name ILIKE 'Sale%')
+                               ORDER BY (code = '4001') DESC LIMIT 1);
 
-    SELECT id INTO v_cash_acc_id FROM mandi.accounts
-    WHERE organization_id = p_organization_id
-      AND (code = '1001' OR account_sub_type = 'cash' OR name ILIKE 'Cash%')
-    ORDER BY (code = '1001') DESC LIMIT 1;
+    v_cash_acc_id := (SELECT id FROM mandi.accounts
+                      WHERE organization_id = p_organization_id
+                        AND (code = '1001' OR account_sub_type = 'cash' OR name ILIKE 'Cash%')
+                      ORDER BY (code = '1001') DESC LIMIT 1);
 
     IF p_bank_account_id IS NOT NULL THEN
         v_bank_acc_id := p_bank_account_id;
     ELSE
-        SELECT id INTO v_bank_acc_id FROM mandi.accounts
-        WHERE organization_id = p_organization_id
-          AND (code = '1002' OR account_sub_type = 'bank' OR name ILIKE 'Bank%')
-        ORDER BY (code = '1002') DESC LIMIT 1;
+        v_bank_acc_id := (SELECT id FROM mandi.accounts
+                          WHERE organization_id = p_organization_id
+                            AND (code = '1002' OR account_sub_type = 'bank' OR name ILIKE 'Bank%')
+                          ORDER BY (code = '1002') DESC LIMIT 1);
     END IF;
 
-    SELECT id INTO v_cheques_transit_acc_id FROM mandi.accounts
-    WHERE organization_id = p_organization_id
-      AND (account_sub_type IN ('cheque','cheques_in_transit') OR name ILIKE '%Cheque%')
-    LIMIT 1;
+    v_cheques_transit_acc_id := (SELECT id FROM mandi.accounts
+                                 WHERE organization_id = p_organization_id
+                                   AND (account_sub_type IN ('cheque','cheques_in_transit') OR name ILIKE '%Cheque%')
+                                 LIMIT 1);
 
     IF v_ar_acc_id IS NULL THEN v_ar_acc_id := v_cash_acc_id; END IF;
     IF v_sales_revenue_acc_id IS NULL THEN v_sales_revenue_acc_id := v_cash_acc_id; END IF;
@@ -131,25 +129,34 @@ BEGIN
         v_payment_status := 'pending'; v_received := 0;
     END IF;
 
-    INSERT INTO mandi.sales (
-        organization_id, buyer_id, sale_date, total_amount, total_amount_inc_tax,
-        payment_mode, payment_status, amount_received,
-        market_fee, nirashrit, misc_fee, loading_charges, unloading_charges, other_expenses,
-        due_date, cheque_no, cheque_date, bank_name, bank_account_id,
-        cgst_amount, sgst_amount, igst_amount, gst_total,
-        discount_percent, discount_amount, place_of_supply, buyer_gstin, idempotency_key
-    ) VALUES (
-        p_organization_id, p_buyer_id, p_sale_date, p_total_amount, v_total_inc_tax,
-        p_payment_mode, v_payment_status, v_received,
-        COALESCE(p_market_fee,0), COALESCE(p_nirashrit,0), COALESCE(p_misc_fee,0),
-        COALESCE(p_loading_charges,0), COALESCE(p_unloading_charges,0), COALESCE(p_other_expenses,0),
-        p_due_date, p_cheque_no, p_cheque_date, p_bank_name, p_bank_account_id,
-        COALESCE(p_cgst_amount,0), COALESCE(p_sgst_amount,0), COALESCE(p_igst_amount,0), COALESCE(p_gst_total,0),
-        COALESCE(p_discount_percent,0), COALESCE(p_discount_amount,0),
-        p_place_of_supply, p_buyer_gstin, p_idempotency_key
-    ) RETURNING id, bill_no, contact_bill_no INTO v_sale_id, v_bill_no, v_contact_bill_no;
+    FOR v_rec IN (
+        WITH new_sale AS (
+            INSERT INTO mandi.sales (
+                organization_id, buyer_id, sale_date, total_amount, total_amount_inc_tax,
+                payment_mode, payment_status, amount_received,
+                market_fee, nirashrit, misc_fee, loading_charges, unloading_charges, other_expenses,
+                due_date, cheque_no, cheque_date, bank_name, bank_account_id,
+                cgst_amount, sgst_amount, igst_amount, gst_total,
+                discount_percent, discount_amount, place_of_supply, buyer_gstin, idempotency_key
+            ) VALUES (
+                p_organization_id, p_buyer_id, p_sale_date, p_total_amount, v_total_inc_tax,
+                p_payment_mode, v_payment_status, v_received,
+                COALESCE(p_market_fee,0), COALESCE(p_nirashrit,0), COALESCE(p_misc_fee,0),
+                COALESCE(p_loading_charges,0), COALESCE(p_unloading_charges,0), COALESCE(p_other_expenses,0),
+                p_due_date, p_cheque_no, p_cheque_date, p_bank_name, p_bank_account_id,
+                COALESCE(p_cgst_amount,0), COALESCE(p_sgst_amount,0), COALESCE(p_igst_amount,0), COALESCE(p_gst_total,0),
+                COALESCE(p_discount_percent,0), COALESCE(p_discount_amount,0),
+                p_place_of_supply, p_buyer_gstin, p_idempotency_key
+            ) RETURNING id, bill_no, contact_bill_no
+        )
+        SELECT * FROM new_sale
+    ) LOOP
+        v_sale_id := v_rec.id;
+        v_bill_no := v_rec.bill_no;
+        v_contact_bill_no := v_rec.contact_bill_no;
+    END LOOP;
 
-    FOR v_item IN SELECT value FROM jsonb_array_elements(p_items) LOOP
+    FOR v_item IN (SELECT value FROM jsonb_array_elements(p_items)) LOOP
         v_qty  := COALESCE((v_item->>'qty')::NUMERIC, (v_item->>'quantity')::NUMERIC, 0);
         v_rate := COALESCE((v_item->>'rate')::NUMERIC, (v_item->>'rate_per_unit')::NUMERIC, 0);
         IF v_qty > 0 THEN
@@ -164,15 +171,21 @@ BEGIN
         END IF;
     END LOOP;
 
-    SELECT COALESCE(MAX(voucher_no),0)+1 INTO v_next_voucher_no
-    FROM mandi.vouchers WHERE organization_id = p_organization_id AND type = 'sale';
+    v_next_voucher_no := (SELECT COALESCE(MAX(voucher_no),0)+1 FROM mandi.vouchers WHERE organization_id = p_organization_id AND type = 'sale');
 
-    INSERT INTO mandi.vouchers (
-        organization_id, date, type, voucher_no, amount, narration, invoice_id
-    ) VALUES (
-        p_organization_id, p_sale_date, 'sale', v_next_voucher_no, v_total_inc_tax,
-        'Sale Invoice #' || v_bill_no, v_sale_id
-    ) RETURNING id INTO v_voucher_id;
+    FOR v_rec IN (
+        WITH new_voucher AS (
+            INSERT INTO mandi.vouchers (
+                organization_id, date, type, voucher_no, amount, narration, invoice_id
+            ) VALUES (
+                p_organization_id, p_sale_date, 'sale', v_next_voucher_no, v_total_inc_tax,
+                'Sale Invoice #' || v_bill_no, v_sale_id
+            ) RETURNING id
+        )
+        SELECT * FROM new_voucher
+    ) LOOP
+        v_voucher_id := v_rec.id;
+    END LOOP;
 
     INSERT INTO mandi.ledger_entries (
         organization_id, voucher_id, account_id, contact_id,
@@ -195,16 +208,22 @@ BEGIN
             ELSE v_cash_acc_id
         END;
 
-        SELECT COALESCE(MAX(voucher_no),0)+1 INTO v_next_voucher_no
-        FROM mandi.vouchers WHERE organization_id = p_organization_id AND type = 'receipt';
+        v_next_voucher_no := (SELECT COALESCE(MAX(voucher_no),0)+1 FROM mandi.vouchers WHERE organization_id = p_organization_id AND type = 'receipt');
 
-        INSERT INTO mandi.vouchers (
-            organization_id, date, type, voucher_no, amount, narration, invoice_id
-        ) VALUES (
-            p_organization_id, p_sale_date, 'receipt', v_next_voucher_no, v_received,
-            'Payment on Sale #' || v_bill_no || ' via ' || COALESCE(p_payment_mode,''),
-            v_sale_id
-        ) RETURNING id INTO v_receipt_voucher_id;
+        FOR v_rec IN (
+            WITH new_receipt AS (
+                INSERT INTO mandi.vouchers (
+                    organization_id, date, type, voucher_no, amount, narration, invoice_id
+                ) VALUES (
+                    p_organization_id, p_sale_date, 'receipt', v_next_voucher_no, v_received,
+                    'Payment on Sale #' || v_bill_no || ' via ' || COALESCE(p_payment_mode,''),
+                    v_sale_id
+                ) RETURNING id
+            )
+            SELECT * FROM new_receipt
+        ) LOOP
+            v_receipt_voucher_id := v_rec.id;
+        END LOOP;
 
         INSERT INTO mandi.ledger_entries (
             organization_id, voucher_id, account_id, contact_id,
