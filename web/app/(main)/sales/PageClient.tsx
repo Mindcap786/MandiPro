@@ -156,8 +156,9 @@ export default function Sales() {
             // Slim default select: only what SalesTable actually renders. The heavy
             // sale_items / vouchers / sale_adjustments joins are re-fetched lazily
             // on the invoice detail screen, which is where they belong.
+            // Only fetch slim vouchers to keep query fast while allowing accurate UI math
             let tableQuery = buildQuery(
-                "id, sale_date, bill_no, contact_bill_no, invoice_no, status, payment_status, payment_mode, subtotal, discount_amount, gst_amount, total_amount, total_amount_inc_tax, paid_amount, balance_due, due_date, buyer_id, organization_id, created_at, contact:contacts!sales_buyer_id_fkey(id, name, phone)",
+                "id, sale_date, bill_no, contact_bill_no, invoice_no, status, payment_status, payment_mode, subtotal, discount_amount, gst_amount, total_amount, total_amount_inc_tax, paid_amount, balance_due, due_date, buyer_id, organization_id, created_at, contact:contacts!sales_buyer_id_fkey(id, name, phone), vouchers(amount, type, cheque_status, payment_mode, is_cleared, discount_amount)",
                 { count: "exact" }
             ).order("created_at", { ascending: false });
 

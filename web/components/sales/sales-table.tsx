@@ -128,13 +128,16 @@ export default function SalesTable({ data, isLoading }: { data: any[], isLoading
                             </tr>
                         ) : filteredData.map((row) => {
                             const displayBillNo = row.contact_bill_no || row.bill_no;
-                            
                             // Use total_amount_inc_tax from database if available (it should be now), else fallback.
                             // Database computes this with all charges correctly.
                             const grandTotal = Number(row.total_amount_inc_tax) || Number(row.total_amount) || 0;
 
-                            const pendingAmt = Number(row.balance_due) || 0;
-                            const totalPaid = Number(row.paid_amount) || 0;
+                            const totalPaid = row.vouchers
+                                ?.filter((v: any) => v.type?.toLowerCase() === 'receipt')
+                                .filter((v: any) => v.cheque_status?.toLowerCase() !== 'cancelled' && v.cheque_status?.toLowerCase() !== 'v_cancelled')
+                                .reduce((sum: number, v: any) => sum + (Number(v.amount) || 0), 0) || 0;
+
+                            const pendingAmt = grandTotal - totalPaid;
 
                             // Trade profit is intentionally hidden in list view for performance (no nested items fetched).
                             const tradeProfit = 0;
@@ -155,7 +158,12 @@ export default function SalesTable({ data, isLoading }: { data: any[], isLoading
                                     <td className="text-right w-[140px] pr-8">
                                         <div className="flex flex-col items-end">
                                             <span className="font-mono font-black text-black text-lg tracking-tight">₹{grandTotal.toLocaleString()}</span>
-                                            {pendingAmt > 0 && (
+                                            {pendingAmt > 0 && Math.round(pendingAmt) !== Math.round(grandTotal) && (
+                                                <span className="text-[10px] font-black text-red-500 uppercase tracking-widest mt-0.5">
+                                                    Pending: ₹{pendingAmt.toLocaleString()}
+                                                </span>
+                                            )}
+                                            {pendingAmt > 0 && Math.round(pendingAmt) === Math.round(grandTotal) && (
                                                 <span className="text-[10px] font-black text-red-500 uppercase tracking-widest mt-0.5">
                                                     Pending: ₹{pendingAmt.toLocaleString()}
                                                 </span>
@@ -171,18 +179,35 @@ export default function SalesTable({ data, isLoading }: { data: any[], isLoading
                                         <div className="flex flex-col gap-1 items-center">
                                             {(() => {
                                                 const dbStatus = (row.payment_status || '').toLowerCase();
-                                                const isFullPaid = dbStatus === 'paid' || (totalPaid >= (grandTotal - 1) && grandTotal > 0);
-                                                const isPartiallyPaid = !isFullPaid && (dbStatus === 'partial' || (totalPaid > 0 && totalPaid < (grandTotal - 1)));
-                                                const isOverdue = !isFullPaid && row.due_date && new Date(row.due_date) < new Date() && dbStatus !== 'paid';
+                                                
+                                                // 2. Smart Cheque Logic (Check actual vouchers)
+                                                const activeCheques = row.vouchers?.filter((v: any) => 
+                                                    v.payment_mode === 'cheque' && 
+                                                    !v.is_cleared && 
+                                                    v.cheque_status !== 'Cancelled' && 
+                                                    v.cheque_status !== 'v_cancelled'
+                                                ) || [];
+                                                const isPendingCheque = activeCheques.length > 0;
+                                                
+                                                // Adjust visual logic if paid amount perfectly exactly matches
+                                                const isMathFullyPaid = (totalPaid >= (grandTotal - 1) && grandTotal > 0);
+                                                
+                                                // DB Status explicitly governs badges, math is secondary 
+                                                const isFullPaid = !isPendingCheque && (dbStatus === 'paid' || isMathFullyPaid);
+                                                const isPartiallyPaid = !isFullPaid && !isPendingCheque && (dbStatus === 'partial' || (totalPaid > 0 && totalPaid < (grandTotal - 1)));
+                                                const isOverdue = !isFullPaid && !isPendingCheque && row.due_date && new Date(row.due_date) < new Date() && dbStatus !== 'paid';
 
                                                 return (
                                                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest
-                                                        ${isFullPaid ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' :
+                                                        ${isPendingCheque ? 'bg-orange-100 text-orange-700 border border-orange-200' :
+                                                            isFullPaid ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' :
                                                             isPartiallyPaid ? 'bg-amber-100 text-amber-800 border border-amber-200' :
                                                             isOverdue ? 'bg-red-600 text-white shadow-sm' : 
                                                             'bg-red-50 text-red-600 border border-red-200'}
                                                     `}>
-                                                        {isFullPaid ? (
+                                                        {isPendingCheque ? (
+                                                            <><span className="mr-1">🕒</span> {t('sales.status_pending') || 'PENDING'} CHEQUE</>
+                                                        ) : isFullPaid ? (
                                                             <><CheckCircle2 className="w-3 h-3 mr-1" /> {t('sales.status_paid') || 'PAID'}</>
                                                         ) : isPartiallyPaid ? (
                                                             <><span className="mr-1">🌗</span> PARTIAL</>
