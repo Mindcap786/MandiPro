@@ -376,18 +376,24 @@ const getEntryGroupKey = (entry: any) => {
     }
 
     // ─── STANDALONE PAYMENTS (paid_receipt) ────────────────────────────────────
-    // The ONLY correct group key for a double-entry payment voucher is voucher_id.
-    // Both legs (Dr Party + Cr Cash) share the same voucher_id — they must
-    // always land in the same display group.
+    // PRIORITY: If this payment is linked to an arrival (advance cash/bank payment),
+    // it MUST group with the purchase — NOT as a standalone payment row.
+    // This is what makes "Full Paid" vs "Udhaar" work for Arrivals / Quick Purchase.
+    //
+    // Mandi Commission sessions have advance=0 so they produce no payment voucher
+    // and correctly remain "Udhaar" without any special handling.
+    //
+    // For standalone payment vouchers (payments page, settled debts),
+    // use voucher_id as the group key — both legs share the same voucher_id.
     //
     // NEVER use bill/voucher_no extraction here: voucher_no is a sequential
-    // counter (1, 2, 3 …) scoped per org, not per party. Using it creates
-    // contact-aware vs non-contact keys that split the same voucher into two rows.
-    //
-    // Bug reproduced: Arjun payment Dr(contact_id=X, ref_no=1) → key=purchase_contact_X_bill_1
-    //                              Cr(contact_id=NULL, ref_no=1) → key=purchase_bill_1
-    //                 → Two entries for ₹7,000 payment instead of one.
+    // counter scoped per org, not per party — causes false merges across contacts.
     if (flow === 'paid_receipt') {
+        // CRITICAL FIX: Arrival-linked advance payments must merge with the purchase group
+        if (entry.voucher?.arrival_id) {
+            const pKey = getPurchaseSettlementKey(entry);
+            if (pKey) return `purchase_group_${pKey}`;
+        }
         if (entry.voucher_id) return `payment_voucher_${entry.voucher_id}`;
         // No voucher_id (legacy): fallback to purchase settlement approach
         const pKey = getPurchaseSettlementKey(entry);
@@ -584,7 +590,8 @@ const isAdvanceSettlementEntry = (entry: any) => {
            description.includes('advance contra') || 
            description.includes('cash paid to') ||
            description.includes('payment to ') ||
-           description.includes('payment for arrival');
+           description.includes('payment for arrival') ||
+           description.includes('advance - '); // Mandi-specific lot advance pattern
 };
 
 const formatArrivalLotLabel = (lots: any[]) => {
