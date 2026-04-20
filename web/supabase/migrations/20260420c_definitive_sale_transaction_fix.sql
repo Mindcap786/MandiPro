@@ -78,7 +78,7 @@ RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path TO 'mandi', 'public'
-AS $function$
+AS $$
 DECLARE
     v_sale_id            UUID;
     v_bill_no            BIGINT;
@@ -283,4 +283,4 @@ BEGIN
 EXCEPTION WHEN OTHERS THEN
     RETURN jsonb_build_object('success', false, 'error', SQLERRM, 'detail', SQLSTATE);
 END;
-$function$;
+$$;
