@@ -68,7 +68,7 @@ BEGIN
     FOR v_item IN (SELECT value FROM jsonb_array_elements(p_items)) LOOP
         v_qty  := COALESCE((v_item->>'qty')::NUMERIC, (v_item->>'quantity')::NUMERIC, 0); v_rate := COALESCE((v_item->>'rate')::NUMERIC, (v_item->>'rate_per_unit')::NUMERIC, 0);
         IF (v_item->>'lot_id') IS NOT NULL THEN
-            v_temp_lot_no := (SELECT COALESCE(lot_number, lot_code) FROM mandi.lots WHERE id = (v_item->>'lot_id')::UUID);
+            v_temp_lot_no := (SELECT lot_code FROM mandi.lots WHERE id = (v_item->>'lot_id')::UUID);
             v_temp_item_name := (SELECT items.name FROM mandi.items items JOIN mandi.lots lots ON lots.item_id = items.id WHERE lots.id = (v_item->>'lot_id')::UUID);
             -- Formatting: [Item] (Lot: [lot no], Qty: [qty], Price: ₹[price])
             v_item_details := v_item_details || COALESCE(v_temp_item_name,'Item') || ' (Lot: ' || COALESCE(v_temp_lot_no,'') || ', Qty: ' || v_qty || ', Price: ₹' || v_rate || ') ';
@@ -143,7 +143,7 @@ BEGIN
         BEGIN
             v_total_inventory := v_total_inventory + v_val; v_total_commission := v_total_commission + (v_val * COALESCE(v_lot.commission_percent, 0) / 100.0);
             -- Formatting: [Item] (Lot: [lot no], Qty: [qty], Price: ₹[price])
-            v_lot_details := v_lot_details || COALESCE(v_lot.item_name,'Item') || ' (Lot: ' || COALESCE(v_lot.lot_code, v_lot.lot_number, '') || ', Qty: ' || v_adj_qty || ', Price: ₹' || COALESCE(v_lot.supplier_rate, 0) || ') ';
+            v_lot_details := v_lot_details || COALESCE(v_lot.item_name,'Item') || ' (Lot: ' || COALESCE(v_lot.lot_code, '') || ', Qty: ' || v_adj_qty || ', Price: ₹' || COALESCE(v_lot.supplier_rate, 0) || ') ';
         END;
     END LOOP;
 
