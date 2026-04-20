@@ -1,5 +1,10 @@
--- MANDIPRO FINANCE STABILIZATION FINAL (V7.2)
--- Goal: Fix crashes and restore rich ledger details for Sales.
+-- MANDIPRO FINANCE STABILIZATION FINAL V3 (V7.2)
+-- Goal: Fix crashes, parameter conflicts, and restore rich ledger details.
+
+-- 0. CLEANUP OLD OVERLOADS TO PREVENT CONFLICTS
+DROP FUNCTION IF EXISTS mandi.get_ledger_statement(uuid, uuid, date, date);
+DROP FUNCTION IF EXISTS mandi.get_ledger_statement(uuid, uuid, timestamp with time zone, timestamp with time zone);
+
 
 -- 1. FIX post_arrival_ledger (party_id mapping)
 CREATE OR REPLACE FUNCTION mandi.post_arrival_ledger(p_arrival_id UUID)
@@ -105,7 +110,6 @@ DECLARE
     v_received NUMERIC;
     v_payment_status TEXT;
     v_mode_lower TEXT := LOWER(p_payment_mode);
-    v_rec RECORD;
     v_item JSONB;
     v_qty NUMERIC;
     v_rate NUMERIC;
@@ -134,16 +138,24 @@ BEGIN
     ELSIF COALESCE(p_amount_received, 0) > 0 THEN v_payment_status := CASE WHEN p_amount_received >= (v_total_inc_tax - 0.01) THEN 'paid' ELSE 'partial' END; v_received := p_amount_received;
     ELSE v_payment_status := 'pending'; v_received := 0; END IF;
 
-    -- Create Sale record
+    -- 1. Create Sale Header
     INSERT INTO mandi.sales (
-        organization_id, buyer_id, sale_date, total_amount, total_amount_inc_tax, payment_mode, payment_status, amount_received,
-        market_fee, nirashrit, misc_fee, loading_charges, unloading_charges, other_expenses, due_date, cheque_no, cheque_date, bank_name, bank_account_id, cgst_amount, sgst_amount, igst_amount, gst_total, discount_percent, discount_amount, place_of_supply, buyer_gstin, idempotency_key
+        organization_id, buyer_id, sale_date, total_amount, total_amount_inc_tax,
+        payment_mode, payment_status, amount_received, market_fee, nirashrit,
+        misc_fee, loading_charges, unloading_charges, other_expenses, due_date,
+        cheque_no, cheque_date, bank_name, bank_account_id, cgst_amount,
+        sgst_amount, igst_amount, gst_total, discount_percent, discount_amount,
+        place_of_supply, buyer_gstin, idempotency_key
     ) VALUES (
-        p_organization_id, p_sale_date, p_buyer_id, p_total_amount, v_total_inc_tax, p_payment_mode, v_payment_status, v_received,
-        COALESCE(p_market_fee,0), COALESCE(p_nirashrit,0), COALESCE(p_misc_fee,0), COALESCE(p_loading_charges,0), COALESCE(p_unloading_charges,0), COALESCE(p_other_expenses,0), p_due_date, p_cheque_no, p_cheque_date, p_bank_name, p_bank_account_id, COALESCE(p_cgst_amount,0), COALESCE(p_sgst_amount,0), COALESCE(p_igst_amount,0), COALESCE(p_gst_total,0), COALESCE(p_discount_percent,0), COALESCE(p_discount_amount,0), p_place_of_supply, p_buyer_gstin, p_idempotency_key
+        p_organization_id, p_buyer_id, p_sale_date, p_total_amount, v_total_inc_tax,
+        p_payment_mode, v_payment_status, v_received, COALESCE(p_market_fee,0), COALESCE(p_nirashrit,0),
+        COALESCE(p_misc_fee,0), COALESCE(p_loading_charges,0), COALESCE(p_unloading_charges,0), COALESCE(p_other_expenses,0), p_due_date,
+        p_cheque_no, p_cheque_date, p_bank_name, p_bank_account_id, COALESCE(p_cgst_amount,0),
+        COALESCE(p_sgst_amount,0), COALESCE(p_igst_amount,0), COALESCE(p_gst_total,0), COALESCE(p_discount_percent,0), COALESCE(p_discount_amount,0),
+        p_place_of_supply, p_buyer_gstin, p_idempotency_key
     ) RETURNING id, bill_no, contact_bill_no INTO v_sale_id, v_bill_no, v_contact_bill_no;
 
-    -- Itemize details for Narration
+    -- 2. Create Sale Items and gather details
     FOR v_item IN SELECT * FROM jsonb_array_elements(p_items) LOOP
         v_qty  := COALESCE((v_item->>'qty')::NUMERIC, (v_item->>'quantity')::NUMERIC, 0); 
         v_rate := COALESCE((v_item->>'rate')::NUMERIC, (v_item->>'rate_per_unit')::NUMERIC, 0);
@@ -168,17 +180,17 @@ BEGIN
     v_sale_narration := 'Sale Invoice #' || COALESCE(v_contact_bill_no::text, v_bill_no::text) || ' | ' || TRIM(v_item_details);
     IF v_charges_total > 0 THEN v_sale_narration := v_sale_narration || ' | Fee/Exp: ₹' || v_charges_total; END IF;
 
-    -- Voucher
+    -- 3. Vouchers
     INSERT INTO mandi.vouchers (organization_id, date, type, voucher_no, amount, narration, invoice_id) 
     VALUES (p_organization_id, p_sale_date, 'sale', (SELECT COALESCE(MAX(voucher_no),0)+1 FROM mandi.vouchers WHERE organization_id = p_organization_id AND type = 'sale'), v_total_inc_tax, v_sale_narration, v_sale_id)
     RETURNING id INTO v_voucher_id;
 
-    -- Ledger Entries
+    -- 4. Ledger Entries
     INSERT INTO mandi.ledger_entries (organization_id, voucher_id, account_id, contact_id, debit, credit, entry_date, description, transaction_type, reference_id) VALUES 
     (p_organization_id, v_voucher_id, v_ar_acc_id, p_buyer_id, v_total_inc_tax, 0, p_sale_date, v_sale_narration, 'sale', v_sale_id),
     (p_organization_id, v_voucher_id, v_sales_revenue_acc_id, NULL, 0, v_total_inc_tax, p_sale_date, v_sale_narration, 'sale', v_sale_id);
 
-    -- Receipt logic
+    -- 5. Receipt (if paid)
     IF v_received > 0 AND v_mode_lower NOT IN ('udhaar','credit') THEN
         v_payment_acc_id := CASE WHEN v_mode_lower IN ('cash','upi','upi_cash','bank_upi','upi/bank') THEN v_cash_acc_id WHEN v_mode_lower IN ('bank_transfer','neft','rtgs') THEN COALESCE(v_bank_acc_id, v_cash_acc_id) WHEN v_mode_lower = 'cheque' THEN COALESCE(v_cheques_transit_acc_id, v_bank_acc_id, v_cash_acc_id) ELSE v_cash_acc_id END;
         v_receipt_narration := 'Payment for Invoice #' || COALESCE(v_contact_bill_no::text, v_bill_no::text);
@@ -192,14 +204,14 @@ BEGIN
         (p_organization_id, v_receipt_voucher_id, v_ar_acc_id, p_buyer_id, 0, v_received, p_sale_date, v_receipt_narration, 'receipt', v_receipt_voucher_id);
     END IF;
 
-    RETURN jsonb_build_object('success', true, 'sale_id', v_sale_id, 'bill_no', v_bill_no, 'contact_bill_no', v_contact_bill_no, 'payment_status', v_payment_status, 'amount_received', v_received, 'voucher_id', v_voucher_id, 'receipt_voucher_id', v_receipt_voucher_id);
+    RETURN jsonb_build_object('success', true, 'sale_id', v_sale_id, 'bill_no', v_bill_no, 'contact_bill_no', v_contact_bill_no, 'payment_status', v_payment_status, 'amount_received', v_received);
 EXCEPTION WHEN OTHERS THEN 
     RETURN jsonb_build_object('success', false, 'error', SQLERRM, 'detail', SQLSTATE);
 END;
 $$;
 
 
--- 3. UPGRADE get_ledger_statement (Display logic)
+-- 3. UPGRADE get_ledger_statement (Rich Display logic)
 CREATE OR REPLACE FUNCTION mandi.get_ledger_statement(
     p_organization_id UUID,
     p_contact_id      UUID,
@@ -228,12 +240,7 @@ BEGIN
         0
     );
 
-    v_last_activity := (
-        SELECT MAX(entry_date)
-        FROM mandi.ledger_entries
-        WHERE organization_id = p_organization_id
-          AND contact_id = p_contact_id
-    );
+    v_last_activity := (SELECT MAX(entry_date) FROM mandi.ledger_entries WHERE organization_id = p_organization_id AND contact_id = p_contact_id);
 
     v_closing_balance := COALESCE(
         (SELECT SUM(debit) - SUM(credit)
@@ -291,15 +298,11 @@ BEGIN
                     MAX(v_voucher_no::text),
                     '-'
                 ) AS voucher_no,
-                -- CRITICAL: Prioritize Rich Narration for description
                 COALESCE(
                     NULLIF(TRIM(MAX(v_narration)), ''),
                     NULLIF(TRIM(MAX(raw_description)), ''),
                     'Transaction'
-                ) AS description,
-                array_agg(DISTINCT voucher_id) FILTER (WHERE voucher_id IS NOT NULL) as voucher_ids,
-                array_agg(DISTINCT reference_id) FILTER (WHERE reference_id IS NOT NULL) as reference_ids,
-                array_agg(DISTINCT arrival_id_calc) FILTER (WHERE arrival_id_calc IS NOT NULL) as arrival_ids
+                ) AS description
             FROM raw_data
             GROUP BY group_id
         ),
@@ -313,7 +316,7 @@ BEGIN
                 'description', description, 'debit', debit, 'credit', credit,
                 'running_balance', (v_opening_balance + running_diff)
             )
-        ) FROM (SELECT * FROM ranked_tx ORDER BY entry_date DESC, sort_id DESC) OuterQuery
+        ) FROM (SELECT * FROM ranked_tx ORDER BY entry_date DESC, sort_id DESC) t
     );
 
     RETURN jsonb_build_object('opening_balance', v_opening_balance, 'closing_balance', v_closing_balance, 'last_activity', v_last_activity, 'transactions', COALESCE(v_rows, '[]'::jsonb));

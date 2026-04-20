@@ -28,9 +28,19 @@ export function createMandiServerClient() {
  * Returns null + a 401 response if unauthenticated.
  */
 export async function requireAuth(supabase: ReturnType<typeof createMandiServerClient>) {
-    const { data: { user }, error } = await supabase.auth.getUser()
-    if (error || !user) {
-        return { user: null, profile: null, response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError || !user) {
+        console.error('[API:Auth] Authentication failure:', authError?.message || 'No user session')
+        return { 
+            user: null, 
+            profile: null, 
+            response: NextResponse.json({ 
+                error: 'Unauthorized', 
+                detail: authError?.message || 'Session expired or invalid token',
+                instruction: 'Please log out and log in again to refresh your session.'
+            }, { status: 401 }) 
+        }
     }
 
     const { data: profile, error: profileErr } = await supabase
@@ -41,7 +51,29 @@ export async function requireAuth(supabase: ReturnType<typeof createMandiServerC
         .single()
 
     if (profileErr || !profile) {
-        return { user, profile: null, response: NextResponse.json({ error: 'Profile not found' }, { status: 404 }) }
+        console.error(`[API:Auth] Profile for user ${user.id} not found:`, profileErr?.message)
+        return { 
+            user, 
+            profile: null, 
+            response: NextResponse.json({ 
+                error: 'Profile not found', 
+                detail: profileErr?.message || 'User does not have an active profile record',
+                instruction: 'If you just cleaned your database, please sign up again or contact administrator.'
+            }, { status: 404 }) 
+        }
+    }
+
+    // Defensive check: ensure organization_id exists for non-super_admins
+    if (!profile.organization_id && profile.role !== 'super_admin') {
+        return {
+            user,
+            profile,
+            response: NextResponse.json({
+                error: 'Organization missing',
+                detail: 'Your profile is not linked to any organization.',
+                instruction: 'Please contact support or create a new organization.'
+            }, { status: 403 })
+        }
     }
 
     return { user, profile, response: null }

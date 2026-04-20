@@ -113,7 +113,7 @@ export function useArrivalsMasterData(organizationId: string | undefined): Arriv
         supabase.schema(SCHEMA).from("accounts").select("id, name, description, is_default")
           .eq("organization_id", currentOrgId).eq("account_sub_type", "bank")
           .eq("type", "asset").eq("is_active", true).order("name"),
-        supabase.schema(SCHEMA).from("mandi_settings" as never).select("commission_rate_default, market_fee_percent, nirashrit_percent, misc_fee_percent")
+        supabase.schema(SCHEMA).from("mandi_settings").select("commission_rate_default, market_fee_percent, nirashrit_percent, misc_fee_percent")
           .eq("organization_id", currentOrgId).maybeSingle(),
       ])
 
@@ -121,7 +121,7 @@ export function useArrivalsMasterData(organizationId: string | undefined): Arriv
       const newCommodities = commoditiesRes.status === 'fulfilled' ? (commoditiesRes.value.data || []) as ArrivalCommodity[] : commodities
       const newStorage = storageRes.status === 'fulfilled' ? (storageRes.value.data || []) as StorageLocation[] : []
       const newBanks = bankRes.status === 'fulfilled' ? (bankRes.value.data || []) as BankAccount[] : []
-      const newSettings = settingsRes.status === 'fulfilled' ? (settingsRes.value as { data: Record<string, number | null> }).data : null
+      const newSettings = settingsRes.status === 'fulfilled' ? (settingsRes.value as any).data : null
 
       setContacts(newContacts)
       setCommodities(newCommodities)
@@ -132,7 +132,7 @@ export function useArrivalsMasterData(organizationId: string | undefined): Arriv
       setNirashritPercent(Number(newSettings?.nirashrit_percent || 0))
       setMiscFeePercent(Number(newSettings?.misc_fee_percent || 0))
 
-      cacheSet(CACHE_KEY, organizationId, {
+      cacheSet(CACHE_KEY, currentOrgId, {
         contacts: newContacts,
         commodities: newCommodities,
         storage: newStorage,

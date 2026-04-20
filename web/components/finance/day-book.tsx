@@ -223,11 +223,12 @@ const isSaleSettlementReceiptEntry = (entry: any) => {
             text.includes('sale #')
         );
     }
-    
-    // Pattern 5: REMOVED — Sales Revenue credit legs are accounting counter-entries,
-    // NOT payment receipts. Treating them as payments caused credit/udhaar sales to
-    // incorrectly show as "SALE - FULL AMOUNT". Actual payments are caught by
-    // Patterns 1-4 via their receipt transaction_type.
+
+    // Pattern 5: Mixed Sale (Cash part of a Sale Voucher)
+    // If the leg is a Credit to a contact inside a Sale flow, it's a payment receipt.
+    if (flowType === 'sale' && entry.contact_id) {
+        return true;
+    }
     
     return false;
 };
@@ -643,7 +644,7 @@ const getTransactionScenario = (
             const paidTotal = paymentLegs.reduce((sum, l) => sum + Number(l.credit || 0), 0);
             
             // Logic: Balance based on THIS transaction group (which we've already grouped via linking)
-            if (paidTotal >= saleTotal - AMOUNT_EPSILON) return t('daybook.scenarios.sale_full');
+            if (paidTotal >= saleTotal - AMOUNT_EPSILON && saleTotal > AMOUNT_EPSILON) return t('daybook.scenarios.sale_full');
             if (paidTotal <= AMOUNT_EPSILON) return t('daybook.scenarios.sale_udhaar');
             return t('daybook.scenarios.sale_partial');
         }
