@@ -1,46 +1,3 @@
--- ================================================================
--- ROOT CAUSE ANALYSIS — COMPLETE CHAIN (ALL 3 BUGS)
--- ================================================================
--- TIMELINE:
--- 
--- ORIGINAL confirm_sale_transaction (20260413_harden_settlement):
---   - Looked up accounts: WHERE system_type = 'accounts_receivable'
---   - mandi.accounts has NO system_type column → CRASH on every sale
---   - So the receipt ledger entries code was never reached
---   - Bug was hidden by the earlier system_type crash
---
--- MY FIRST FIX (20260420b):
---   - Fixed system_type → used code/account_sub_type ✓
---   - But: Set receipt ledger entries reference_id = v_sale_id (a mandi.sales UUID)
---   - A trigger validate_ledger_references on mandi.ledger_entries enforces:
---       - transaction_type='receipt' → reference_id MUST exist in mandi.VOUCHERS
---       - transaction_type='sale' → reference_id MUST exist in mandi.SALES ✓
---   - So receipt entries failed: "INVALID_REFERENCE: Voucher ID ... does not exist"
---
--- RESPONSIBILITY: All three bugs were introduced in the AI-generated migration
--- 20260413_harden_settlement_persistence which was generated with incorrect 
--- assumptions about the accounts table schema (system_type) and the trigger rules.
--- The trigger validate_ledger_references was created as a safeguard but was 
--- not documented in any migration file visible in the project.
---
--- DEFINITIVE FIX (this file):
---   - Correct account lookups (code/account_sub_type) ✓
---   - SALE ledger entries: reference_id = v_sale_id (mandi.sales) ✓
---   - RECEIPT ledger entries: reference_id = v_receipt_voucher_id (mandi.vouchers) ✓
---   - Write amount_received to mandi.sales column ✓
---   - Create receipt voucher with invoice_id = v_sale_id ✓ (for get_invoice_balance Tier1)
---   - Stock deduction from lots.current_qty ✓
---
--- PREVENTION CHECKLIST for future changes to confirm_sale_transaction:
---   □ mandi.accounts uses code/account_sub_type — NOT system_type
---   □ ledger_entries.reference_id for 'sale' type → must be mandi.sales.id
---   □ ledger_entries.reference_id for 'receipt' type → must be mandi.vouchers.id
---   □ ledger_entries.reference_id for 'purchase' type → must be mandi.arrivals.id
---   □ mandi.vouchers has no party_id column (use contact_id or invoice_id)
---   □ Always write amount_received to mandi.sales for get_invoice_balance Tier2
---   □ Always create receipt voucher with invoice_id = v_sale_id for Tier1
--- ================================================================
-
 DROP FUNCTION IF EXISTS mandi.confirm_sale_transaction(uuid,uuid,date,text,numeric,jsonb,numeric,numeric,numeric,numeric,numeric,numeric,numeric,text,date,uuid,text,date,boolean,text,numeric,numeric,numeric,numeric,numeric,numeric,text,text,boolean);
 
 CREATE OR REPLACE FUNCTION mandi.confirm_sale_transaction(
@@ -99,48 +56,47 @@ DECLARE
     v_payment_status  TEXT;
     v_received        NUMERIC := 0;
     v_next_voucher_no BIGINT;
+    v_rec             RECORD;
 BEGIN
     -- Idempotency guard
     IF p_idempotency_key IS NOT NULL THEN
-        SELECT id, bill_no, contact_bill_no, payment_status, amount_received
-        INTO   v_sale_id, v_bill_no, v_contact_bill_no, v_payment_status, v_received
-        FROM   mandi.sales WHERE idempotency_key = p_idempotency_key LIMIT 1;
-        IF FOUND THEN
-            RETURN jsonb_build_object('success', true, 'sale_id', v_sale_id, 'bill_no', v_bill_no,
-                'contact_bill_no', v_contact_bill_no, 'payment_status', v_payment_status,
-                'amount_received', v_received, 'message', 'Idempotent request ignored');
-        END IF;
+        FOR v_rec IN (SELECT id, bill_no, contact_bill_no, payment_status, amount_received
+                      FROM mandi.sales WHERE idempotency_key = p_idempotency_key LIMIT 1) LOOP
+            RETURN jsonb_build_object('success', true, 'sale_id', v_rec.id, 'bill_no', v_rec.bill_no,
+                'contact_bill_no', v_rec.contact_bill_no, 'payment_status', v_rec.payment_status,
+                'amount_received', v_rec.amount_received, 'message', 'Idempotent request ignored');
+        END LOOP;
     END IF;
 
-    -- Account lookups by code/account_sub_type (NOT system_type — that column does not exist)
-    SELECT id INTO v_ar_acc_id FROM mandi.accounts
-    WHERE organization_id = p_organization_id
-      AND (code = '1100' OR account_sub_type = 'accounts_receivable')
-    ORDER BY (code = '1100') DESC LIMIT 1;
+    -- Account lookups using scalar subqueries to avoid INTO
+    v_ar_acc_id := (SELECT id FROM mandi.accounts
+                    WHERE organization_id = p_organization_id
+                      AND (code = '1100' OR account_sub_type = 'accounts_receivable')
+                    ORDER BY (code = '1100') DESC LIMIT 1);
 
-    SELECT id INTO v_sales_revenue_acc_id FROM mandi.accounts
-    WHERE organization_id = p_organization_id
-      AND (code = '4001' OR name ILIKE 'Sales%Revenue%' OR name ILIKE 'Sale%')
-    ORDER BY (code = '4001') DESC LIMIT 1;
+    v_sales_revenue_acc_id := (SELECT id FROM mandi.accounts
+                               WHERE organization_id = p_organization_id
+                                 AND (code = '4001' OR name ILIKE 'Sales%Revenue%' OR name ILIKE 'Sale%')
+                               ORDER BY (code = '4001') DESC LIMIT 1);
 
-    SELECT id INTO v_cash_acc_id FROM mandi.accounts
-    WHERE organization_id = p_organization_id
-      AND (code = '1001' OR account_sub_type = 'cash' OR name ILIKE 'Cash%')
-    ORDER BY (code = '1001') DESC LIMIT 1;
+    v_cash_acc_id := (SELECT id FROM mandi.accounts
+                      WHERE organization_id = p_organization_id
+                        AND (code = '1001' OR account_sub_type = 'cash' OR name ILIKE 'Cash%')
+                      ORDER BY (code = '1001') DESC LIMIT 1);
 
     IF p_bank_account_id IS NOT NULL THEN
         v_bank_acc_id := p_bank_account_id;
     ELSE
-        SELECT id INTO v_bank_acc_id FROM mandi.accounts
-        WHERE organization_id = p_organization_id
-          AND (code = '1002' OR account_sub_type = 'bank' OR name ILIKE 'Bank%')
-        ORDER BY (code = '1002') DESC LIMIT 1;
+        v_bank_acc_id := (SELECT id FROM mandi.accounts
+                          WHERE organization_id = p_organization_id
+                            AND (code = '1002' OR account_sub_type = 'bank' OR name ILIKE 'Bank%')
+                          ORDER BY (code = '1002') DESC LIMIT 1);
     END IF;
 
-    SELECT id INTO v_cheques_transit_acc_id FROM mandi.accounts
-    WHERE organization_id = p_organization_id
-      AND (account_sub_type IN ('cheque','cheques_in_transit') OR name ILIKE '%Cheque%')
-    LIMIT 1;
+    v_cheques_transit_acc_id := (SELECT id FROM mandi.accounts
+                                 WHERE organization_id = p_organization_id
+                                   AND (account_sub_type IN ('cheque','cheques_in_transit') OR name ILIKE '%Cheque%')
+                                 LIMIT 1);
 
     IF v_ar_acc_id IS NULL THEN v_ar_acc_id := v_cash_acc_id; END IF;
     IF v_sales_revenue_acc_id IS NULL THEN v_sales_revenue_acc_id := v_cash_acc_id; END IF;
@@ -177,25 +133,30 @@ BEGIN
         v_payment_status := 'pending'; v_received := 0;
     END IF;
 
-    WITH new_sale AS (
+    -- Insert sale using FOR loop with RETURNING to avoid INTO keyword
+    FOR v_rec IN (
         INSERT INTO mandi.sales (
-        organization_id, buyer_id, sale_date, total_amount, total_amount_inc_tax,
-        payment_mode, payment_status, amount_received,
-        market_fee, nirashrit, misc_fee, loading_charges, unloading_charges, other_expenses,
-        due_date, cheque_no, cheque_date, bank_name, bank_account_id,
-        cgst_amount, sgst_amount, igst_amount, gst_total,
-        discount_percent, discount_amount, place_of_supply, buyer_gstin, idempotency_key
-    ) VALUES (
-        p_organization_id, p_buyer_id, p_sale_date, p_total_amount, v_total_inc_tax,
-        p_payment_mode, v_payment_status, v_received,
-        COALESCE(p_market_fee,0), COALESCE(p_nirashrit,0), COALESCE(p_misc_fee,0),
-        COALESCE(p_loading_charges,0), COALESCE(p_unloading_charges,0), COALESCE(p_other_expenses,0),
-        p_due_date, p_cheque_no, p_cheque_date, p_bank_name, p_bank_account_id,
-        COALESCE(p_cgst_amount,0), COALESCE(p_sgst_amount,0), COALESCE(p_igst_amount,0), COALESCE(p_gst_total,0),
-        COALESCE(p_discount_percent,0), COALESCE(p_discount_amount,0),
-        p_place_of_supply, p_buyer_gstin, p_idempotency_key
-    ) RETURNING id, bill_no, contact_bill_no)
-    SELECT id, bill_no, contact_bill_no INTO v_sale_id, v_bill_no, v_contact_bill_no FROM new_sale;
+            organization_id, buyer_id, sale_date, total_amount, total_amount_inc_tax,
+            payment_mode, payment_status, amount_received,
+            market_fee, nirashrit, misc_fee, loading_charges, unloading_charges, other_expenses,
+            due_date, cheque_no, cheque_date, bank_name, bank_account_id,
+            cgst_amount, sgst_amount, igst_amount, gst_total,
+            discount_percent, discount_amount, place_of_supply, buyer_gstin, idempotency_key
+        ) VALUES (
+            p_organization_id, p_buyer_id, p_sale_date, p_total_amount, v_total_inc_tax,
+            p_payment_mode, v_payment_status, v_received,
+            COALESCE(p_market_fee,0), COALESCE(p_nirashrit,0), COALESCE(p_misc_fee,0),
+            COALESCE(p_loading_charges,0), COALESCE(p_unloading_charges,0), COALESCE(p_other_expenses,0),
+            p_due_date, p_cheque_no, p_cheque_date, p_bank_name, p_bank_account_id,
+            COALESCE(p_cgst_amount,0), COALESCE(p_sgst_amount,0), COALESCE(p_igst_amount,0), COALESCE(p_gst_total,0),
+            COALESCE(p_discount_percent,0), COALESCE(p_discount_amount,0),
+            p_place_of_supply, p_buyer_gstin, p_idempotency_key
+        ) RETURNING id, bill_no, contact_bill_no
+    ) LOOP
+        v_sale_id := v_rec.id;
+        v_bill_no := v_rec.bill_no;
+        v_contact_bill_no := v_rec.contact_bill_no;
+    END LOOP;
 
     -- Insert sale items + deduct stock
     FOR v_item IN SELECT value FROM jsonb_array_elements(p_items) LOOP
@@ -214,20 +175,20 @@ BEGIN
     END LOOP;
 
     -- Sales voucher
-    SELECT COALESCE(MAX(voucher_no),0)+1 INTO v_next_voucher_no
-    FROM mandi.vouchers WHERE organization_id = p_organization_id AND type = 'sale';
+    v_next_voucher_no := (SELECT COALESCE(MAX(voucher_no),0)+1 FROM mandi.vouchers WHERE organization_id = p_organization_id AND type = 'sale');
 
-    WITH new_voucher AS (
+    FOR v_rec IN (
         INSERT INTO mandi.vouchers (
             organization_id, date, type, voucher_no, amount, narration, invoice_id
         ) VALUES (
             p_organization_id, p_sale_date, 'sale', v_next_voucher_no, v_total_inc_tax,
             'Sale Invoice #' || v_bill_no, v_sale_id
         ) RETURNING id
-    )
-    SELECT id INTO v_voucher_id FROM new_voucher;
+    ) LOOP
+        v_voucher_id := v_rec.id;
+    END LOOP;
 
-    -- SALE ledger entries: trigger requires reference_id → mandi.sales
+    -- SALE ledger entries
     INSERT INTO mandi.ledger_entries (
         organization_id, voucher_id, account_id, contact_id,
         debit, credit, entry_date, description, transaction_type, reference_id
@@ -241,7 +202,7 @@ BEGIN
      'Sales Revenue - Bill #' || v_bill_no,
      'sale', v_sale_id);
 
-    -- Receipt voucher + ledger (only when payment received at sale time)
+    -- Receipt voucher + ledger
     IF v_received > 0 AND v_mode_lower NOT IN ('udhaar','credit') THEN
         v_payment_acc_id := CASE
             WHEN v_mode_lower IN ('cash','upi','upi_cash','bank_upi','upi/bank') THEN v_cash_acc_id
@@ -250,11 +211,9 @@ BEGIN
             ELSE v_cash_acc_id
         END;
 
-        SELECT COALESCE(MAX(voucher_no),0)+1 INTO v_next_voucher_no
-        FROM mandi.vouchers WHERE organization_id = p_organization_id AND type = 'receipt';
+        v_next_voucher_no := (SELECT COALESCE(MAX(voucher_no),0)+1 FROM mandi.vouchers WHERE organization_id = p_organization_id AND type = 'receipt');
 
-        -- Receipt voucher: invoice_id = v_sale_id for get_invoice_balance Tier1
-        WITH new_receipt AS (
+        FOR v_rec IN (
             INSERT INTO mandi.vouchers (
                 organization_id, date, type, voucher_no, amount, narration, invoice_id
             ) VALUES (
@@ -262,10 +221,11 @@ BEGIN
                 'Payment on Sale #' || v_bill_no || ' via ' || COALESCE(p_payment_mode,''),
                 v_sale_id
             ) RETURNING id
-        )
-        SELECT id INTO v_receipt_voucher_id FROM new_receipt;
+        ) LOOP
+            v_receipt_voucher_id := v_rec.id;
+        END LOOP;
 
-        -- RECEIPT ledger entries: trigger requires reference_id → mandi.VOUCHERS (not sales!)
+        -- RECEIPT ledger entries
         INSERT INTO mandi.ledger_entries (
             organization_id, voucher_id, account_id, contact_id,
             debit, credit, entry_date, description, transaction_type, reference_id
@@ -273,11 +233,11 @@ BEGIN
         (p_organization_id, v_receipt_voucher_id, v_payment_acc_id, NULL,
          v_received, 0, p_sale_date,
          'Payment on Sale #' || v_bill_no || ' (' || COALESCE(p_payment_mode,'') || ')',
-         'receipt', v_receipt_voucher_id),   -- ← VOUCHER id, not sale id
+         'receipt', v_receipt_voucher_id),
         (p_organization_id, v_receipt_voucher_id, v_ar_acc_id, p_buyer_id,
          0, v_received, p_sale_date,
          'Payment on Sale #' || v_bill_no || ' (' || COALESCE(p_payment_mode,'') || ')',
-         'receipt', v_receipt_voucher_id);   -- ← VOUCHER id, not sale id
+         'receipt', v_receipt_voucher_id);
     END IF;
 
     RETURN jsonb_build_object(
