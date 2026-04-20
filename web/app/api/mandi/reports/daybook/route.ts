@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
             id, entry_date, debit, credit, narration, reference_type, reference_id, created_at,
             account:accounts(id, name, type, subtype),
             contact:contacts(id, name, contact_type),
-            voucher:vouchers(id, voucher_no, type)
+            voucher:vouchers(id, voucher_no, type, invoice_id, arrival_id)
         `)
         .order('entry_date', { ascending: true })
         .order('created_at', { ascending: true })

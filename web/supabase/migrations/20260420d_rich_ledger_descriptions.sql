@@ -69,7 +69,7 @@ BEGIN
         v_qty  := COALESCE((v_item->>'qty')::NUMERIC, (v_item->>'quantity')::NUMERIC, 0); v_rate := COALESCE((v_item->>'rate')::NUMERIC, (v_item->>'rate_per_unit')::NUMERIC, 0);
         IF (v_item->>'lot_id') IS NOT NULL THEN
             v_temp_lot_no := (SELECT lot_code FROM mandi.lots WHERE id = (v_item->>'lot_id')::UUID);
-            v_temp_item_name := (SELECT items.name FROM mandi.items items JOIN mandi.lots lots ON lots.item_id = items.id WHERE lots.id = (v_item->>'lot_id')::UUID);
+            v_temp_item_name := (SELECT items.name FROM mandi.commodities items JOIN mandi.lots lots ON lots.item_id = items.id WHERE lots.id = (v_item->>'lot_id')::UUID);
             -- Formatting: [Item] (Lot: [lot no], Qty: [qty], Price: ₹[price])
             v_item_details := v_item_details || COALESCE(v_temp_item_name,'Item') || ' (Lot: ' || COALESCE(v_temp_lot_no,'') || ', Qty: ' || v_qty || ', Price: ₹' || v_rate || ') ';
         END IF;
@@ -136,7 +136,7 @@ BEGIN
     v_expense_recovery_acc_id := (SELECT id FROM mandi.accounts WHERE organization_id = v_org_id AND code = '4002' LIMIT 1);
     v_cash_acc_id := (SELECT id FROM mandi.accounts WHERE organization_id = v_org_id AND code = '1001' LIMIT 1);
 
-    FOR v_lot IN (SELECT lots.*, items.name AS item_name FROM mandi.lots lots LEFT JOIN mandi.items items ON lots.item_id = items.id WHERE arrival_id = p_arrival_id) LOOP
+    FOR v_lot IN (SELECT lots.*, items.name AS item_name FROM mandi.lots lots LEFT JOIN mandi.commodities items ON lots.item_id = items.id WHERE arrival_id = p_arrival_id) LOOP
         DECLARE 
             v_adj_qty NUMERIC := CASE WHEN COALESCE(v_lot.less_units, 0) > 0 THEN COALESCE(v_lot.initial_qty, 0) - COALESCE(v_lot.less_units, 0) ELSE COALESCE(v_lot.initial_qty, 0) * (1.0 - COALESCE(v_lot.less_percent, 0) / 100.0) END;
             v_val NUMERIC := v_adj_qty * COALESCE(v_lot.supplier_rate, 0);
