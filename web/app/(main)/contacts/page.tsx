@@ -77,7 +77,13 @@ export default function ContactsPage() {
     const fetchContacts = async () => {
         if (!profile?.organization_id) return
         setLoading(true)
-        const { data, error } = await supabase.schema(schema).from("contacts").select("id, name, type, city, phone, status, credit_limit, contact_code, created_at, bill_series_prefix").eq("organization_id", profile.organization_id).neq("status", "deleted").order("name", { ascending: true })
+        const { data, error } = await supabase.schema(schema)
+            .from("contacts")
+            .select("id, name, type, city, phone, status, credit_limit, contact_code, created_at, bill_series_prefix")
+            .eq("organization_id", profile.organization_id)
+            .neq("status", "deleted")
+            .neq("type", "staff") // Hide internal staff from master data
+            .order("name", { ascending: true })
         if (error) console.error("Error fetching contacts:", error)
         else setContacts(data || [])
         setLoading(false)

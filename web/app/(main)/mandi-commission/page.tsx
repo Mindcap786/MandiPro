@@ -2,8 +2,8 @@ import { MandiCommissionForm } from "@/components/mandi-commission/mandi-commiss
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-    title: "Mandi Commission | MandiPro",
-    description: "Single-screen purchase and sale for Mandi Commission Agents",
+    title: "Purchase + Sale | MandiPro",
+    description: "Single-screen purchase and sale entry for mandi workflows",
 };
 
 export default function MandiCommissionPage() {

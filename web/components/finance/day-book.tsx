@@ -28,7 +28,7 @@ import { cacheGet, cacheSet } from "@/lib/data-cache";
 import { useTableKeyboard } from "@/hooks/use-table-keyboard";
 import { findImbalancedVoucherIds, summarizeVoucherHealth } from "@/lib/finance/voucher-integrity";
 
-const DAYBOOK_CACHE_VERSION = 'v2.5'; // Bumped 2026-04-19: Fix Arjun double purchase row + Mubarak invisible entries
+const DAYBOOK_CACHE_VERSION = 'v2.6'; // Bumped 2026-04-20: Fix advance payment grouping for arrivals
 const AMOUNT_EPSILON = 0.01;
 
 // ── TRANSACTION TYPE MAP (from real DB audit — all known transaction_type values) ──────────────

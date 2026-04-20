@@ -61,7 +61,7 @@ export const translations = {
             warehouse: "Warehouse",
             field_manager: "Field Manager",
             field_governance: "Field Governance",
-            mandi_commission: "Mandi Commission"
+            mandi_commission: "Purchase + Sale"
         },
         actions: {
             new_sale: "New Sale",

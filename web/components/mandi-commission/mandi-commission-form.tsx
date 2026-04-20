@@ -299,7 +299,7 @@ export function MandiCommissionForm() {
                     <Scale className="w-5 h-5" />
                 </div>
                 <div>
-                    <h1 className="text-2xl font-black text-slate-900 tracking-tight leading-none">Purchase + Sale (Commission)</h1>
+                    <h1 className="text-2xl font-black text-slate-900 tracking-tight leading-none">Purchase + Sale</h1>
                     <p className="text-[12px] font-bold text-slate-500 uppercase tracking-widest mt-1">Single-Screen Native Application</p>
                 </div>
             </div>

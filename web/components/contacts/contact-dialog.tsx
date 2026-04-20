@@ -31,7 +31,7 @@ import { cn } from "@/lib/utils"
 
 const contactSchema = z.object({
     name: z.string().min(2, "Name is required"),
-    type: z.enum(["farmer", "buyer", "supplier", "staff"]),
+    type: z.enum(["farmer", "buyer", "supplier"]),
     internal_id: z.string().optional().or(z.literal("")),
     phone: z.string().optional().or(z.literal("")),
     city: z.string().optional(),
@@ -45,7 +45,7 @@ type ContactFormValues = z.infer<typeof contactSchema>
 interface ContactDialogProps {
     children: React.ReactNode
     onSuccess?: () => void
-    defaultType?: "farmer" | "buyer" | "supplier" | "staff"
+    defaultType?: "farmer" | "buyer" | "supplier"
 }
 
 export function ContactDialog({ children, onSuccess, defaultType = "farmer" }: ContactDialogProps) {
@@ -228,7 +228,6 @@ export function ContactDialog({ children, onSuccess, defaultType = "farmer" }: C
                                         <SelectItem value="farmer">Farmer (Producer)</SelectItem>
                                         <SelectItem value="buyer">Buyer (Trader)</SelectItem>
                                         <SelectItem value="supplier">External Supplier</SelectItem>
-                                        <SelectItem value="staff">Internal Staff</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
