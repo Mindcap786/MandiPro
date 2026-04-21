@@ -61,7 +61,7 @@ BEGIN
     -- Payment voucher (links to same arrival_id for Day Book grouping)
     INSERT INTO mandi.vouchers (organization_id, date, type, voucher_no, amount, narration, arrival_id, payment_mode)
     VALUES (
-        p_organization_id, p_created_at, 'payment',
+        p_organization_id, p_created_at::date, 'payment',
         (SELECT COALESCE(MAX(voucher_no),0)+1 FROM mandi.vouchers WHERE organization_id = p_organization_id AND type = 'payment'),
         p_advance_amount, v_pay_narration, p_arrival_id, p_payment_mode
     ) RETURNING id INTO v_payment_vch_id;
@@ -69,12 +69,12 @@ BEGIN
     -- Dr Accounts Payable (reducing liability to farmer/supplier)
     INSERT INTO mandi.ledger_entries (organization_id, voucher_id, account_id, contact_id, debit, credit, entry_date, description, transaction_type, reference_id)
     VALUES (p_organization_id, v_payment_vch_id, p_ap_acc_id, p_party_id,
-            p_advance_amount, 0, p_created_at, v_pay_narration, 'purchase_payment', p_arrival_id);
+            p_advance_amount, 0, p_created_at::date, v_pay_narration, 'purchase_payment', p_arrival_id);
 
     -- Cr Cash/Bank (cash going out of mandi's pocket)
     INSERT INTO mandi.ledger_entries (organization_id, voucher_id, account_id, contact_id, debit, credit, entry_date, description, transaction_type, reference_id)
     VALUES (p_organization_id, v_payment_vch_id, v_cash_acc_id, NULL,
-            0, p_advance_amount, p_created_at, v_pay_narration, 'purchase_payment', p_arrival_id);
+            0, p_advance_amount, p_created_at::date, v_pay_narration, 'purchase_payment', p_arrival_id);
 END;
 $fn$;
 
@@ -135,18 +135,18 @@ BEGIN
 
         IF v_arrival_total > 0 THEN
             INSERT INTO mandi.vouchers (organization_id, date, type, voucher_no, amount, narration, arrival_id)
-            VALUES (v_arrival.organization_id, v_arrival.created_at, 'purchase',
+            VALUES (v_arrival.organization_id, v_arrival.arrival_date, 'purchase',
                 (SELECT COALESCE(MAX(voucher_no),0)+1 FROM mandi.vouchers WHERE organization_id = v_arrival.organization_id AND type = 'purchase'),
                 v_arrival_total, v_narration, p_arrival_id)
             RETURNING id INTO v_purchase_vch_id;
 
             INSERT INTO mandi.ledger_entries (organization_id, voucher_id, account_id, contact_id, debit, credit, entry_date, description, transaction_type, reference_id)
             VALUES (v_arrival.organization_id, v_purchase_vch_id, v_inventory_acc_id, NULL,
-                    v_arrival_total, 0, v_arrival.created_at, v_narration, 'purchase', p_arrival_id);
+                    v_arrival_total, 0, v_arrival.arrival_date, v_narration, 'purchase', p_arrival_id);
 
             INSERT INTO mandi.ledger_entries (organization_id, voucher_id, account_id, contact_id, debit, credit, entry_date, description, transaction_type, reference_id)
             VALUES (v_arrival.organization_id, v_purchase_vch_id, v_ap_acc_id, v_arrival.party_id,
-                    0, v_arrival_total, v_arrival.created_at, v_narration, 'purchase', p_arrival_id);
+                    0, v_arrival_total, v_arrival.arrival_date, v_narration, 'purchase', p_arrival_id);
         END IF;
     END IF;
 

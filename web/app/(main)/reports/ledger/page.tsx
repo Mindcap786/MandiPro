@@ -74,7 +74,7 @@ export default function PartyLedgerPage() {
                 .eq('organization_id', profile!.organization_id)
                 .eq('contact_id', selectedContact)
                 .gte('entry_date', dateRange.from)
-                .lte('entry_date', dateRange.to)
+                .lte('entry_date', `${dateRange.to}T23:59:59.999Z`)
                 .order('entry_date', { ascending: true });
 
             if (error) throw error;
