@@ -352,9 +352,6 @@ export default function ArrivalsEntryForm() {
         const fetchNextBillNo = async () => {
             if (!profile?.organization_id || !selectedContactId) return;
             
-            // Only auto-populate if NOT manually edited by user
-            if (isManualBillNo.current) return;
-
             // Priority: Try to get contact-specific sequence first
             const { data, error } = await supabase
                 .schema('mandi')
@@ -364,23 +361,27 @@ export default function ArrivalsEntryForm() {
                     p_type: arrivalType === 'direct' ? 'purchase' : 'arrival'
                 });
             
+            // Only update if not manually edited OR if field is currently empty/default
+            const currentBill = form.getValues('bill_no');
+            const shouldUpdate = !isManualBillNo.current || (!currentBill || currentBill === 0);
+
             if (!error && data) {
-                form.setValue('bill_no', Number(data));
-                // Also set reference_no if currently empty/default
-                const currentRef = form.getValues('reference_no');
-                if (!currentRef || currentRef === '#' || currentRef === '') {
-                    form.setValue('reference_no', String(data));
+                if (shouldUpdate) {
+                    form.setValue('bill_no', Number(data));
+                    const currentRef = form.getValues('reference_no');
+                    if (!currentRef || currentRef === '#' || currentRef === '' || !isManualBillNo.current) {
+                        form.setValue('reference_no', String(data));
+                    }
                 }
             } else {
                 // Fallback to global sequence
                 const { data: globalData, error: globalError } = await supabase
                     .schema('mandi')
                     .rpc('get_next_bill_no', { p_organization_id: profile.organization_id });
-                if (!globalError && globalData) {
+                if (!globalError && globalData && shouldUpdate) {
                     form.setValue('bill_no', Number(globalData));
-                    // Also set reference_no if currently empty/default
                     const currentRef = form.getValues('reference_no');
-                    if (!currentRef || currentRef === '#' || currentRef === '') {
+                    if (!currentRef || currentRef === '#' || currentRef === '' || !isManualBillNo.current) {
                         form.setValue('reference_no', String(globalData));
                     }
                 }
