@@ -191,8 +191,18 @@ export default function PurchaseBillInvoice({
                 {/* Right: Bill Details */}
                 <div className="text-right space-y-0.5 text-xs self-end print:w-1/2 print:flex print:flex-col print:items-end">
                     <div className="flex justify-end gap-2">
-                        <span className="text-gray-400 font-bold uppercase">Invoice/Bill No:</span>
+                        <span className="text-gray-400 font-bold uppercase">Invoice No:</span>
                         <span className="font-black">#{billNo}</span>
+                    </div>
+                    {referenceNo && (
+                        <div className="flex justify-end gap-2">
+                            <span className="text-gray-400 font-bold uppercase">Book Ref No:</span>
+                            <span className="font-black">{referenceNo}</span>
+                        </div>
+                    )}
+                    <div className="flex justify-end gap-2">
+                        <span className="text-gray-400 font-bold uppercase">Date:</span>
+                        <span className="font-black">{formattedDate}</span>
                     </div>
                     <div className="flex justify-end gap-2">
                         <span className="text-gray-400 font-bold uppercase">Lot No:</span>
@@ -201,29 +211,9 @@ export default function PurchaseBillInvoice({
                     {vehicleNo && (
                         <div className="flex justify-end gap-2">
                             <span className="text-gray-400 font-bold uppercase">Vehicle No:</span>
-                            <span className="font-black uppercase">{vehicleNo} {vehicleType ? `(${vehicleType})` : ''}</span>
+                            <span className="font-black uppercase tracking-wider">{vehicleNo}{vehicleType ? ` (${vehicleType})` : ''}</span>
                         </div>
                     )}
-                    {referenceNo && (
-                        <div className="flex justify-end gap-2">
-                            <span className="text-gray-400 font-bold uppercase">Ref/Book:</span>
-                            <span className="font-black">{referenceNo}</span>
-                        </div>
-                    )}
-                    <div className="flex justify-end gap-2">
-                        <span className="text-gray-400 font-bold uppercase">Date:</span>
-                        <span className="font-black">{formattedDate}</span>
-                    </div>
-                    {vehicleNo && (
-                        <div className="flex justify-end gap-2">
-                            <span className="text-gray-400 font-bold uppercase">Vehicle:</span>
-                            <span className="font-black tracking-wider">{vehicleNo}{vehicleType ? ` (${vehicleType})` : ''}</span>
-                        </div>
-                    )}
-                    <div className="flex justify-end gap-2">
-                        <span className="text-gray-400 font-bold uppercase">Lot No:</span>
-                        <span className="font-black text-orange-600">{lotCode}</span>
-                    </div>
                 </div>
             </div>
 

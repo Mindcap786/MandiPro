@@ -223,7 +223,9 @@ export default function ArrivalsEntryForm() {
         if (headerStorage) {
             const currentItems = form.getValues('items');
             currentItems.forEach((item, index) => {
-                if (item.storage_location !== headerStorage) {
+                // Only auto-populate if the item's storage location is empty/null
+                // This allows human manual override at the item level.
+                if (!item.storage_location) {
                     form.setValue(`items.${index}.storage_location`, headerStorage);
                 }
             });
@@ -783,9 +785,76 @@ export default function ArrivalsEntryForm() {
                             </div>
 
                             <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
-                                {/* Date Selection */}
-                                <div className="bg-slate-50 border border-slate-100 p-2 rounded-xl flex-1 md:flex-none min-w-[180px] hover:bg-white transition-all">
-                                    <div className="text-[9px] font-bold uppercase text-slate-700 tracking-wide mb-1 px-1">Arrival Date</div>
+                                {/* Print Settings / Success Actions can go here if needed */}
+                            </div>
+                        </div>
+
+                        {/* Updated Arrivals Header: 7 Fields in 2 Rows */}
+                        <div className="bg-slate-50/50 border border-slate-200 rounded-2xl p-5 mb-8 shadow-sm space-y-5">
+                            {/* Row 1: Party, Vehicle, Date, Arrival Type */}
+                            <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-end">
+                                <div className="md:col-span-4 space-y-1.5">
+                                    <Label className="text-[10px] font-bold text-slate-700 uppercase tracking-wide ml-1">{getLabel('contact_id', 'SUPPLIER / PARTY')}</Label>
+                                    {isVisible('contact_id') && (
+                                        <FormField
+                                            control={form.control}
+                                            name="contact_id"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <div className="flex gap-2">
+                                                        <div className="flex-1">
+                                                            <SearchableSelect
+                                                                options={(contacts || []).map(c => ({
+                                                                    label: `${c?.name || 'Unnamed'} (${c?.city || 'No City'})`,
+                                                                    value: c?.id
+                                                                }))}
+                                                                value={field.value}
+                                                                onChange={field.onChange}
+                                                                placeholder={getLabel('contact_id', 'Search Supplier Database...')}
+                                                                className="h-10 text-slate-900 font-semibold bg-white border-slate-300"
+                                                            />
+                                                        </div>
+                                                        <ContactDialog onSuccess={refetchMaster}>
+                                                            <Button type="button" size="icon" className="h-10 w-10 rounded-lg bg-slate-900 text-white hover:bg-blue-600 transition-all shadow-sm">
+                                                                <Plus className="w-4 h-4" />
+                                                            </Button>
+                                                        </ContactDialog>
+                                                    </div>
+                                                    <FormMessage className="text-[10px] mt-1" />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    )}
+                                </div>
+
+                                <div className="md:col-span-3 space-y-1.5">
+                                    <Label className="text-[10px] font-bold text-slate-700 uppercase tracking-wide ml-1">{getLabel('vehicle_number', 'VEHICLE NUMBER')}</Label>
+                                    {isVisible('vehicle_number') && (
+                                        <FormField
+                                            control={form.control}
+                                            name="vehicle_number"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormControl>
+                                                        <div className="relative group">
+                                                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-blue-500 transition-colors" />
+                                                            <Input
+                                                                placeholder="XX-00-YY-0000"
+                                                                {...field}
+                                                                required={isMandatory('vehicle_number')}
+                                                                className="bg-white border-slate-300 h-10 pl-11 text-slate-900 font-bold tracking-widest focus:ring-4 focus:ring-blue-500/5 transition-all rounded-lg shadow-sm"
+                                                            />
+                                                        </div>
+                                                    </FormControl>
+                                                    <FormMessage className="text-[10px] mt-1" />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    )}
+                                </div>
+
+                                <div className="md:col-span-2 space-y-1.5">
+                                    <Label className="text-[10px] font-bold text-slate-700 uppercase tracking-wide ml-1">Arrival Date</Label>
                                     {isVisible('entry_date') && (
                                         <FormField
                                             control={form.control}
@@ -794,12 +863,12 @@ export default function ArrivalsEntryForm() {
                                                 <FormItem>
                                                     <Popover>
                                                         <PopoverTrigger asChild>
-                                                            <Button variant="ghost" className="w-full justify-start text-left font-bold text-slate-900 hover:bg-transparent h-auto p-1 text-sm">
+                                                            <Button variant="outline" className="w-full justify-start text-left font-bold text-slate-900 bg-white border-slate-300 h-10 px-3">
                                                                 <CalendarIcon className="mr-2 h-4 w-4 text-blue-600" />
-                                                                {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                                                                {field.value ? format(field.value, "dd/MM/yy") : <span>Pick a date</span>}
                                                             </Button>
                                                         </PopoverTrigger>
-                                                        <PopoverContent className="w-auto p-0" align="center">
+                                                        <PopoverContent className="w-auto p-0" align="start">
                                                             <Calendar
                                                                 mode="single"
                                                                 selected={field.value}
@@ -814,110 +883,9 @@ export default function ArrivalsEntryForm() {
                                         />
                                     )}
                                 </div>
-                            </div>
-                        </div>
 
-                        {/* Top Bar: Party selection & Truck details */}
-                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 p-4 rounded-xl border border-slate-100 bg-slate-50/50 mb-6 items-end group shadow-sm">
-                            <div className="md:col-span-5 space-y-1.5">
-                                <Label className="text-[10px] font-bold text-slate-700 uppercase tracking-wide ml-1">{getLabel('contact_id', 'SUPPLIER / PARTY')}</Label>
-                                {isVisible('contact_id') && (
-                                    <FormField
-                                        control={form.control}
-                                        name="contact_id"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <div className="flex gap-2">
-                                                    <div className="flex-1">
-                                                        <SearchableSelect
-                                                            options={(contacts || []).map(c => ({
-                                                                label: `${c?.name || 'Unnamed'} (${c?.city || 'No City'})`,
-                                                                value: c?.id
-                                                            }))}
-                                                            value={field.value}
-                                                            onChange={field.onChange}
-                                                            placeholder={getLabel('contact_id', 'Search Supplier Database...')}
-                                                            className="h-10 text-slate-900 font-semibold bg-white border-slate-300"
-                                                        />
-                                                    </div>
-                                                    <ContactDialog onSuccess={refetchMaster}>
-                                                        <Button type="button" size="icon" className="h-10 w-10 rounded-lg bg-slate-900 text-white hover:bg-blue-600 transition-all shadow-sm">
-                                                            <Plus className="w-4 h-4" />
-                                                        </Button>
-                                                    </ContactDialog>
-                                                </div>
-                                                <FormMessage className="text-[10px] mt-1" />
-                                            </FormItem>
-                                        )}
-                                    />
-                                )}
-                            </div>
-
-                            <div className="md:col-span-3 space-y-1.5">
-                                <Label className="text-[10px] font-bold text-slate-700 uppercase tracking-wide ml-1">{getLabel('vehicle_number', 'VEHICLE NUMBER')}</Label>
-                                {isVisible('vehicle_number') && (
-                                    <FormField
-                                        control={form.control}
-                                        name="vehicle_number"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormControl>
-                                                    <div className="relative group">
-                                                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-blue-500 transition-colors" />
-                                                        <Input
-                                                            placeholder="XX-00-YY-0000"
-                                                            {...field}
-                                                            required={isMandatory('vehicle_number')}
-                                                            className="bg-white border-slate-300 h-10 pl-11 text-slate-900 font-bold tracking-widest focus:ring-4 focus:ring-blue-500/5 transition-all rounded-lg shadow-sm"
-                                                        />
-                                                    </div>
-                                                </FormControl>
-                                                <FormMessage className="text-[10px] mt-1" />
-                                            </FormItem>
-                                        )}
-                                    />
-                                )}
-                            </div>
-                            <div className="md:col-span-4 space-y-2">
-                                <Label className="text-[11px] font-black text-slate-700 uppercase tracking-widest ml-1">{getLabel('storage_location', 'STORAGE LOCATION')}</Label>
-                                {isVisible('storage_location') && (
-                                    <FormField
-                                        control={form.control}
-                                        name="storage_location"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <Select onValueChange={field.onChange} value={field.value} required={isMandatory('storage_location')}>
-                                                    <FormControl>
-                                                        <SelectTrigger className="bg-white border border-slate-300 h-12 text-slate-900 font-bold rounded-xl shadow-sm">
-                                                            <SelectValue placeholder={getLabel('storage_location', 'Select Storage Location')} />
-                                                        </SelectTrigger>
-                                                    </FormControl>
-                                                    <SelectContent className="bg-white border-gray-200 text-gray-900 shadow-xl">
-                                                        {storageLocations.map((loc) => (
-                                                            <SelectItem key={loc.name} value={loc.name}>{loc.name}</SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                                <FormMessage className="text-xs text-red-500 font-bold mt-1" />
-                                            </FormItem>
-                                        )}
-                                    />
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Main Form Content */}
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 relative z-10">
-                            {/* LEFT COLUMN: Basic Info */}
-                            <div className="space-y-4">
-                                <div className="flex flex-col gap-3">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <div className="h-5 w-1 bg-blue-600 rounded-full shadow-sm" />
-                                            <h3 className="text-base font-bold text-slate-800 tracking-tight uppercase">Arrival <span className="text-blue-600">Header</span></h3>
-                                        </div>
-                                    </div>
-
+                                <div className="md:col-span-3 space-y-1.5">
+                                    <Label className="text-[10px] font-bold text-slate-700 uppercase tracking-wide ml-1">Arrival Type</Label>
                                     <Tabs
                                         value={arrivalType}
                                         onValueChange={(v: any) => {
@@ -926,48 +894,79 @@ export default function ArrivalsEntryForm() {
                                         }}
                                         className="w-full"
                                     >
-                                        <TabsList className="bg-slate-100/80 p-0.5 rounded-lg h-8 w-full grid grid-cols-3 border border-slate-300 shadow-sm">
-                                            <TabsTrigger value="direct" className="rounded-md font-bold uppercase tracking-wide text-[10px] data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm text-slate-600 transition-all">
-                                                Direct Purchase
+                                        <TabsList className="bg-slate-100/80 p-0.5 rounded-lg h-10 w-full grid grid-cols-3 border border-slate-300 shadow-sm">
+                                            <TabsTrigger value="direct" className="rounded-md font-bold uppercase tracking-wide text-[9px] data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm text-slate-600 transition-all">
+                                                Direct
                                             </TabsTrigger>
-                                            <TabsTrigger value="commission" className="rounded-md font-bold uppercase tracking-wide text-[10px] data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm text-slate-600 transition-all">
-                                                Farmer Comm.
+                                            <TabsTrigger value="commission" className="rounded-md font-bold uppercase tracking-wide text-[9px] data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm text-slate-600 transition-all">
+                                                Farmer
                                             </TabsTrigger>
-                                            <TabsTrigger value="commission_supplier" className="rounded-md font-bold uppercase tracking-wide text-[10px] data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm text-slate-600 transition-all">
-                                                Supplier Comm.
+                                            <TabsTrigger value="commission_supplier" className="rounded-md font-bold uppercase tracking-wide text-[9px] data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm text-slate-600 transition-all">
+                                                Supp.
                                             </TabsTrigger>
                                         </TabsList>
                                     </Tabs>
                                 </div>
+                            </div>
 
-                                <div className="grid grid-cols-1 gap-6">
-                                    {/* entry_date and contact_id are now in the top bar */}
+                            {/* Row 2: Storage Location, Lot Prefix, Ref/Bill No */}
+                            <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-end">
+                                <div className="md:col-span-4 space-y-1.5">
+                                    <Label className="text-[10px] font-bold text-slate-700 uppercase tracking-widest ml-1">{getLabel('storage_location', 'STORAGE LOCATION')}</Label>
+                                    {isVisible('storage_location') && (
+                                        <FormField
+                                            control={form.control}
+                                            name="storage_location"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <Select onValueChange={field.onChange} value={field.value} required={isMandatory('storage_location')}>
+                                                        <FormControl>
+                                                            <SelectTrigger className="bg-white border border-slate-300 h-10 text-slate-900 font-bold rounded-lg shadow-sm">
+                                                                <SelectValue placeholder={getLabel('storage_location', 'Select Location')} />
+                                                            </SelectTrigger>
+                                                        </FormControl>
+                                                        <SelectContent className="bg-white border-gray-200 text-gray-900 shadow-xl">
+                                                            {storageLocations.map((loc) => (
+                                                                <SelectItem key={loc.name} value={loc.name}>{loc.name}</SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <FormMessage className="text-xs text-red-500 font-bold mt-1" />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    )}
+                                </div>
+
+                                <div className="md:col-span-4 space-y-1.5">
+                                    <Label className="text-[10px] font-bold text-slate-700 uppercase tracking-wide ml-1">{getLabel('lot_prefix', 'Lot Prefix')}</Label>
                                     {isVisible('lot_prefix') && (
                                         <FormField
                                             control={form.control}
                                             name="lot_prefix"
                                             render={({ field }) => (
                                                 <FormItem>
-                                                    <FormLabel className="text-[10px] font-bold text-slate-700 uppercase tracking-wide ml-1">{getLabel('lot_prefix', 'Lot Prefix')}</FormLabel>
                                                     <FormControl>
-                                                        <Input placeholder="LOT-PREFIX" {...field} required={isMandatory('lot_prefix')} className="bg-white border border-slate-300 h-9 text-xs text-slate-900 font-bold font-mono rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 tracking-wide uppercase shadow-sm" />
+                                                        <Input placeholder="LOT-PREFIX" {...field} required={isMandatory('lot_prefix')} className="bg-white border border-slate-300 h-10 text-sm text-slate-900 font-bold font-mono rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 tracking-wide uppercase shadow-sm" />
                                                     </FormControl>
                                                     <FormMessage className="text-[10px] mt-1" />
                                                 </FormItem>
                                             )}
                                         />
                                     )}
+                                </div>
 
+                                <div className="md:col-span-4 space-y-1.5">
+                                    <Label className="text-[10px] font-bold text-slate-700 uppercase tracking-wide ml-1 flex items-center gap-1.5">
+                                        {getLabel('reference_no', 'Ref / Bill No')}
+                                        <span className="bg-blue-50 text-[7px] text-blue-600 px-1 border border-blue-100 rounded leading-none py-0.5 uppercase">Auto</span>
+                                    </Label>
                                     {isVisible('reference_no') && (
                                         <FormField
                                             control={form.control}
                                             name="reference_no"
                                             render={({ field }) => (
                                                 <FormItem>
-                                                    <FormLabel className="text-[10px] font-bold text-slate-700 uppercase tracking-wide ml-1 flex items-center gap-1.5">
-                                                        {getLabel('reference_no', 'Ref / Bill No')}
-                                                        <span className="bg-blue-50 text-[7px] text-blue-600 px-1 border border-blue-100 rounded leading-none py-0.5">AUTO-SEQ</span>
-                                                    </FormLabel>
                                                     <FormControl>
                                                         <Input 
                                                             placeholder="#" 
@@ -977,19 +976,32 @@ export default function ArrivalsEntryForm() {
                                                                 isManualBillNo.current = true;
                                                             }}
                                                             required={isMandatory('reference_no')} 
-                                                            className="bg-white border border-slate-300 h-9 text-xs text-slate-900 font-bold rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all uppercase shadow-sm" 
+                                                            className="bg-white border border-slate-300 h-10 text-sm text-slate-900 font-bold rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all uppercase shadow-sm" 
                                                         />
                                                     </FormControl>
                                                 </FormItem>
                                             )}
                                         />
                                     )}
+                                </div>
+                            </div>
+                        </div>
 
-                                    {/* storage_location is now in the top bar */}
+                        {/* Main Form Content */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 relative z-10">
+                            {/* LEFT COLUMN: Summary & Type Selection (Simplified) */}
+                            <div className="space-y-4">
+                                <div className="flex flex-col gap-3">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <div className="h-5 w-1 bg-blue-600 rounded-full shadow-sm" />
+                                            <h3 className="text-base font-bold text-slate-800 tracking-tight uppercase">Arrival <span className="text-blue-600">Items</span></h3>
+                                        </div>
+                                    </div>
+                                </div>
 
-                                    {/* contact_id is now in the top bar */}
-
-                                    {/* vehicle_no is now in the top bar */}
+                                <div className="grid grid-cols-1 gap-6">
+                                    {/* Core header fields moved to the top bar above */}
                                 </div>
                             </div>
 

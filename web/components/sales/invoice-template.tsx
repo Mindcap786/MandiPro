@@ -150,16 +150,10 @@ export default function BuyerInvoice({ sale, organization, onRefresh }: InvoiceT
                         );
                     })()}
                     {(() => {
-                        // Sale+Purchase (Commission/Supplier) check: 
-                        // Do any items have a linked arrival?
-                        const hasLinkedArrival = items.some((i: any) => i.lot?.arrival);
-                        
-                        // Extract Vehicle and Book No from the first item's arrival as a representative
-                        const linkedArrival = items.find((i: any) => i.lot?.arrival)?.lot?.arrival;
-                        const displayVehicleNo = sale.vehicle_number || linkedArrival?.vehicle_number;
-                        const displayBookNo = sale.book_no || linkedArrival?.reference_no || linkedArrival?.bill_number;
+                        const displayVehicleNo = sale.vehicle_number || items.find((i: any) => i.lot?.arrival)?.lot?.arrival?.vehicle_number;
+                        const displayBookNo = sale.book_no || items.find((i: any) => i.lot?.arrival)?.lot?.arrival?.reference_no || items.find((i: any) => i.lot?.arrival)?.lot?.arrival?.bill_number;
 
-                        if (!hasLinkedArrival) return null;
+                        if (!displayVehicleNo && !displayBookNo) return null;
 
                         return (
                             <>

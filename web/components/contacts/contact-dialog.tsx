@@ -104,7 +104,7 @@ export function ContactDialog({ children, onSuccess, defaultType = "farmer", ini
             .from('contacts')
             .select('name')
             .eq('organization_id', profile.organization_id)
-            .eq('type', type)
+            .eq('contact_type', type)
             .eq('internal_id', id)
             .maybeSingle()
         
@@ -152,7 +152,7 @@ export function ContactDialog({ children, onSuccess, defaultType = "farmer", ini
                     .from("contacts")
                     .update({
                         name: data.name,
-                        type: data.type,
+                        contact_type: data.type,
                         internal_id: data.internal_id?.trim() || null,
                         phone: data.phone,
                         city: data.city,
@@ -169,7 +169,7 @@ export function ContactDialog({ children, onSuccess, defaultType = "farmer", ini
                     .insert({
                         organization_id: profile.organization_id,
                         name: data.name,
-                        type: data.type,
+                        contact_type: data.type,
                         status: "active",
                         internal_id: data.internal_id?.trim() || null,
                         phone: data.phone,

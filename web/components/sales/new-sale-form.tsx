@@ -85,7 +85,9 @@ const formSchema = z.object({
     cheque_date: z.date().optional(),
     bank_name: z.string().optional(),
     bank_account_id: z.string().optional(),
-    cheque_status: z.boolean().default(false)
+    cheque_status: z.boolean().default(false),
+    vehicle_number: z.string().optional(),
+    book_no: z.string().optional(),
 }).superRefine((data, ctx) => {
     // Validate that the sum of quantities for a single lot doesn't exceed its available stock
     const lotTotals: Record<string, number> = {};
@@ -163,7 +165,9 @@ function NewSaleForm() {
             discount_amount: 0,
             cheque_date: new Date(),
             bank_account_id: "",
-            cheque_status: false
+            cheque_status: false,
+            vehicle_number: "",
+            book_no: ""
         }
     });
 
@@ -339,9 +343,9 @@ function NewSaleForm() {
                 supabase
                     .schema('mandi')
                     .from('contacts')
-                    .select('id, name, type, city, status')
+                    .select('id, name, type:contact_type, city, status, state_code, gstin')
                     .eq('organization_id', orgId)
-                    .in('type', ['buyer', 'staff'])
+                    .in('contact_type', ['buyer', 'staff'])
                     .or('status.is.null,status.eq.active')
                     .order('name'),
                 supabase.schema('mandi').from('accounts').select('id, name, is_default, code, description').eq('organization_id', orgId).eq('account_sub_type', 'bank').eq('type', 'asset').eq('is_active', true),
@@ -683,7 +687,9 @@ function NewSaleForm() {
                 gstTotal: totals.gstTotal,
                 placeOfSupply: totals.isIgst ? (buyerInfo?.state_code || null) : (orgStateCode || null),
                 buyerGstin: buyerInfo?.gstin || null,
-                isIgst: totals.isIgst
+                isIgst: totals.isIgst,
+                vehicleNumber: values.vehicle_number || null,
+                bookNo: values.book_no || null
             });
 
             if (error) throw error;
@@ -807,6 +813,40 @@ function NewSaleForm() {
                                         />
                                     )}
                                 </div>
+
+                                <div className="bg-slate-50 border border-slate-100 p-3 md:p-3.5 rounded-xl flex flex-col justify-center items-start flex-1 min-w-[100px] shadow-sm">
+                                    <div className="text-[9px] font-black uppercase text-slate-500 tracking-widest mb-1 w-full text-left truncate">Vehicle No</div>
+                                    <FormField
+                                        control={form.control}
+                                        name="vehicle_number"
+                                        render={({ field }) => (
+                                            <FormControl>
+                                                <Input 
+                                                    {...field} 
+                                                    placeholder="UP-80-..." 
+                                                    className="h-8 bg-transparent border-none p-0 font-black text-slate-900 text-sm shadow-none focus-visible:ring-0 placeholder:text-slate-300" 
+                                                />
+                                            </FormControl>
+                                        )}
+                                    />
+                                </div>
+
+                                <div className="bg-slate-50 border border-slate-100 p-3 md:p-3.5 rounded-xl flex flex-col justify-center items-start flex-1 min-w-[100px] shadow-sm">
+                                    <div className="text-[9px] font-black uppercase text-slate-500 tracking-widest mb-1 w-full text-left truncate">Book Ref</div>
+                                    <FormField
+                                        control={form.control}
+                                        name="book_no"
+                                        render={({ field }) => (
+                                            <FormControl>
+                                                <Input 
+                                                    {...field} 
+                                                    placeholder="B-001" 
+                                                    className="h-8 bg-transparent border-none p-0 font-black text-slate-900 text-sm shadow-none focus-visible:ring-0 placeholder:text-slate-300" 
+                                                />
+                                            </FormControl>
+                                        )}
+                                    />
+                                </div>
                             </div>
                         </div>
 
@@ -850,16 +890,23 @@ function NewSaleForm() {
                                                     </ContactDialog>
                                                 </div>
                                                 {field.value && (
-                                                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-1.5">
-                                                        <div className="text-slate-700 text-xs font-medium italic">
-                                                            {buyers.find(b => b.id === field.value)?.city || 'Location not specified'}
+                                                    <div className="rounded-xl border-2 border-indigo-100 bg-indigo-50/50 p-4 space-y-2 shadow-sm animate-in fade-in slide-in-from-top-1">
+                                                        <div className="flex justify-between items-start">
+                                                            <div className="text-slate-900 text-sm font-black uppercase tracking-tight">
+                                                                {buyers.find(b => b.id === field.value)?.name || 'Customer Selected'}
+                                                            </div>
+                                                            <div className="text-indigo-600 text-[10px] font-black uppercase tracking-widest bg-white px-2 py-0.5 rounded border border-indigo-100">
+                                                                {buyers.find(b => b.id === field.value)?.city || 'Location N/A'}
+                                                            </div>
                                                         </div>
                                                         <div className="flex flex-wrap gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                                            <span className="rounded-full border border-slate-200 bg-white px-2 py-1">
-                                                                GSTIN: {buyers.find(b => b.id === field.value)?.gstin || 'Not set'}
+                                                            <span className="rounded-md border border-slate-200 bg-white px-2 py-1 flex items-center gap-1.5 shadow-xs">
+                                                                <div className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                                                                GSTIN: <span className="text-slate-900">{buyers.find(b => b.id === field.value)?.gstin || 'NOT SET'}</span>
                                                             </span>
-                                                            <span className="rounded-full border border-slate-200 bg-white px-2 py-1">
-                                                                State: {buyers.find(b => b.id === field.value)?.state_code || 'NA'}
+                                                            <span className="rounded-md border border-slate-200 bg-white px-2 py-1 flex items-center gap-1.5 shadow-xs">
+                                                                <div className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                                                                State: <span className="text-slate-900">{buyers.find(b => b.id === field.value)?.state_code || 'NA'}</span>
                                                             </span>
                                                         </div>
                                                     </div>

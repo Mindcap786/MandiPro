@@ -76,9 +76,9 @@ export default function QuotationsPage() {
     const fetchBuyers = async () => {
         const { data } = await supabase
             .from('contacts')
-            .select('id, name, price_list_id')
+            .select('id, name, price_list_id, type:contact_type')
             .eq('organization_id', profile!.organization_id)
-            .in('type', ['buyer'])
+            .in('contact_type', ['buyer'])
             .order('name')
         setBuyers(data || [])
     }

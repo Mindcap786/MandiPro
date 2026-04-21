@@ -114,12 +114,21 @@ export const PrintableLedger = React.forwardRef<HTMLDivElement, PrintableLedgerP
                                                 {(() => { try { const d = new Date(item.date || item.created_at); return isNaN(d.getTime()) ? '-' : d.toLocaleDateString('en-IN'); } catch { return '-'; } })()}
                                             </td>
                                             <td className="py-2 font-medium text-slate-800">
-                                                <div>{item.narration || item.description || item.particulars}</div>
+                                                <div className="flex flex-col gap-0.5">
+                                                    <div className="font-bold">{item.narration || item.description || item.particulars}</div>
+                                                    {(item.lot_no || item.bill_no || item.invoice_no) && (
+                                                        <div className="flex gap-2 text-[9px] font-black uppercase text-blue-600/70 tracking-tighter">
+                                                            {item.lot_no && <span>Lot: {item.lot_no}</span>}
+                                                            {(item.bill_no || item.invoice_no) && <span>Bill: {item.bill_no || item.invoice_no}</span>}
+                                                        </div>
+                                                    )}
+                                                </div>
                                                 {item.products && item.products.length > 0 && (
                                                     <div className="mt-1 flex flex-col gap-0 text-[10px] text-slate-500 pl-2 border-l border-slate-300">
                                                         {item.products.map((p: any, idx: number) => (
                                                             <div key={idx}>
                                                                 • {p.name} - {parseFloat(p.qty)} {p.unit} @ {parseFloat(p.rate).toFixed(2)}
+                                                                {(p.lot_no) && <span className="ml-1 text-[8px] font-bold text-slate-400">(LOT: {p.lot_no})</span>}
                                                             </div>
                                                         ))}
                                                     </div>

@@ -111,8 +111,8 @@ export function NewEntryModal() {
         const { data, error } = await supabase
             .schema('mandi')
             .from('contacts')
-            .select('id, name, village, default_trading_model, type')
-            .in('type', ['farmer', 'supplier', 'staff'])
+            .select('id, name, village, default_trading_model, type:contact_type')
+            .in('contact_type', ['farmer', 'supplier', 'staff'])
             .order('name')
 
         if (error) {
@@ -177,9 +177,9 @@ export function NewEntryModal() {
                 name: newFarmer.name,
                 village: newFarmer.village,
                 phone: newFarmer.phone,
-                type: newFarmer.type,
+                contact_type: newFarmer.type,
                 trading_model: newFarmer.trading_model
-            }).select('id, name, village, default_trading_model, type').single()
+            }).select('id, name, village, default_trading_model, type:contact_type').single()
 
             if (error) throw error
 

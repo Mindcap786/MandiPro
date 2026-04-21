@@ -80,9 +80,10 @@ export default function SalesForm() {
         const { data } = await supabase
             .schema('mandi')
             .from("contacts")
-            .select("*")
+            .select("id, name, contact_type, city, status")
             .eq("organization_id", profile!.organization_id)
-            .eq("type", "buyer")
+            .eq("contact_type", "buyer")
+            .or("status.is.null,status.eq.active")
         setBuyers(data || [])
     }
 

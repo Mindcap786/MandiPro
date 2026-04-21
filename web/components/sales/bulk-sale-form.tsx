@@ -172,9 +172,9 @@ export function BulkLotSaleForm() {
             const { data: bData } = await supabase
                 .schema('mandi')
                 .from("contacts")
-                .select("id, name, type, city, status")
+                .select("id, name, contact_type, city, status, state_code, gstin")
                 .eq("organization_id", profile.organization_id)
-                .eq("type", "buyer")
+                .eq("contact_type", "buyer")
                 .or("status.is.null,status.eq.active")
                 .order("name");
             if (bData) setBuyers(bData.map(b => ({ ...b, label: `${b.name} (${b.city || "-"})`, value: b.id })));

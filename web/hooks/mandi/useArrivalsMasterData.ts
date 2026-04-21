@@ -110,8 +110,8 @@ export function useArrivalsMasterData(organizationId: string | undefined): Arriv
     // 2. Background / foreground fetch from Supabase
     try {
       const [contactsRes, commoditiesRes, storageRes, bankRes, settingsRes] = await Promise.allSettled([
-        supabase.schema(SCHEMA).from("contacts").select("id, name, type, city")
-          .eq("organization_id", currentOrgId).in("type", ["farmer", "supplier"]).order("name"),
+        supabase.schema(SCHEMA).from("contacts").select("id, name, type:contact_type, city")
+          .eq("organization_id", currentOrgId).in("contact_type", ["farmer", "supplier"]).order("name"),
         supabase.schema(SCHEMA).from("commodities").select("id, name, local_name, sku_code, default_unit, custom_attributes")
           .eq("organization_id", currentOrgId).order("name"),
         supabase.schema(SCHEMA).from("storage_locations").select("name, is_active")

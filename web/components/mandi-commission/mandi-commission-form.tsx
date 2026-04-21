@@ -82,7 +82,7 @@ export function MandiCommissionForm() {
         const loadMasterData = async () => {
             const orgId = profile.organization_id;
             const [contactsRes, commRes, setsRes, unitsRes] = await Promise.all([
-                supabase.schema('mandi').from("contacts").select("id, name, type, city, internal_id").eq("organization_id", orgId).order("name"),
+                supabase.schema('mandi').from("contacts").select("id, name, type:contact_type, city, internal_id").eq("organization_id", orgId).order("name"),
                 supabase.schema('mandi').from("commodities").select("*").eq("organization_id", orgId).order("name"),
                 supabase.schema('mandi').from("mandi_settings" as any).select("*").eq("organization_id", orgId).maybeSingle(),
                 supabase.schema('mandi').from("units").select("name").eq("organization_id", orgId),
