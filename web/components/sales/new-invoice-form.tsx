@@ -140,9 +140,9 @@ const NewInvoiceForm = () => {
                 { data: lotData },
                 { data: settingsData }
             ] = await Promise.all([
-                supabase.schema('mandi').from('contacts').select('id, name, contact_type, city, status')
+                supabase.schema('mandi').from('contacts').select('id, name, type, city, status')
                     .eq('organization_id', orgId)
-                    .eq('contact_type', 'buyer')
+                    .eq('type', 'buyer')
                     .or('status.is.null,status.eq.active')
                     .order('name'),
                 supabase.schema('mandi').from('accounts').select('id, name, is_default, description')

@@ -273,7 +273,7 @@ export default function POSPage() {
             // 1. Run independent master data fetches in parallel
             const [accsRes, buyersRes, orgRes, brandingRes, settingsRes] = await Promise.all([
                 supabase.schema(schema).from('accounts').select('id,name,type,account_sub_type,is_default,description').eq('organization_id', orgId).in('type', ['asset', 'income']).eq('is_active', true).order('name'),
-                supabase.schema(schema).from('contacts').select('id,name,city,state_code,gstin').eq('organization_id', orgId).eq('contact_type', 'buyer').neq('status', 'deleted').order('name'),
+                supabase.schema(schema).from('contacts').select('id,name,city,state_code,gstin').eq('organization_id', orgId).eq('type', 'buyer').neq('status', 'deleted').order('name'),
                 supabase.schema('core').from('organizations').select('name, settings').eq('id', orgId).single(),
                 supabase.schema('core').from('platform_branding_settings').select('document_footer_powered_by_text, support_phone').maybeSingle(),
                 supabase.schema(schema).from('mandi_settings' as any).select('market_fee_percent,nirashrit_percent,misc_fee_percent,gst_enabled,gst_type,cgst_percent,sgst_percent,igst_percent,max_invoice_amount,state_code').eq('organization_id', orgId).maybeSingle()

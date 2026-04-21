@@ -78,7 +78,57 @@ export default function PartyLedgerPage() {
                 .order('entry_date', { ascending: true });
 
             if (error) throw error;
-            setEntries(statementEntries || []);
+            
+            let augmentedEntries = statementEntries || [];
+            
+            // Extract all non-null reference IDs
+            const allRefIds = augmentedEntries.map(e => e.reference_id).filter(Boolean);
+            
+            if (allRefIds.length > 0) {
+                // Fetch Arrivals
+                const { data: arrivals } = await supabase
+                    .schema('mandi')
+                    .from('arrivals')
+                    .select('id, bill_number, lots(lot_code, item:commodities(name))')
+                    .in('id', allRefIds);
+                    
+                // Fetch Sales
+                const { data: sales } = await supabase
+                    .schema('mandi')
+                    .from('sales')
+                    .select('id, bill_no, contact_bill_no, sale_items(lot:lots(lot_code), item:commodities(name))')
+                    .in('id', allRefIds);
+
+                const refMap = new Map();
+                if (arrivals) {
+                    arrivals.forEach(a => {
+                        const lotStrs = (a.lots || []).map((l:any) => `${l.item?.name || 'Item'} [Lot: ${l.lot_code || 'N/A'}]`).join(', ');
+                        const billPrefix = a.bill_number ? `Bill #${a.bill_number}` : '';
+                        refMap.set(a.id, `${billPrefix} ${lotStrs}`.trim());
+                    });
+                }
+                if (sales) {
+                    sales.forEach(s => {
+                        const lotStrs = (s.sale_items || []).map((si:any) => {
+                            const lotNode = Array.isArray(si.lot) ? si.lot[0] : si.lot;
+                            const lotCode = lotNode?.lot_code ? ` [Lot: ${lotNode.lot_code}]` : '';
+                            return `${si.item?.name || 'Item'}${lotCode}`;
+                        }).join(', ');
+                        const bNo = s.contact_bill_no || s.bill_no;
+                        const billPrefix = bNo ? `Invoice #${bNo}` : '';
+                        refMap.set(s.id, `${billPrefix} ${lotStrs}`.trim());
+                    });
+                }
+
+                augmentedEntries = augmentedEntries.map(e => {
+                    if (e.reference_id && refMap.has(e.reference_id)) {
+                        return { ...e, description: `${refMap.get(e.reference_id)} (${e.description})` };
+                    }
+                    return e;
+                });
+            }
+
+            setEntries(augmentedEntries);
 
         } catch (err) {
             console.error("Ledger Fetch Error:", err);

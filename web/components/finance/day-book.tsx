@@ -1057,7 +1057,7 @@ export default function DayBook() {
                         items: itemLabel, 
                         qtyByUnit,
                         details: lots.map(l => ({
-                            name: formatItemName(l.item),
+                            name: `${formatItemName(l.item)}${l.lot_code ? ` [Lot: ${l.lot_code}]` : ''}`,
                             qty: Number(l.initial_qty || 0),
                             rate: Number(l.supplier_rate || 0),
                             unit: l.unit
@@ -1096,7 +1096,7 @@ export default function DayBook() {
                 const { data: saleItemsData } = await supabase
                     .schema(schema)
                     .from('sale_items')
-                    .select('sale_id, quantity, unit, rate, item:commodities(name, custom_attributes)')
+                    .select('sale_id, quantity, unit, rate, item:commodities(name, custom_attributes), lot:lots(lot_code)')
                     .in('sale_id', allSaleIds);
 
                 const statsBySale = new Map<string, { 
@@ -1130,11 +1130,15 @@ export default function DayBook() {
                         return entry ? `${base} (${entry[0]}: ${entry[1]})` : base;
                     })();
                     
+                    const lotNode = Array.isArray(si.lot) ? si.lot[0] : si.lot;
+                    const lotCode = lotNode?.lot_code ? ` [Lot: ${lotNode.lot_code}]` : '';
+                    const itemNameWithLot = itemNameFull + lotCode;
+                    
                     if (itemNameFull) {
                         stat.items.push(itemNameFull);
-                        const rateKey = `${itemNameFull}_${si.rate}`;
+                        const rateKey = `${itemNameFull}_${si.rate}_${lotNode?.lot_code || 'N/A'}`;
                         if (!stat.detailsMap.has(rateKey)) {
-                            stat.detailsMap.set(rateKey, { name: itemNameFull, qty: 0, rate: Number(si.rate || 0), unit: si.unit } as any);
+                            stat.detailsMap.set(rateKey, { name: itemNameWithLot, qty: 0, rate: Number(si.rate || 0), unit: si.unit } as any);
                         }
                         const d = stat.detailsMap.get(rateKey)!;
                         d.qty += Number(si.quantity || 0);
@@ -1154,7 +1158,11 @@ export default function DayBook() {
                         details: Array.from(stat.detailsMap.values()),
                         qty: stat.qty, 
                         unit: stat.unit, 
-                        avgPrice: stat.count > 0 ? stat.priceSum / stat.count : 0 
+                        avgPrice: stat.count > 0 ? stat.priceSum / stat.count : 0,
+                        lotPrefix: Array.from(new Set(stat.items.map(i => {
+                            const match = i.match(/\[Lot: (.*?)\]/);
+                            return match ? match[1] : null;
+                        }).filter(Boolean))).join(', ')
                     };
                 });
             }
@@ -1272,6 +1280,9 @@ export default function DayBook() {
             const effectiveContactId = e.contact_id || groupContactId;
             const baseDisplayName = effectiveContactId ? contactMap[effectiveContactId] : (e.account?.name || 'Unknown');
             const purchaseLotPrefix = effectiveContactId && flowType === 'purchase' && e.reference_id ? arrivalLotPrefixMap[String(e.reference_id)] : null;
+            const saleLotPrefix = effectiveContactId && (flowType === 'sale' || flowType === 'sale_payment') && (e.reference_id || saleIdFromBill) ? saleItemMap[String(e.reference_id || saleIdFromBill)]?.lotPrefix : null;
+            const displayLotPrefix = purchaseLotPrefix || saleLotPrefix;
+            
             const displayDescription = getEntryDescription(e, group, contactMap, arrivalLotMap, arrivalReferenceMap, saleItemMap, saleReferenceMap, t, rawData);
             let displayLabel = 'Transaction';
             if (rowType === 'receive_receipt') displayLabel = 'Receipt';
@@ -1282,7 +1293,7 @@ export default function DayBook() {
             else if (rowType === 'sale') displayLabel = 'Sale';
             else if (rowType === 'opening_balance') displayLabel = 'Opening Balance';
             else if (flowType === 'purchase') displayLabel = 'Purchase';
-            return { ...e, sortIndex: index, displayTimestamp: transactionTimestamp || e.created_at || e.entry_date, reference_no: e.reference_no || (flowType === 'purchase' && e.reference_id ? arrivalReferenceMap[String(e.reference_id)] : e.reference_no), contact: { name: baseDisplayName }, displayNameLotPrefix: purchaseLotPrefix, displayType: rowType, displayLabel, displayDescription, displayDebit: rawDebit, displayCredit: rawCredit, isUdhaar: (rowType === 'sale' || rowType === 'purchase') && !((e.account?.account_sub_type === 'cash' || e.account?.account_sub_type === 'bank' || e.account?.type === 'bank')) };
+            return { ...e, sortIndex: index, displayTimestamp: transactionTimestamp || e.created_at || e.entry_date, reference_no: e.reference_no || (flowType === 'purchase' && e.reference_id ? arrivalReferenceMap[String(e.reference_id)] : e.reference_no), contact: { name: baseDisplayName }, displayNameLotPrefix: displayLotPrefix, displayType: rowType, displayLabel, displayDescription, displayDebit: rawDebit, displayCredit: rawCredit, isUdhaar: (rowType === 'sale' || rowType === 'purchase') && !((e.account?.account_sub_type === 'cash' || e.account?.account_sub_type === 'bank' || e.account?.type === 'bank')) };
         });
 
         const voucherGroupMap = new Map<string, string>();

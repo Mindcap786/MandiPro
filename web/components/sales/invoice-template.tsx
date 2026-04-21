@@ -149,18 +149,35 @@ export default function BuyerInvoice({ sale, organization, onRefresh }: InvoiceT
                             </div>
                         );
                     })()}
-                    {sale.lot_no && sale.vehicle_number && (
-                        <div className="flex justify-end gap-2">
-                            <span className="text-gray-400 font-bold uppercase">Vehicle No:</span>
-                            <span className="font-black uppercase">{sale.vehicle_number}</span>
-                        </div>
-                    )}
-                    {sale.book_no && (
-                        <div className="flex justify-end gap-2">
-                            <span className="text-gray-400 font-bold uppercase">Ref/Book:</span>
-                            <span className="font-black uppercase">{sale.book_no}</span>
-                        </div>
-                    )}
+                    {(() => {
+                        // Sale+Purchase (Commission/Supplier) check: 
+                        // Do any items have a linked arrival?
+                        const hasLinkedArrival = items.some((i: any) => i.lot?.arrival);
+                        
+                        // Extract Vehicle and Book No from the first item's arrival as a representative
+                        const linkedArrival = items.find((i: any) => i.lot?.arrival)?.lot?.arrival;
+                        const displayVehicleNo = sale.vehicle_number || linkedArrival?.vehicle_number;
+                        const displayBookNo = sale.book_no || linkedArrival?.reference_no || linkedArrival?.bill_number;
+
+                        if (!hasLinkedArrival) return null;
+
+                        return (
+                            <>
+                                {displayVehicleNo && (
+                                    <div className="flex justify-end gap-2">
+                                        <span className="text-gray-400 font-bold uppercase">Vehicle No:</span>
+                                        <span className="font-black uppercase">{displayVehicleNo}</span>
+                                    </div>
+                                )}
+                                {displayBookNo && (
+                                    <div className="flex justify-end gap-2">
+                                        <span className="text-gray-400 font-bold uppercase">Book Ref No:</span>
+                                        <span className="font-black uppercase">{displayBookNo}</span>
+                                    </div>
+                                )}
+                            </>
+                        );
+                    })()}
                     <div className="flex justify-end gap-2">
                         <span className="text-gray-400 font-bold uppercase">Date:</span>
                         <span className="font-black">
