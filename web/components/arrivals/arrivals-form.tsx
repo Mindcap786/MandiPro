@@ -676,7 +676,7 @@ export default function ArrivalsEntryForm() {
                 advance_cheque_date: values.advance_cheque_date ? format(values.advance_cheque_date as Date, 'yyyy-MM-dd') : null,
                 advance_bank_name: values.advance_bank_name || null,
                 reference_no: values.reference_no || null,
-                bill_no: values.bill_no || null,
+                bill_no: isManualBillNo.current ? (values.bill_no || null) : null,
                 items: values.items
             };
 
@@ -958,7 +958,10 @@ export default function ArrivalsEntryForm() {
                                             name="reference_no"
                                             render={({ field }) => (
                                                 <FormItem>
-                                                    <FormLabel className="text-[10px] font-bold text-slate-700 uppercase tracking-wide ml-1">{getLabel('reference_no', 'Ref / Bill No')}</FormLabel>
+                                                    <FormLabel className="text-[10px] font-bold text-slate-700 uppercase tracking-wide ml-1 flex items-center gap-1.5">
+                                                        {getLabel('reference_no', 'Ref / Bill No')}
+                                                        <span className="bg-blue-50 text-[7px] text-blue-600 px-1 border border-blue-100 rounded leading-none py-0.5">AUTO-SEQ</span>
+                                                    </FormLabel>
                                                     <FormControl>
                                                         <Input 
                                                             placeholder="#" 
