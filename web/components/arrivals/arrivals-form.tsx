@@ -350,50 +350,31 @@ export default function ArrivalsEntryForm() {
 
     const selectedContactId = form.watch('contact_id');
     useEffect(() => {
+        // Reset manual override whenever the user switches to a different party
+        // so the new party's auto-number always shows fresh
+        isManualBillNo.current = false;
+
         const fetchNextBillNo = async () => {
             if (!profile?.organization_id || !selectedContactId) return;
-            
-            // Priority: Try to get contact-specific sequence first
-            // Standardize on 'arrival' type for all tabs in this form to prevent number jumping
+
             const { data, error } = await supabase
                 .schema('mandi')
-                .rpc('get_next_contact_bill_no', { 
-                    p_organization_id: profile.organization_id, 
+                .rpc('get_next_contact_bill_no', {
+                    p_organization_id: profile.organization_id,
                     p_contact_id: selectedContactId,
-                    p_type: 'arrival' 
+                    p_type: 'arrival'
                 });
-            
-            // Only update if not manually edited OR if field is currently empty/default
-            const currentBill = form.getValues('bill_no');
-            const shouldUpdate = !isManualBillNo.current || (!currentBill || currentBill === 0);
 
-            if (!error && data) {
-                if (shouldUpdate) {
-                    form.setValue('bill_no', Number(data));
-                    const currentRef = form.getValues('reference_no');
-                    if (!currentRef || currentRef === '#' || currentRef === '' || !isManualBillNo.current) {
-                        form.setValue('reference_no', String(data));
-                    }
-                }
-            } else {
-                // Fallback to global sequence
-                const { data: globalData, error: globalError } = await supabase
-                    .schema('mandi')
-                    .rpc('get_next_bill_no', { p_organization_id: profile.organization_id });
-                if (!globalError && globalData && shouldUpdate) {
-                    form.setValue('bill_no', Number(globalData));
-                    const currentRef = form.getValues('reference_no');
-                    if (!currentRef || currentRef === '#' || currentRef === '' || !isManualBillNo.current) {
-                        form.setValue('reference_no', String(globalData));
-                    }
-                }
+            if (!error && data != null) {
+                form.setValue('bill_no', Number(data));
+                form.setValue('reference_no', String(data));
             }
+            // No global fallback — if RPC fails, leave field blank
         };
 
         if (profile?.organization_id && selectedContactId) {
             fetchNextBillNo();
         }
-        // Removed arrivalType from dependencies to keep bill_no stable when switching tabs
     }, [profile?.organization_id, selectedContactId]);
 
 
