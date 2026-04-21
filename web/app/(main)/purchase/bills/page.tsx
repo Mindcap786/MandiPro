@@ -91,7 +91,7 @@ export default function PurchaseBillsPage() {
                         net_payable,
                         farmer:contacts!contact_id(id, name, city, internal_id),
                         item:commodities(name, internal_id),
-                        arrival:arrivals(arrival_date, reference_no, arrival_type, hire_charges, hamali_expenses, other_expenses, bill_no, contact_bill_no),
+                        arrival:arrivals(arrival_date, reference_no, arrival_type, hire_charges, hamali_expenses, other_expenses, bill_no, contact_bill_no, storage_location),
                         sale_items(amount, qty, rate)
                     `)
                     .eq('organization_id', orgId)
@@ -218,6 +218,7 @@ export default function PurchaseBillsPage() {
                         id: contactId,
                         name: lot.farmer?.name || 'Unknown Supplier',
                         city: lot.farmer?.city || '',
+                        storage_location: lot.arrival?.storage_location || '',
                         internal_id: lot.farmer?.internal_id || '',
                         lots: [],
                         totalPurchaseValue: 0,
@@ -226,9 +227,12 @@ export default function PurchaseBillsPage() {
                     };
                 }
                 
-                // Track the latest activity for sorting
+                // Track the latest activity for sorting and latest storage location
                 if (new Date(lot.created_at) > new Date(groups[contactId].latestDate)) {
                     groups[contactId].latestDate = lot.created_at;
+                    if (lot.arrival?.storage_location) {
+                        groups[contactId].storage_location = lot.arrival.storage_location;
+                    }
                 }
 
                 groups[contactId].lots.push(lot);
@@ -571,7 +575,7 @@ export default function PurchaseBillsPage() {
                                                 {/* City */}
                                                 <div className="text-xs text-slate-400 font-bold flex items-center gap-1 mt-0.5">
                                                     <Receipt className="w-3 h-3 flex-shrink-0" />
-                                                    <span className="truncate">{supplier.city || 'Location not set'}</span>
+                                                    <span className="truncate">{supplier.city || supplier.storage_location || 'Location not set'}</span>
                                                 </div>
                                                 {/* Badges - wrap on mobile */}
                                                 <div className="flex flex-wrap items-center gap-1.5 mt-2">
