@@ -353,12 +353,13 @@ export default function ArrivalsEntryForm() {
             if (!profile?.organization_id || !selectedContactId) return;
             
             // Priority: Try to get contact-specific sequence first
+            // Standardize on 'arrival' type for all tabs in this form to prevent number jumping
             const { data, error } = await supabase
                 .schema('mandi')
                 .rpc('get_next_contact_bill_no', { 
                     p_organization_id: profile.organization_id, 
                     p_contact_id: selectedContactId,
-                    p_type: arrivalType === 'direct' ? 'purchase' : 'arrival'
+                    p_type: 'arrival' 
                 });
             
             // Only update if not manually edited OR if field is currently empty/default
@@ -391,7 +392,8 @@ export default function ArrivalsEntryForm() {
         if (profile?.organization_id && selectedContactId) {
             fetchNextBillNo();
         }
-    }, [profile?.organization_id, selectedContactId, arrivalType]);
+        // Removed arrivalType from dependencies to keep bill_no stable when switching tabs
+    }, [profile?.organization_id, selectedContactId]);
 
 
 
