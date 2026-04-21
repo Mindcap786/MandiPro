@@ -118,8 +118,6 @@ export function MandiCommissionForm() {
             itemId: "",
             itemName: "",
             internalCode: "",
-            variety: "",
-            grade: "A",
             qty: 0,
             unit: globalUnit,
             rate: 0,
@@ -173,8 +171,6 @@ export function MandiCommissionForm() {
                 itemId,
                 itemName: item?.name || "",
                 internalCode: item?.internal_id || "",
-                variety: item?.variety || "",
-                grade: item?.grade || "",
                 unit: item?.default_unit || globalUnit,
             }) as Partial<MandiSessionFarmerRow>);
         },
@@ -287,8 +283,6 @@ export function MandiCommissionForm() {
         const parts = [];
         if (item.internal_id) parts.push(`[${item.internal_id}]`);
         parts.push(item.name);
-        if (item.variety) parts.push(`- ${item.variety}`);
-        if (item.grade) parts.push(`(${item.grade})`);
         return parts.join(" ");
     };
 

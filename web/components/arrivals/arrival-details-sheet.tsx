@@ -24,8 +24,6 @@ interface ArrivalDetailsSheetProps {
 const EMPTY_EDIT = {
     supplier_rate: "",
     initial_qty: "",
-    grade: "",
-    variety: "",
     unit: "",
     unit_weight: "",
     sale_price: "",
@@ -88,8 +86,6 @@ export function ArrivalDetailsSheet({ arrivalId, isOpen, onClose, onUpdate }: Ar
         setEditForm({
             supplier_rate: lot.supplier_rate ?? "",
             initial_qty: lot.initial_qty ?? "",
-            grade: lot.grade ?? "",
-            variety: lot.variety ?? "",
             unit: lot.unit ?? "",
             unit_weight: lot.unit_weight ?? "",
             sale_price: lot.sale_price ?? "",
@@ -125,8 +121,6 @@ export function ArrivalDetailsSheet({ arrivalId, isOpen, onClose, onUpdate }: Ar
             initial_qty: newInitialQty,
             // If no qty has been sold yet, sync current_qty to match initial_qty
             current_qty: lot.current_qty === lot.initial_qty ? newInitialQty : lot.current_qty,
-            grade: editForm.grade || null,
-            variety: editForm.variety || null,
             unit: editForm.unit || lot.unit,
             unit_weight: newUnitWeight,
             total_weight: newInitialQty * newUnitWeight,

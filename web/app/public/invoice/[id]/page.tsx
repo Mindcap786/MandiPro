@@ -129,7 +129,6 @@ export default async function PublicInvoicePage({ params }: { params: { id: stri
                                                 <div className="font-black text-slate-900 uppercase text-lg tracking-tight leading-none">{item.lot?.item?.name || item.item_name}</div>
                                                 <div className="flex items-center gap-2 mt-2">
                                                     <span className="text-[10px] font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full border border-orange-100">{item.lot?.lot_code}</span>
-                                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{(item.lot?.variety || 'N/A')}</span>
                                                 </div>
                                             </td>
                                             <td className="py-8 text-right font-black text-slate-800 text-lg">

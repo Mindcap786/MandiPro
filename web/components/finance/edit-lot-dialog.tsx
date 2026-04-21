@@ -41,8 +41,6 @@ export function EditLotDialog({ lot, open, onClose, onSuccess }: EditLotDialogPr
             setFormData({
                 supplier_rate: lot.supplier_rate || 0,
                 initial_qty: lot.initial_qty || 0,
-                grade: lot.grade || "A",
-                variety: lot.variety || "",
                 commission_percent: lot.commission_percent || 0,
                 less_percent: lot.less_percent || 0,
                 packing_cost: lot.packing_cost || 0,
@@ -156,28 +154,6 @@ export function EditLotDialog({ lot, open, onClose, onSuccess }: EditLotDialogPr
                             </div>
                         )}
 
-                        {isVisible('grade') && (
-                            <div className="space-y-2">
-                                <Label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{getLabel('grade', 'Grade')}</Label>
-                                <Input
-                                    value={formData.grade}
-                                    required={isMandatory('grade')}
-                                    onChange={(e) => setFormData({ ...formData, grade: e.target.value })}
-                                    className="bg-slate-50 border-slate-200 h-12 text-lg font-black text-black rounded-xl"
-                                />
-                            </div>
-                        )}
-
-                        {isVisible('variety') && (
-                            <div className="col-span-2 space-y-2">
-                                <Label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{getLabel('variety', 'Variety')}</Label>
-                                <Input
-                                    value={formData.variety}
-                                    required={isMandatory('variety')}
-                                    onChange={(e) => setFormData({ ...formData, variety: e.target.value })}
-                                    className="bg-slate-50 border-slate-200 h-12 text-lg font-black text-black rounded-xl"
-                                />
-                            </div>
                         )}
                     </div>
 

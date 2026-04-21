@@ -68,8 +68,6 @@ const itemSchema = z.object({
     tracking_type: z.string().optional(),
     custom_attributes: z.record(z.string(), z.string()).optional(),
     internal_id: z.string().optional().or(z.literal("")),
-    variety: z.string().optional().default(""),
-    grade: z.string().optional().default(""),
 })
 
 type ItemFormValues = z.infer<typeof itemSchema>
@@ -189,12 +187,10 @@ export function ItemDialog({ children, onSuccess, initialItem }: ItemDialogProps
             tracking_type: initialItem?.tracking_type || "none",
             custom_attributes: initialItem?.custom_attributes || {},
             internal_id: initialItem?.internal_id || "",
-            variety: initialItem?.variety || "",
-            grade: initialItem?.grade || "",
         }
     })
 
-    const checkUniqueCombination = async (name: string, variety: string, grade: string) => {
+    const checkUniqueCombination = async (name: string) => {
         if (!name || !profile?.organization_id || initialItem) return
         const { data } = await supabase
             .schema('mandi')
@@ -202,14 +198,12 @@ export function ItemDialog({ children, onSuccess, initialItem }: ItemDialogProps
             .select('id, internal_id')
             .eq('organization_id', String(profile.organization_id))
             .ilike('name', name)
-            .ilike('variety', variety || "")
-            .ilike('grade', grade || "")
             .maybeSingle()
         
         if (data) {
             toast({
-                title: "Duplicate Variant",
-                description: `This Name + Variety + Grade already exists (Code: ${data.internal_id || 'N/A'}).`,
+                title: "Duplicate Item",
+                description: `This Name already exists (Code: ${data.internal_id || 'N/A'}).`,
                 variant: "destructive"
             })
         }
@@ -270,8 +264,6 @@ export function ItemDialog({ children, onSuccess, initialItem }: ItemDialogProps
                 gst_rate: 0,
                 tracking_type: "none",
                 ...sanitized,
-                variety: initialItem?.variety || "",
-                grade: initialItem?.grade || "",
                 custom_attributes: initialAttrs,
             })
             setSelectedImages([])
@@ -355,8 +347,6 @@ export function ItemDialog({ children, onSuccess, initialItem }: ItemDialogProps
                         average_cost: data.average_cost,
                         min_stock_level: data.min_stock_level,
                         internal_id: normalizedInternalId,
-                        variety: data.variety || "",
-                        grade: data.grade || "",
                     })
                     .eq("id", initialItem.id) as any)
                     .abortSignal(controller.signal)
@@ -394,8 +384,6 @@ export function ItemDialog({ children, onSuccess, initialItem }: ItemDialogProps
                         average_cost: data.average_cost || 0,
                         min_stock_level: data.min_stock_level || 0,
                         internal_id: normalizedInternalId,
-                        variety: data.variety || "",
-                        grade: data.grade || "",
                     })
                     .select('id')
                     .single() as any)
@@ -655,25 +643,6 @@ export function ItemDialog({ children, onSuccess, initialItem }: ItemDialogProps
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label className="text-[10px] font-black uppercase tracking-widest text-gray-700">Variety</Label>
-                                        <Input
-                                            placeholder="e.g. Kashmiri"
-                                            className="w-full bg-white border-gray-300 text-gray-900 font-bold h-12 rounded-xl focus:border-blue-500 transition-all"
-                                            {...form.register("variety")}
-                                            onBlur={() => checkUniqueCombination(form.getValues("name"), form.getValues("variety"), form.getValues("grade"))}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label className="text-[10px] font-black uppercase tracking-widest text-gray-700">Grade</Label>
-                                        <Input
-                                            placeholder="e.g. A1"
-                                            className="w-full bg-white border-gray-300 text-gray-900 font-bold h-12 rounded-xl focus:border-blue-500 transition-all"
-                                            {...form.register("grade")}
-                                            onBlur={() => checkUniqueCombination(form.getValues("name"), form.getValues("variety"), form.getValues("grade"))}
-                                        />
-                                    </div>
                                 </div>
                             </div>
 

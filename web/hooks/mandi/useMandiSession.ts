@@ -24,8 +24,6 @@ export interface MandiSessionFarmerRow {
     farmerName: string;
     itemId: string;
     itemName: string;
-    variety: string;
-    grade: string;
     qty: number;
     unit: string;
     rate: number;
@@ -160,8 +158,6 @@ export function useMandiSession() {
                     farmer_name: f.farmerName,
                     item_id: f.itemId || null,
                     item_name: f.itemName,
-                    variety: f.variety || null,
-                    grade: f.grade || "A",
                     qty: f.qty,
                     unit: f.unit,
                     rate: f.rate,

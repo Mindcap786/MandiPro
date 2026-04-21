@@ -82,7 +82,7 @@ export function SessionBillsView({ sessionData, onNewSession }: SessionBillsView
 
                                     <div className="bg-slate-50 border border-slate-100 rounded-lg p-3 space-y-2 mb-4">
                                         <div className="flex justify-between text-xs">
-                                            <span className="font-bold text-slate-600 uppercase">{f.item_name} {f.variety ? `(${f.variety})` : ''} - Gr.{f.grade}</span>
+                                            <span className="font-bold text-slate-600 uppercase">{f.item_name}</span>
                                             <span className="font-black text-slate-900">{f.net_qty} {f.unit} @ ₹{f.rate}</span>
                                         </div>
                                         {(f.less_amount > 0 || f.commission_amount > 0 || f.loading_charges > 0) && (

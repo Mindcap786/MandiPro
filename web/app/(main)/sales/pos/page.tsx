@@ -54,7 +54,6 @@ type POSItem = {
     available_qty: number
     lot_id: string | null // For Mandi schema
     lot_code: string | null
-    grade: string | null
 }
 
 const toRpcPaymentMode = (paymentMode: 'Cash' | 'Credit' | 'UPI/Bank' | 'Cheque') => {
@@ -313,7 +312,7 @@ export default function POSPage() {
 
             // 2. Fetch Inventory/Stock Data (Lots + Commodities)
             const [lotRes, commodityRes] = await Promise.all([
-                supabase.schema('mandi').from('lots').select('id, item_id, arrival_id, unit, sale_price, wholesale_price, supplier_rate, qr_code, current_qty, storage_location, grade, lot_code, contact_id(name)').eq('organization_id', orgId).in('status', ['active', 'available', 'partial']).gt('current_qty', 0).order('created_at', { ascending: true }),
+                supabase.schema('mandi').from('lots').select('id, item_id, arrival_id, unit, sale_price, wholesale_price, supplier_rate, qr_code, current_qty, storage_location, lot_code, contact_id(name)').eq('organization_id', orgId).in('status', ['active', 'available', 'partial']).gt('current_qty', 0).order('created_at', { ascending: true }),
                 supabase.schema('mandi').from('commodities').select('id, name, local_name, barcode, gst_rate, sale_price, image_url, sku_code, custom_attributes').eq('organization_id', orgId)
             ]);
 
@@ -350,7 +349,6 @@ export default function POSPage() {
                         image_url: imgUrl,
                         lot_id: lot.id,
                         lot_code: lot.lot_code,
-                        grade: lot.grade,
                         lot_details: [],
                         supplier_name: supplierName,
                         sale_price: price,
@@ -377,8 +375,7 @@ export default function POSPage() {
                 image_url: stock.image_url,
                 available_qty: stock.total_qty,
                 lot_id: stock.lot_id,
-                lot_code: stock.lot_code,
-                grade: stock.grade
+                lot_code: stock.lot_code
             })).sort((a: any, b: any) => (a.name || '').localeCompare(b.name || ''));
 
             setItems(normalizedItems);
@@ -789,9 +786,8 @@ export default function POSPage() {
                                 <div className="p-6 space-y-4">
                                     <div className="grid grid-cols-3 gap-3">
                                         <div className="bg-slate-50 rounded-xl p-3 text-center border border-slate-100">
-                                            <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Grade</div>
-                                            <div className="text-lg font-black text-slate-900">{((item.grade && item.grade !== 'A') || (item.custom_attributes?.Grade && item.custom_attributes?.Grade !== 'A')) ? (item.grade || item.custom_attributes?.Grade) : '—'}</div>
-                                            <div className="text-[9px] text-slate-500">{item.unit}</div>
+                                            <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Unit</div>
+                                            <div className="text-lg font-black text-slate-900">{item.unit}</div>
                                         </div>
                                         <div className="bg-emerald-50 rounded-xl p-3 text-center border border-emerald-100">
                                             <div className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mb-1">Sale Price</div>
