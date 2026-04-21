@@ -676,7 +676,10 @@ export default function ArrivalsEntryForm() {
                 advance_cheque_date: values.advance_cheque_date ? format(values.advance_cheque_date as Date, 'yyyy-MM-dd') : null,
                 advance_bank_name: values.advance_bank_name || null,
                 reference_no: values.reference_no || null,
-                bill_no: isManualBillNo.current ? (values.bill_no || null) : null,
+                // contact_bill_no = per-party user-visible number (manual only; null → DB trigger auto-assigns)
+                contact_bill_no: isManualBillNo.current ? (values.bill_no || null) : null,
+                // bill_no = global audit counter; always let the server consume it
+                bill_no: null,
                 items: values.items
             };
 
