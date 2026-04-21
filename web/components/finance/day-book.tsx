@@ -614,10 +614,13 @@ const getTransactionScenario = (
     saleSettlements: Map<string, { saleAmount: number; receivedAmount: number }>,
     t: any
 ) => {
+    if (!group || group.length === 0) return t('daybook.scenarios.other');
+
+    const hasPurchaseLeg = group.some(l => inferVoucherFlow(l) === 'purchase');
+    const hasSaleLeg = group.some(l => inferVoucherFlow(l) === 'sale' || inferVoucherFlow(l) === 'sale_payment');
     const firstLeg = group[0];
-    if (!firstLeg) return t('daybook.scenarios.other');
     
-    const flowType = inferVoucherFlow(firstLeg);
+    const flowType = hasPurchaseLeg ? 'purchase' : (hasSaleLeg ? 'sale' : inferVoucherFlow(firstLeg));
     
     if (flowType === 'purchase') {
         const { isFullyCash, isFullyUdhaar, isPartial, totalValue } = getPurchaseSettlementTotals(group);
