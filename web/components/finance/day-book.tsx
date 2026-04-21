@@ -525,6 +525,14 @@ const getPurchaseSettlementTotals = (group: any[]) => {
         return sum + Number(leg.credit || 0);
     }, 0);
 
+    // 2b. Inventory Debits (Total Value of goods arriving)
+    const inventoryDebits = group.reduce((sum, leg) => {
+        if (!isLiquidAccountEntry(leg) && !isAdvanceSettlementEntry(leg) && inferVoucherFlow(leg) === 'purchase') {
+            return sum + Number(leg.debit || 0);
+        }
+        return sum;
+    }, 0);
+
     // 3. Total Supplier Payments (Debits to Supplier on this exact transaction group)
     const supplierPayments = group.reduce((sum, leg) => {
         if (!leg.contact_id) return sum;
@@ -533,28 +541,12 @@ const getPurchaseSettlementTotals = (group: any[]) => {
         return sum + Number(leg.debit || 0);
     }, 0);
 
-    // 4. Net Udhaar = Gross Credits minus Payments applied (both cash upfront + any other debits)
-    // (Floor at 0 to prevent weird floating points or overpayments breaking the logic)
-    const udhaar = Math.max(0, grossSupplierCredits - supplierPayments - cashPaid);
+    // 4. Total purchase value (Max of explicit supplier credit or the actual inventory arrived)
+    // This perfectly rescues "Unknown Supplier" purchases where the supplier credit was skipped.
+    const totalValue = Math.max(grossSupplierCredits, inventoryDebits, cashPaid);
 
-    // 5. Total purchase value
-    // Gross Supplier Credits already represents the full value of the purchase before payment.
-    // If it's missing (e.g. direct cash purchase legacy data), fallback to summing cashPaid + udhaar
-    let totalValue = grossSupplierCredits > AMOUNT_EPSILON ? grossSupplierCredits : cashPaid + udhaar;
-    
-    // If still 0, fallback to inventory debit
-    if (totalValue <= AMOUNT_EPSILON) {
-        totalValue = group.reduce((sum, leg) => {
-            if (!leg.contact_id && !isLiquidAccountEntry(leg) && Number(leg.debit || 0) > AMOUNT_EPSILON) return sum + Number(leg.debit || 0);
-            return sum;
-        }, 0);
-    }
-
-    // Edge case: if we found cash payments but no supplier credits (legacy purely-cash entries)
-    // Then totalValue is just the cashPaid.
-    if (grossSupplierCredits <= AMOUNT_EPSILON && cashPaid > AMOUNT_EPSILON) {
-        totalValue = cashPaid;
-    }
+    // 5. Net Udhaar = Total Value minus cash paid directly and any supplier debit settlements
+    const udhaar = Math.max(0, totalValue - supplierPayments - cashPaid);
 
     return {
         cashPaid,
@@ -563,8 +555,8 @@ const getPurchaseSettlementTotals = (group: any[]) => {
         // Backward compat aliases
         purchaseCredit: totalValue,
         purchasePaid: cashPaid,
-        isFullyCash: cashPaid >= totalValue - AMOUNT_EPSILON && udhaar <= AMOUNT_EPSILON && totalValue > AMOUNT_EPSILON,
-        isFullyUdhaar: udhaar >= totalValue - AMOUNT_EPSILON && cashPaid <= AMOUNT_EPSILON && totalValue > AMOUNT_EPSILON,
+        isFullyCash: cashPaid >= totalValue - AMOUNT_EPSILON && totalValue > AMOUNT_EPSILON,
+        isFullyUdhaar: udhaar >= totalValue - AMOUNT_EPSILON && totalValue > AMOUNT_EPSILON,
         isPartial: cashPaid > AMOUNT_EPSILON && udhaar > AMOUNT_EPSILON,
     };
 };

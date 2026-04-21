@@ -337,9 +337,9 @@ export const translations = {
                 items_sold_label: "items sold"
             },
             scenarios: {
-                purchase_full: "1. Purchase - Full Amount",
-                purchase_udhaar: "2. Purchase - Full Udhaar",
-                purchase_partial: "3. Purchase - Partial Payment",
+                purchase_full: "Purchase - Full Cash",
+                purchase_udhaar: "Purchase - Udhaar",
+                purchase_partial: "Purchase - Partial",
                 sale_full: "4. Sale - Full Amount",
                 sale_udhaar: "5. Sale - Full Udhaar",
                 sale_partial: "6. Sale - Partial Payment",

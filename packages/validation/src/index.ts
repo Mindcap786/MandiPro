@@ -67,7 +67,7 @@ export const ArrivalItemSchema = z.object({
 
 export const CreateArrivalSchema = z.object({
   arrival_date: isoDate,
-  party_id: uuid.optional().nullable(),
+  party_id: z.string().uuid("Supplier/Party is required"),
   arrival_type: ArrivalTypeEnum,
   lot_prefix: z.string().min(1, "Lot prefix required").max(20).optional().default('LOT'),
   storage_location: z.string().optional().nullable(),
