@@ -656,6 +656,21 @@ export default function PurchaseBillsPage() {
 
             <SupplierInwardsDialog
                 supplier={selectedSupplier ? groupedSuppliers.find(s => s.id === selectedSupplier.id) || selectedSupplier : null}
+                unappliedPayment={(() => {
+                    const s = selectedSupplier ? groupedSuppliers.find(gs => gs.id === selectedSupplier.id) : null;
+                    if (!s) return 0;
+                    const totalPaid = s.totalPaid || 0;
+                    const lotAdvances = s.lots.reduce((sum: number, l: any) => sum + Number(l.advance || 0), 0);
+                    // Unique arrival advances
+                    const arrivalAdvancesMap: Record<string, number> = {};
+                    s.lots.forEach((l: any) => {
+                        if (l.arrival_id && l.arrival?.advance_amount) {
+                            arrivalAdvancesMap[l.arrival_id] = Number(l.arrival.advance_amount);
+                        }
+                    });
+                    const arrivalAdvances = Object.values(arrivalAdvancesMap).reduce((sum, val) => sum + val, 0);
+                    return Math.max(0, totalPaid - lotAdvances - arrivalAdvances);
+                })()}
                 isOpen={!!selectedSupplier}
                 onClose={() => setSelectedSupplier(null)}
                 onEditLot={(lotId, isLocked) => {

@@ -23,13 +23,14 @@ interface SupplierInwardsDialogProps {
         balance: number;
         lots: any[];
     } | null;
+    unappliedPayment?: number;
     isOpen: boolean;
     onClose: () => void;
     onEditLot: (lotId: string, isLocked?: boolean) => void;
     onPay: (partyId: string, amount: number, lotCode: string, arrivalId: string) => void;
 }
 
-export function SupplierInwardsDialog({ supplier, isOpen, onClose, onEditLot, onPay }: SupplierInwardsDialogProps) {
+export function SupplierInwardsDialog({ supplier, unappliedPayment = 0, isOpen, onClose, onEditLot, onPay }: SupplierInwardsDialogProps) {
     const router = useRouter();
     const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
     const [inwardSearch, setInwardSearch] = useState("");
@@ -117,39 +118,39 @@ export function SupplierInwardsDialog({ supplier, isOpen, onClose, onEditLot, on
             return matchesBill || matchesProduct;
         });
 
-        // FIX: Calculate status PER BILL, not using aggregated supplier balance
-        // Each bill's balance = bill total - bill's advance payments
-        finalGroups.forEach((group: any) => {
-            const totalAmount = Number(group.totalAmount || 0);
-            
-            // Sum of unique arrival advances + all lot-level advances
-            const totalArrivalAdvance = Object.values(group.arrivalAdvances || {}).reduce((sum: number, val: any) => sum + Number(val), 0) as number;
-            const totalAdvance = (Number(group.totalLotAdvance || 0) as number) + totalArrivalAdvance;
-            
-            // Balance to pay = total amount - what's already paid via advance
-            const balanceToPay = totalAmount - totalAdvance;
+        // distribute unapplied payment (FIFO)
+        let remainingUnapplied = Number(unappliedPayment || 0);
 
-            // Log for debugging if needed
-            if (balanceToPay > AMOUNT_EPSILON) {
-                console.log(`Bill ${group.bill_no} has balance: ${balanceToPay} (Total: ${totalAmount}, Paid: ${totalAdvance})`);
-            }
+        // Sorting by date ascending for FIFO application
+        const fifoGroups = [...processedGroups].sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+        fifoGroups.forEach((group: any) => {
+            const totalAmount = Number(group.totalAmount || 0);
+            const totalArrivalAdvance = Object.values(group.arrivalAdvances || {}).reduce((sum: number, val: any) => sum + Number(val), 0) as number;
+            const totalAdvanceAtArrival = (Number(group.totalLotAdvance || 0) as number) + totalArrivalAdvance;
+            
+            // Amount still pending after initial advances
+            const pendingAfterAdvance = totalAmount - totalAdvanceAtArrival;
+            
+            // Apply unapplied ledger payment (FIFO)
+            const appliedFromLedger = Math.min(Math.max(0, pendingAfterAdvance), remainingUnapplied);
+            remainingUnapplied -= appliedFromLedger;
+
+            const finalPaidTotal = totalAdvanceAtArrival + appliedFromLedger;
+            const balanceToPay = totalAmount - finalPaidTotal;
+
+            group.appliedLedgerPayment = appliedFromLedger;
+            group.totalPaidCombined = finalPaidTotal;
 
             if (Math.abs(balanceToPay) < AMOUNT_EPSILON) {
-                // Balance essentially zero -> PAID
                 group.paymentStatus = 'paid';
                 group.pendingAmount = 0;
-            } else if (balanceToPay > AMOUNT_EPSILON && totalAdvance > AMOUNT_EPSILON) {
-                // Some balance remains AND some advance was paid -> PARTIAL
+            } else if (balanceToPay > AMOUNT_EPSILON && finalPaidTotal > AMOUNT_EPSILON) {
                 group.paymentStatus = 'partial';
                 group.pendingAmount = balanceToPay;
-            } else if (balanceToPay > AMOUNT_EPSILON && totalAdvance <= AMOUNT_EPSILON) {
-                // Full balance remains AND no advance paid -> PENDING
+            } else if (balanceToPay > AMOUNT_EPSILON && finalPaidTotal <= AMOUNT_EPSILON) {
                 group.paymentStatus = 'pending';
                 group.pendingAmount = balanceToPay;
-            } else if (balanceToPay < -AMOUNT_EPSILON) {
-                // Overpaid (negative balance) -> treat as PAID with credit
-                group.paymentStatus = 'paid';
-                group.pendingAmount = 0;
             } else {
                 group.paymentStatus = 'paid';
                 group.pendingAmount = 0;
@@ -157,7 +158,7 @@ export function SupplierInwardsDialog({ supplier, isOpen, onClose, onEditLot, on
         });
 
         // Return for display in LIFO order (Newest first)
-        return [...finalGroups].sort((a: any, b: any) => {
+        return [...fifoGroups].sort((a: any, b: any) => {
             const dateA = new Date(a.date).getTime();
             const dateB = new Date(b.date).getTime();
             if (dateA !== dateB) return dateB - dateA;

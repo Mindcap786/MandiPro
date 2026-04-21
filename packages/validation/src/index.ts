@@ -92,6 +92,7 @@ export const CreateArrivalSchema = z.object({
 
   gate_entry_id: uuid.optional().nullable(),
   reference_no: z.string().optional().nullable(),
+  bill_no: z.coerce.number().optional().nullable(),
   notes: z.string().max(500).optional().nullable(),
 
   items: z.array(ArrivalItemSchema).min(1, 'At least one item is required')

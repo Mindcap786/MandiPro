@@ -79,6 +79,7 @@ const itemSchema = z.object({
 
 const formSchema = z.object({
     entry_date: z.date(),
+    bill_no: z.coerce.number().optional(),
     reference_no: z.string().optional(),
     lot_prefix: z.string().optional(),
     contact_id: z.string().optional(),
@@ -172,6 +173,7 @@ export default function ArrivalsEntryForm() {
     const form = useForm<FormValues>({
         resolver: zodResolver(formSchema) as any,
         defaultValues: {
+            bill_no: 0,
             entry_date: new Date(),
             lot_prefix: `LOT-${format(new Date(), 'yyMMdd')}`,
             arrival_type: "direct",
@@ -342,6 +344,23 @@ export default function ArrivalsEntryForm() {
             supabase.removeChannel(subscription);
         };
     }, [profile, refetchMaster]);
+
+    useEffect(() => {
+        const fetchNextBillNo = async () => {
+            if (!profile?.organization_id) return;
+            const { data, error } = await supabase
+                .schema('mandi')
+                .rpc('get_next_bill_no', { p_organization_id: profile.organization_id });
+            
+            if (!error && data) {
+                form.setValue('bill_no', Number(data));
+            }
+        };
+
+        if (profile?.organization_id) {
+            fetchNextBillNo();
+        }
+    }, [profile?.organization_id, form]);
 
 
 
@@ -623,6 +642,7 @@ export default function ArrivalsEntryForm() {
                 advance_cheque_date: values.advance_cheque_date ? format(values.advance_cheque_date as Date, 'yyyy-MM-dd') : null,
                 advance_bank_name: values.advance_bank_name || null,
                 reference_no: values.reference_no || null,
+                bill_no: values.bill_no || null,
                 items: values.items
             };
 
