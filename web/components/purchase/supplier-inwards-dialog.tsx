@@ -16,6 +16,7 @@ import { calculateArrivalSettlementAmount, calculateLotSettlementAmount, calcula
 
 const AMOUNT_EPSILON = 0.01;
 
+interface SupplierInwardsDialogProps {
     supplier: {
         id: string;
         name: string;
