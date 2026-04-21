@@ -412,8 +412,22 @@ export default function ContactsPage() {
 
     // ── WEB / DESKTOP RENDER (ORIGINAL — UNCHANGED) ──────────────────────────
     return (
-        <div className="p-8 space-y-6 min-h-screen bg-slate-50 text-black">
-            <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="p-8 space-y-6 min-h-screen bg-slate-50 text-black print:bg-white print:p-0">
+            {/* ── PRINT ONLY HEADER ─────────────────────────────────────────── */}
+            <div className="hidden print:block mb-8 border-b-2 border-black pb-4">
+                <div className="flex justify-between items-end">
+                    <div>
+                        <h2 className="text-2xl font-black uppercase tracking-tighter">{profile?.organization_name || 'MANDIPRO NETWORK'}</h2>
+                        <h1 className="text-4xl font-[1000] tracking-tighter uppercase mt-1">Network Contacts Report</h1>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-[10px] font-bold uppercase text-slate-500">Report Generated On</p>
+                        <p className="font-mono font-bold text-sm">{new Date().toLocaleString()}</p>
+                    </div>
+                </div>
+            </div>
+
+            <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 print:hidden">
                 <div>
                     <h1 className="text-4xl font-[1000] tracking-tighter text-black uppercase">Network Contacts</h1>
                     <p className="text-slate-600 font-bold flex items-center gap-2 mt-1"><Users className="w-4 h-4 text-blue-600" />Manage Farmers, Buyers, and Suppliers</p>
@@ -430,8 +444,8 @@ export default function ContactsPage() {
                 </div>
             </header>
 
-            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-                <div className="flex flex-col md:flex-row items-center gap-4 mb-6">
+            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm print:border-none print:p-0 print:shadow-none">
+                <div className="flex flex-col md:flex-row items-center gap-4 mb-6 print:hidden">
                     <div className="relative flex-1 w-full md:max-w-sm">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                         <Input placeholder="Search name, city, or type..." className="pl-9 bg-slate-50 border-slate-200 text-black font-bold focus:border-blue-500 rounded-xl h-11" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
@@ -464,9 +478,9 @@ export default function ContactsPage() {
                                 <TableHead className="text-slate-600 font-black uppercase tracking-wider text-[10px]">Type</TableHead>
                                 <TableHead className="text-slate-600 font-black uppercase tracking-wider text-[10px]">Phone</TableHead>
                                 <TableHead className="text-slate-600 font-black uppercase tracking-wider text-[10px]">Location</TableHead>
-                                <TableHead className="text-right text-slate-600 font-black uppercase tracking-wider text-[10px]">Sequences</TableHead>
-                                <TableHead className="text-right text-slate-600 font-black uppercase tracking-wider text-[10px]">Status</TableHead>
-                                <TableHead className="w-12"></TableHead>
+                                <TableHead className="text-right text-slate-600 font-black uppercase tracking-wider text-[10px] print:hidden">Sequences</TableHead>
+                                <TableHead className="text-right text-slate-600 font-black uppercase tracking-wider text-[10px] print:hidden">Status</TableHead>
+                                <TableHead className="w-12 print:hidden"></TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -484,13 +498,13 @@ export default function ContactsPage() {
                                         <TableCell><span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wide border ${contact.type === 'farmer' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : contact.type === 'buyer' ? 'bg-blue-50 text-blue-600 border-blue-100' : 'bg-purple-50 text-purple-600 border-purple-100'}`}>{contact.type}</span></TableCell>
                                         <TableCell className="text-slate-800 font-black text-xs"><div className="flex items-center gap-2">{contact.phone ? (<><Phone className="w-3.5 h-3.5 text-blue-500" /> {contact.phone}</>) : <span className="text-slate-300">-</span>}</div></TableCell>
                                         <TableCell className="text-slate-800 font-black text-xs"><div className="flex items-center gap-2">{contact.city ? (<><MapPin className="w-3.5 h-3.5 text-red-500" /> {contact.city}</>) : <span className="text-slate-300">-</span>}</div></TableCell>
-                                        <TableCell className="text-right">
+                                        <TableCell className="text-right print:hidden">
                                             <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-lg hover:bg-orange-50 text-slate-400 hover:text-orange-600 transition-colors" onClick={() => resetSequence(contact.id, contact.name, contact.type)} title="Reset Invoice Sequence"><RotateCcw className="w-3.5 h-3.5" /></Button>
                                         </TableCell>
-                                        <TableCell className="text-right">
+                                        <TableCell className="text-right print:hidden">
                                             <span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wide border ${(contact.status || 'active') === 'active' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-50 text-slate-400 border-slate-100'}`}>{contact.status || 'active'}</span>
                                         </TableCell>
-                                        <TableCell className="text-right">
+                                        <TableCell className="text-right print:hidden">
                                             <div className="flex justify-end gap-1">
                                                 <ContactDialog onSuccess={fetchContacts} initialData={contact}>
                                                     <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-colors" title="Edit Contact"><Pencil className="w-3.5 h-3.5" /></Button>
@@ -506,7 +520,7 @@ export default function ContactsPage() {
                 </div>
 
                 {totalPages > 1 && (
-                    <div className="flex items-center justify-between mt-6 px-2">
+                    <div className="flex items-center justify-between mt-6 px-2 print:hidden">
                         <p className="text-xs font-bold text-slate-500 uppercase tracking-widest hidden sm:block">Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredContacts.length)} of {filteredContacts.length}</p>
                         <div className="flex items-center gap-1">
                             <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="h-8 w-8 p-0 rounded-lg border-slate-200 text-slate-600 hover:bg-slate-100"><ChevronLeft className="w-4 h-4" /></Button>
