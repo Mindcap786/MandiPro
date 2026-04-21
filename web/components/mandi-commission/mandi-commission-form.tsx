@@ -45,9 +45,6 @@ export function MandiCommissionForm() {
     // Form Variables
     // ─────────────────────────────────────────────────────────────
     const [sessionDate, setSessionDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
-    const [lotNo, setLotNo] = useState("");
-    const [vehicleNo, setVehicleNo] = useState("");
-    const [bookNo, setBookNo] = useState("");
 
     // The list of COMMITTED local rows for this session
     const [rows, setRows] = useState<MandiSessionFarmerRow[]>([]);
