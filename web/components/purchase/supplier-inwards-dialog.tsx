@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Info, Edit, CreditCard, ChevronDown, ChevronRight, ShieldCheck, Box, X, Calendar as CalendarIcon, Search, Filter, FileText } from "lucide-react";
+import { Info, Edit, CreditCard, ChevronDown, ChevronRight, ShieldCheck, Box, X, Calendar as CalendarIcon, Search, Filter, FileText, MapPin, Truck } from "lucide-react";
+import { supabase } from "@/lib/supabaseClient";
+import { useToast } from "@/hooks/use-toast";
 import { format, subDays, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -36,10 +38,38 @@ export function SupplierInwardsDialog({ supplier, unappliedPayment = 0, isOpen, 
     const router = useRouter();
     const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
     const [inwardSearch, setInwardSearch] = useState("");
+    const { toast } = useToast();
     const [dateRange, setDateRange] = useState<DateRange | undefined>({
         from: subDays(new Date(), 30),
         to: new Date(),
     });
+    const [relocatingLot, setRelocatingLot] = useState<string | null>(null);
+    const [storageLocations, setStorageLocations] = useState<any[]>([]);
+
+    useEffect(() => {
+        const fetchLocations = async () => {
+            const { data } = await supabase.schema('mandi').from('storage_locations').select('name').order('name');
+            if (data) setStorageLocations(data);
+        };
+        fetchLocations();
+    }, []);
+
+    const handleRelocate = async (lotId: string, newLocation: string) => {
+        const { error } = await supabase.schema('mandi').rpc('relocate_lot', { 
+            p_lot_id: lotId, 
+            p_new_location: newLocation 
+        });
+
+        if (error) {
+            toast({ title: "Transfer Failed", description: error.message, variant: "destructive" });
+        } else {
+            toast({ title: "Stock Transferred", description: `Lot moved to ${newLocation}` });
+            // Refresh logic: for now we suggest a reload or the parent handles it.
+            // Ideally we'd update the local state, but since this is a complex grouped structure, 
+            // a router.refresh() is safer for sync.
+            router.refresh();
+        }
+    };
 
     const toggleGroup = (key: string) => {
         setExpandedGroups(prev => ({
@@ -330,10 +360,19 @@ export function SupplierInwardsDialog({ supplier, unappliedPayment = 0, isOpen, 
                                                                 {group.paymentStatus === 'paid' ? 'Paid' : group.paymentStatus === 'partial' ? 'To Pay' : 'To Pay'}
                                                             </Badge>
                                                         </div>
-                                                        <div className="text-[9px] text-slate-400 font-bold uppercase tracking-tight flex items-center gap-1.5">
+                                                        <div className="text-[9px] text-slate-400 font-bold uppercase tracking-tight flex items-center gap-1.5 flex-wrap">
                                                             {format(new Date(group.date), "EEEE, d MMM")}
                                                             <span className="w-0.5 h-0.5 rounded-full bg-slate-300" />
                                                             {group.items.length} {group.items.length === 1 ? 'Product' : 'Products'}
+                                                            {group.items[0]?.storage_location && (
+                                                                <>
+                                                                    <span className="w-0.5 h-0.5 rounded-full bg-slate-300" />
+                                                                    <span className="flex items-center gap-1 text-slate-500 bg-slate-100/50 px-1.5 py-0.5 rounded border border-slate-200/50">
+                                                                        <Box className="w-2.5 h-2.5" />
+                                                                        LOC: {group.items[0].storage_location}
+                                                                    </span>
+                                                                </>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -437,6 +476,34 @@ export function SupplierInwardsDialog({ supplier, unappliedPayment = 0, isOpen, 
                                                                                 <FileText className="w-3 h-3 mr-1" />
                                                                                 Bill
                                                                             </Button>
+                                                                            <Popover>
+                                                                                <PopoverTrigger asChild>
+                                                                                    <Button
+                                                                                        size="sm"
+                                                                                        variant="outline"
+                                                                                        className="h-7 px-3 rounded-lg transition-all text-[9px] font-black uppercase tracking-tighter border-slate-200 hover:bg-slate-50"
+                                                                                    >
+                                                                                        <Truck className="w-3 h-3 mr-1" />
+                                                                                        Transfer
+                                                                                    </Button>
+                                                                                </PopoverTrigger>
+                                                                                <PopoverContent className="w-48 p-2 z-[250] bg-white border-slate-200 shadow-xl" align="end">
+                                                                                    <div className="text-[10px] font-black uppercase text-slate-500 mb-2 px-2 tracking-widest">Move to Godown</div>
+                                                                                    <div className="space-y-1">
+                                                                                        {storageLocations.map((loc) => (
+                                                                                            <Button
+                                                                                                key={loc.name}
+                                                                                                variant="ghost"
+                                                                                                className="w-full justify-start text-[10px] font-bold h-8 hover:bg-blue-50 hover:text-blue-600 rounded-md"
+                                                                                                onClick={() => handleRelocate(lot.id, loc.name)}
+                                                                                            >
+                                                                                                {loc.name}
+                                                                                            </Button>
+                                                                                        ))}
+                                                                                    </div>
+                                                                                </PopoverContent>
+                                                                            </Popover>
+
                                                                             <Button
                                                                                 size="sm"
                                                                                 onClick={() => onEditLot(lot.id, isLocked)}

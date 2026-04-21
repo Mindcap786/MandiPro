@@ -575,7 +575,7 @@ export default function PurchaseBillsPage() {
                                                 {/* City */}
                                                 <div className="text-xs text-slate-400 font-bold flex items-center gap-1 mt-0.5">
                                                     <Receipt className="w-3 h-3 flex-shrink-0" />
-                                                    <span className="truncate">{supplier.city || supplier.storage_location || 'Location not set'}</span>
+                                                    <span className="truncate">Origin: {supplier.city || 'No City set'}</span>
                                                 </div>
                                                 {/* Badges - wrap on mobile */}
                                                 <div className="flex flex-wrap items-center gap-1.5 mt-2">

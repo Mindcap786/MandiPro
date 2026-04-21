@@ -75,6 +75,7 @@ const itemSchema = z.object({
     farmer_charges: z.coerce.number().min(0).default(0),
     sale_price: z.coerce.number().min(0).default(0),
     barcode: z.string().optional(),
+    storage_location: z.string().optional(),
 });
 
 const formSchema = z.object({
@@ -1152,7 +1153,8 @@ export default function ArrivalsEntryForm() {
                                         loading_cost: 0, 
                                         farmer_charges: 0,
                                         sale_price: 0,
-                                        barcode: ""
+                                        barcode: "",
+                                        storage_location: form.getValues('storage_location') || ""
                                     })}
                                     className="bg-purple-50 border border-purple-200 text-purple-700 hover:bg-purple-100 font-bold text-[10px] uppercase tracking-wide h-8 px-4 rounded-lg transition-all shadow-sm"
                                 >
@@ -1257,6 +1259,31 @@ export default function ArrivalsEntryForm() {
                                                                         </SelectContent>
                                                                     </Select>
                                                                     <FormMessage className="text-[9px] mt-0.5" />
+                                                                </FormItem>
+                                                            )}
+                                                        />
+                                                    </div>
+                                                )}
+                                                {isVisible('storage_location') && (
+                                                    <div className="col-span-12 md:col-span-2">
+                                                        <FormField
+                                                            control={form.control}
+                                                            name={`items.${index}.storage_location`}
+                                                            render={({ field }) => (
+                                                                <FormItem className="space-y-0.5">
+                                                                    <FormLabel className="text-[9px] font-bold text-slate-700 uppercase tracking-wide mb-0.5 block">Storage</FormLabel>
+                                                                    <Select onValueChange={field.onChange} value={field.value}>
+                                                                        <FormControl>
+                                                                            <SelectTrigger className="bg-slate-50 border border-slate-200 h-9 text-xs text-slate-900 font-bold rounded-lg shadow-sm">
+                                                                                <SelectValue placeholder="Loc" />
+                                                                            </SelectTrigger>
+                                                                        </FormControl>
+                                                                        <SelectContent className="bg-white border-slate-300 text-black font-black shadow-xl">
+                                                                            {storageLocations?.map((loc: any) => (
+                                                                                <SelectItem key={loc.id} value={loc.name} className="font-bold text-xs">{loc.name}</SelectItem>
+                                                                            ))}
+                                                                        </SelectContent>
+                                                                    </Select>
                                                                 </FormItem>
                                                             )}
                                                         />
