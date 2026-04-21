@@ -8,6 +8,7 @@ import { useLanguage } from '@/components/i18n/language-provider'
 import { QRCodeSVG } from 'qrcode.react'
 import { toast, Toaster } from 'sonner'
 import { getIntelligentVisual } from '@/lib/utils/commodity-mapping'
+import { cn } from '@/lib/utils'
 import { motion, AnimatePresence } from 'framer-motion'
 import { SearchableSelect } from '@/components/ui/searchable-select'
 import { Switch } from '@/components/ui/switch'
@@ -978,6 +979,37 @@ export default function POSPage() {
                                 showErrors && (paymentMode === 'Credit' || paymentMode === 'Cheque') && !selectedBuyerId && "border-red-500 border-2"
                             )}
                         />
+                        {selectedBuyerId && (
+                            <motion.div 
+                                initial={{ opacity: 0, y: -10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 flex flex-col gap-1 shadow-sm"
+                            >
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 bg-indigo-600 rounded-full animate-pulse" />
+                                        <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Buyer Details</span>
+                                    </div>
+                                    {buyers.find(b => b.id === selectedBuyerId)?.gstin && (
+                                        <span className="text-[8px] bg-indigo-600 text-white px-1.5 py-0.5 rounded font-black tracking-tighter">GST ACTIVE</span>
+                                    )}
+                                </div>
+                                <div className="flex items-baseline justify-between mt-1">
+                                    <div className="text-xs font-black text-slate-900 truncate max-w-[200px]">
+                                        {buyers.find(b => b.id === selectedBuyerId)?.name}
+                                    </div>
+                                    <div className="text-[10px] font-bold text-slate-600">
+                                        {buyers.find(b => b.id === selectedBuyerId)?.city || 'N/A'}
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2 mt-1 pt-1 border-t border-indigo-100/50">
+                                    <span className="text-[9px] font-bold text-indigo-400 uppercase tracking-tight">GSTIN:</span>
+                                    <span className="text-[10px] font-black text-slate-700 font-mono tracking-wider">
+                                        {buyers.find(b => b.id === selectedBuyerId)?.gstin || 'NOT PROVIDED'}
+                                    </span>
+                                </div>
+                            </motion.div>
+                        )}
                     </div>
                 </div>
 

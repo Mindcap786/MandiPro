@@ -788,27 +788,29 @@ function NewSaleForm() {
                                             control={form.control}
                                             name="sale_date"
                                             render={({ field }) => (
-                                                <Popover>
-                                                    <PopoverTrigger asChild>
-                                                        <Button 
-                                                            variant="ghost" 
-                                                            className={cn(
-                                                                "p-0 h-9 font-black text-slate-900 hover:bg-transparent text-sm md:text-base border-b-2 border-transparent w-full justify-start",
-                                                                form.formState.errors.sale_date && "border-b-red-500 text-red-600"
-                                                            )}
-                                                        >
-                                                            {field.value ? format(field.value, "MMM dd, yyyy") : "Select Date"}
-                                                        </Button>
-                                                    </PopoverTrigger>
-                                                    <PopoverContent className="w-auto p-0 bg-white border-slate-300 shadow-2xl" align="end">
-                                                        <Calendar
-                                                            mode="single"
-                                                            selected={field.value}
-                                                            onSelect={field.onChange}
-                                                            initialFocus
-                                                        />
-                                                    </PopoverContent>
-                                                </Popover>
+                                                <FormItem>
+                                                    <Popover>
+                                                        <PopoverTrigger asChild>
+                                                            <Button 
+                                                                variant="ghost" 
+                                                                className={cn(
+                                                                    "p-0 h-9 font-black text-slate-900 hover:bg-transparent text-sm md:text-base border-b-2 border-transparent w-full justify-start",
+                                                                    form.formState.errors.sale_date && "border-b-red-500 text-red-600"
+                                                                )}
+                                                            >
+                                                                {field.value ? format(field.value, "MMM dd, yyyy") : "Select Date"}
+                                                            </Button>
+                                                        </PopoverTrigger>
+                                                        <PopoverContent className="w-auto p-0 bg-white border-slate-300 shadow-2xl" align="end">
+                                                            <Calendar
+                                                                mode="single"
+                                                                selected={field.value}
+                                                                onSelect={field.onChange}
+                                                                initialFocus
+                                                            />
+                                                        </PopoverContent>
+                                                    </Popover>
+                                                </FormItem>
                                             )}
                                         />
                                     )}
@@ -820,13 +822,15 @@ function NewSaleForm() {
                                         control={form.control}
                                         name="vehicle_number"
                                         render={({ field }) => (
-                                            <FormControl>
-                                                <Input 
-                                                    {...field} 
-                                                    placeholder="UP-80-..." 
-                                                    className="h-8 bg-transparent border-none p-0 font-black text-slate-900 text-sm shadow-none focus-visible:ring-0 placeholder:text-slate-300" 
-                                                />
-                                            </FormControl>
+                                            <FormItem className="w-full">
+                                                <FormControl>
+                                                    <Input 
+                                                        {...field} 
+                                                        placeholder="UP-80-..." 
+                                                        className="h-8 bg-transparent border-none p-0 font-black text-slate-900 text-sm shadow-none focus-visible:ring-0 placeholder:text-slate-300" 
+                                                    />
+                                                </FormControl>
+                                            </FormItem>
                                         )}
                                     />
                                 </div>
@@ -837,13 +841,15 @@ function NewSaleForm() {
                                         control={form.control}
                                         name="book_no"
                                         render={({ field }) => (
-                                            <FormControl>
-                                                <Input 
-                                                    {...field} 
-                                                    placeholder="B-001" 
-                                                    className="h-8 bg-transparent border-none p-0 font-black text-slate-900 text-sm shadow-none focus-visible:ring-0 placeholder:text-slate-300" 
-                                                />
-                                            </FormControl>
+                                            <FormItem className="w-full">
+                                                <FormControl>
+                                                    <Input 
+                                                        {...field} 
+                                                        placeholder="B-001" 
+                                                        className="h-8 bg-transparent border-none p-0 font-black text-slate-900 text-sm shadow-none focus-visible:ring-0 placeholder:text-slate-300" 
+                                                    />
+                                                </FormControl>
+                                            </FormItem>
                                         )}
                                     />
                                 </div>
