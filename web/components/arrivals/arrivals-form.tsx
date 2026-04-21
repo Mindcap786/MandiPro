@@ -366,6 +366,11 @@ export default function ArrivalsEntryForm() {
             
             if (!error && data) {
                 form.setValue('bill_no', Number(data));
+                // Also set reference_no if currently empty/default
+                const currentRef = form.getValues('reference_no');
+                if (!currentRef || currentRef === '#' || currentRef === '') {
+                    form.setValue('reference_no', String(data));
+                }
             } else {
                 // Fallback to global sequence
                 const { data: globalData, error: globalError } = await supabase
@@ -373,6 +378,11 @@ export default function ArrivalsEntryForm() {
                     .rpc('get_next_bill_no', { p_organization_id: profile.organization_id });
                 if (!globalError && globalData) {
                     form.setValue('bill_no', Number(globalData));
+                    // Also set reference_no if currently empty/default
+                    const currentRef = form.getValues('reference_no');
+                    if (!currentRef || currentRef === '#' || currentRef === '') {
+                        form.setValue('reference_no', String(globalData));
+                    }
                 }
             }
         };
