@@ -63,9 +63,7 @@ const itemSchema = z.object({
     item_id: z.string().optional(),
     qty: z.coerce.number().min(0, "Qty must be at least 0"),
     unit: z.string().optional(),
-    grade: z.string().default('A'),
     unit_weight: z.coerce.number().min(0).default(0),
-    variety: z.string().optional(),
     supplier_rate: z.coerce.number().min(0).default(0),
     commission_percent: z.coerce.number().min(0).default(0),
     less_percent: z.coerce.number().min(0).default(0),
@@ -196,8 +194,6 @@ export default function ArrivalsEntryForm() {
                 item_id: "",
                 qty: 0,
                 unit: "Box",
-                grade: "A",
-                variety: "",
                 unit_weight: 0,
                 supplier_rate: 0,
                 commission_percent: 0,
@@ -741,8 +737,6 @@ export default function ArrivalsEntryForm() {
                     item_id: "",
                     qty: 0,
                     unit: "Box",
-                    grade: "A",
-                    variety: "",
                     unit_weight: 0,
                     supplier_rate: 0,
                     commission_percent: getDefaultValue('commission_percent', 'number') || (values.arrival_type === 'direct' ? 0 : defaultCommissionRate),
@@ -789,9 +783,9 @@ export default function ArrivalsEntryForm() {
                             </div>
                         </div>
 
-                        {/* Updated Arrivals Header: 7 Fields in 2 Rows */}
+                        {/* Updated Arrivals Header: 6 Fields in 2 Rows */}
                         <div className="bg-slate-50/50 border border-slate-200 rounded-2xl p-5 mb-8 shadow-sm space-y-5">
-                            {/* Row 1: Party, Vehicle, Date, Arrival Type */}
+                            {/* Row 1: Party, Vehicle, Date */}
                             <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-end">
                                 <div className="md:col-span-4 space-y-1.5">
                                     <Label className="text-[10px] font-bold text-slate-700 uppercase tracking-wide ml-1">{getLabel('contact_id', 'SUPPLIER / PARTY')}</Label>
@@ -827,7 +821,7 @@ export default function ArrivalsEntryForm() {
                                     )}
                                 </div>
 
-                                <div className="md:col-span-3 space-y-1.5">
+                                <div className="md:col-span-4 space-y-1.5">
                                     <Label className="text-[10px] font-bold text-slate-700 uppercase tracking-wide ml-1">{getLabel('vehicle_number', 'VEHICLE NUMBER')}</Label>
                                     {isVisible('vehicle_number') && (
                                         <FormField
@@ -853,7 +847,7 @@ export default function ArrivalsEntryForm() {
                                     )}
                                 </div>
 
-                                <div className="md:col-span-2 space-y-1.5">
+                                <div className="md:col-span-4 space-y-1.5">
                                     <Label className="text-[10px] font-bold text-slate-700 uppercase tracking-wide ml-1">Arrival Date</Label>
                                     {isVisible('entry_date') && (
                                         <FormField
@@ -882,30 +876,6 @@ export default function ArrivalsEntryForm() {
                                             )}
                                         />
                                     )}
-                                </div>
-
-                                <div className="md:col-span-3 space-y-1.5">
-                                    <Label className="text-[10px] font-bold text-slate-700 uppercase tracking-wide ml-1">Arrival Type</Label>
-                                    <Tabs
-                                        value={arrivalType}
-                                        onValueChange={(v: any) => {
-                                            setArrivalType(v);
-                                            form.setValue('arrival_type', v);
-                                        }}
-                                        className="w-full"
-                                    >
-                                        <TabsList className="bg-slate-100/80 p-0.5 rounded-lg h-10 w-full grid grid-cols-3 border border-slate-300 shadow-sm">
-                                            <TabsTrigger value="direct" className="rounded-md font-bold uppercase tracking-wide text-[9px] data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm text-slate-600 transition-all">
-                                                Direct
-                                            </TabsTrigger>
-                                            <TabsTrigger value="commission" className="rounded-md font-bold uppercase tracking-wide text-[9px] data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm text-slate-600 transition-all">
-                                                Farmer
-                                            </TabsTrigger>
-                                            <TabsTrigger value="commission_supplier" className="rounded-md font-bold uppercase tracking-wide text-[9px] data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm text-slate-600 transition-all">
-                                                Supp.
-                                            </TabsTrigger>
-                                        </TabsList>
-                                    </Tabs>
                                 </div>
                             </div>
 
@@ -1163,8 +1133,6 @@ export default function ArrivalsEntryForm() {
                                         item_id: "", 
                                         qty: 1, 
                                         unit: "Box", 
-                                        grade: "A", 
-                                        variety: "", 
                                         unit_weight: 0, 
                                         supplier_rate: 0, 
                                         commission_percent: (currentArrivalType === 'commission' || currentArrivalType === 'commission_supplier') ? defaultCommissionRate : 0, 
@@ -1183,6 +1151,7 @@ export default function ArrivalsEntryForm() {
                                 </Button>
                             </div>
 
+                            {/* Consignment Items Grid */}
                             <div className="space-y-3">
                                 {fields.map((field, index) => (
                                     <div key={field.id} className="relative bg-white border border-gray-200 p-4 rounded-xl hover:border-blue-300 transition-all group shadow-sm hover:shadow-md">
@@ -1192,12 +1161,12 @@ export default function ArrivalsEntryForm() {
                                         </div>
                                         <div className="grid grid-cols-12 gap-4 items-start">
 
-                                            {/* REDESIGNED GRID: 2 Rows, 7 Fields */}
+                                            {/* REDESIGNED GRID: 2 Rows, Line 1: Item, Qty, Rate | Line 2: Unit, Storage */}
                                             <div className="col-span-12 grid grid-cols-12 gap-3 items-start p-2">
-                                                {/* ROW 1: Item, Qty, Unit, Grade (4 fields) */}
+                                                {/* ROW 1: Commodity, Quantity, Rate */}
                                                 <div className="col-span-12 grid grid-cols-12 gap-3">
                                                     {isVisible('item_id') && (
-                                                        <div className="col-span-12 md:col-span-4 lg:col-span-5">
+                                                        <div className="col-span-12 md:col-span-6 lg:col-span-6">
                                                             <FormField
                                                                 control={form.control}
                                                                 name={`items.${index}.item_id`}
@@ -1232,7 +1201,7 @@ export default function ArrivalsEntryForm() {
                                                     )}
 
                                                     {isVisible('qty') && (
-                                                        <div className="col-span-12 md:col-span-3 lg:col-span-2">
+                                                        <div className="col-span-6 md:col-span-3 lg:col-span-3">
                                                             <FormField
                                                                 control={form.control}
                                                                 name={`items.${index}.qty`}
@@ -1249,8 +1218,28 @@ export default function ArrivalsEntryForm() {
                                                         </div>
                                                     )}
 
+                                                    {isVisible('supplier_rate') && (
+                                                        <div className="col-span-6 md:col-span-3 lg:col-span-3">
+                                                            <FormField
+                                                                control={form.control}
+                                                                name={`items.${index}.supplier_rate`}
+                                                                render={({ field }) => (
+                                                                    <FormItem>
+                                                                        <FormLabel className="text-[9px] font-bold text-slate-700 uppercase tracking-wide mb-0.5 block">Rate</FormLabel>
+                                                                        <FormControl>
+                                                                            <Input type="number" {...field} className="h-9 bg-white border border-slate-300 text-slate-900 font-bold text-center rounded-lg text-xs" />
+                                                                        </FormControl>
+                                                                    </FormItem>
+                                                                )}
+                                                            />
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* ROW 2: Unit, Storage Destination */}
+                                                <div className="col-span-12 grid grid-cols-12 gap-3">
                                                     {isVisible('unit') && (
-                                                        <div className="col-span-12 md:col-span-2 lg:col-span-2">
+                                                        <div className="col-span-12 md:col-span-6">
                                                             <FormField
                                                                 control={form.control}
                                                                 name={`items.${index}.unit`}
@@ -1259,7 +1248,7 @@ export default function ArrivalsEntryForm() {
                                                                         <FormLabel className="text-[9px] font-bold text-slate-700 uppercase tracking-wide mb-0.5 block">Unit</FormLabel>
                                                                         <Select onValueChange={field.onChange} value={field.value}>
                                                                             <FormControl>
-                                                                                <SelectTrigger className="bg-white border border-slate-300 h-9 text-xs text-slate-900 font-bold rounded-lg text-center">
+                                                                                <SelectTrigger className="bg-white border border-slate-300 h-9 text-xs text-slate-900 font-bold rounded-lg px-3">
                                                                                     <SelectValue placeholder="Unit" />
                                                                                 </SelectTrigger>
                                                                             </FormControl>
@@ -1275,68 +1264,8 @@ export default function ArrivalsEntryForm() {
                                                         </div>
                                                     )}
 
-                                                    <div className="col-span-12 md:col-span-3 lg:col-span-3">
-                                                        <FormField
-                                                            control={form.control}
-                                                            name={`items.${index}.grade`}
-                                                            render={({ field }) => (
-                                                                <FormItem>
-                                                                    <FormLabel className="text-[9px] font-bold text-slate-700 uppercase tracking-wide mb-0.5 block">Grade</FormLabel>
-                                                                    <Select onValueChange={field.onChange} value={field.value}>
-                                                                        <FormControl>
-                                                                            <SelectTrigger className="bg-white border border-slate-300 h-9 text-xs text-slate-900 font-bold rounded-lg text-center">
-                                                                                <SelectValue placeholder="Grade" />
-                                                                            </SelectTrigger>
-                                                                        </FormControl>
-                                                                        <SelectContent className="bg-white">
-                                                                            <SelectItem value="A" className="font-bold">Grade A</SelectItem>
-                                                                            <SelectItem value="B" className="font-bold">Grade B</SelectItem>
-                                                                            <SelectItem value="C" className="font-bold">Grade C</SelectItem>
-                                                                            <SelectItem value="MIX" className="font-bold">MIX</SelectItem>
-                                                                        </SelectContent>
-                                                                    </Select>
-                                                                </FormItem>
-                                                            )}
-                                                        />
-                                                    </div>
-                                                </div>
-
-                                                {/* ROW 2: Variety, Rate, Storage (3 fields) */}
-                                                <div className="col-span-12 grid grid-cols-12 gap-3">
-                                                    <div className="col-span-12 md:col-span-4">
-                                                        <FormField
-                                                            control={form.control}
-                                                            name={`items.${index}.variety`}
-                                                            render={({ field }) => (
-                                                                <FormItem>
-                                                                    <FormLabel className="text-[9px] font-bold text-slate-700 uppercase tracking-wide mb-0.5 block">Variety</FormLabel>
-                                                                    <FormControl>
-                                                                        <Input {...field} placeholder="e.g. Desi, Hybrid" className="h-9 bg-white border border-slate-300 text-slate-900 font-bold rounded-lg text-xs" />
-                                                                    </FormControl>
-                                                                </FormItem>
-                                                            )}
-                                                        />
-                                                    </div>
-
-                                                    {isVisible('supplier_rate') && (
-                                                        <div className="col-span-12 md:col-span-4">
-                                                            <FormField
-                                                                control={form.control}
-                                                                name={`items.${index}.supplier_rate`}
-                                                                render={({ field }) => (
-                                                                    <FormItem>
-                                                                        <FormLabel className="text-[9px] font-bold text-slate-700 uppercase tracking-wide mb-0.5 block">Rate</FormLabel>
-                                                                        <FormControl>
-                                                                            <Input type="number" {...field} className="h-9 bg-white border border-slate-300 text-slate-900 font-bold text-center rounded-lg text-xs" />
-                                                                        </FormControl>
-                                                                    </FormItem>
-                                                                )}
-                                                            />
-                                                        </div>
-                                                    )}
-
                                                     {isVisible('storage_location') && (
-                                                        <div className="col-span-12 md:col-span-4">
+                                                        <div className="col-span-12 md:col-span-6">
                                                             <FormField
                                                                 control={form.control}
                                                                 name={`items.${index}.storage_location`}
@@ -1345,8 +1274,8 @@ export default function ArrivalsEntryForm() {
                                                                         <FormLabel className="text-[9px] font-bold text-blue-700 uppercase tracking-wide mb-0.5 block">Storage Location</FormLabel>
                                                                         <Select onValueChange={field.onChange} value={field.value}>
                                                                             <FormControl>
-                                                                                <SelectTrigger className="bg-blue-50 border border-blue-200 h-9 text-xs text-blue-900 font-bold rounded-lg">
-                                                                                    <SelectValue placeholder="Loc" />
+                                                                                <SelectTrigger className="bg-blue-50 border border-blue-200 h-9 text-xs text-blue-900 font-bold rounded-lg px-3">
+                                                                                    <SelectValue placeholder="Select Location" />
                                                                                 </SelectTrigger>
                                                                             </FormControl>
                                                                             <SelectContent className="bg-white">
@@ -1580,6 +1509,36 @@ export default function ArrivalsEntryForm() {
                                 ))}
                             </div>
                             
+                            {/* Relocated Arrival Type Selection */}
+                            <div className="mt-8 pt-6 border-t border-slate-100 mb-6">
+                                <div className="max-w-md mx-auto space-y-3">
+                                    <Label className="text-[10px] font-bold text-slate-700 uppercase tracking-widest text-center block mb-2">Arrival Type Selection</Label>
+                                    <Tabs
+                                        value={arrivalType}
+                                        onValueChange={(v: any) => {
+                                            setArrivalType(v);
+                                            form.setValue('arrival_type', v);
+                                        }}
+                                        className="w-full"
+                                    >
+                                        <TabsList className="bg-slate-100 p-1.5 rounded-2xl h-14 w-full grid grid-cols-3 border border-slate-200 shadow-inner">
+                                            <TabsTrigger value="direct" className="rounded-xl font-black uppercase tracking-widest text-[10px] data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-lg text-slate-500 transition-all border border-transparent data-[state=active]:border-slate-100">
+                                                Direct Purchase
+                                            </TabsTrigger>
+                                            <TabsTrigger value="commission" className="rounded-xl font-black uppercase tracking-widest text-[10px] data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-lg text-slate-500 transition-all border border-transparent data-[state=active]:border-slate-100">
+                                                Farmer Cons.
+                                            </TabsTrigger>
+                                            <TabsTrigger value="commission_supplier" className="rounded-xl font-black uppercase tracking-widest text-[10px] data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-lg text-slate-500 transition-all border border-transparent data-[state=active]:border-slate-100">
+                                                Supplier Cons.
+                                            </TabsTrigger>
+                                        </TabsList>
+                                    </Tabs>
+                                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter text-center italic mt-2 opacity-60">
+                                        Select consistent flow for pricing & commission logic
+                                    </p>
+                                </div>
+                            </div>
+
                             {/* Consolidated Advance / Amount Paid Section */}
                             {isVisible('advance') && (
                                 <div className="mt-6 border-t pt-6">
@@ -1939,7 +1898,7 @@ export default function ArrivalsEntryForm() {
                                                     <div className="space-y-0.5">
                                                         <div className="font-black text-slate-900">{itemName}</div>
                                                         <div className="text-[10px] font-bold text-slate-600 uppercase tracking-wide">
-                                                            {item.variety || 'Standard'} • {item.grade || 'A'} Grade
+                                                            {item.unit || 'Standard'}
                                                         </div>
                                                     </div>
                                                     <div className="text-right">
