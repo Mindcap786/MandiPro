@@ -4,7 +4,7 @@ import * as React from 'react'
 import { useState, useEffect, useMemo, memo } from 'react'
 import { LayoutDashboard, Truck, Gavel, Calculator, Settings, Menu, FileText, Users, Package, ShieldCheck, LogOut, TrendingUp, BookOpen, Wallet, Receipt, Scale, CreditCard, Sliders, MessageCircle, BarChart3, Palette, Shield, ClipboardList, FileInput, FileSignature, Warehouse, Tags, PieChart, ChevronDown, ChevronRight, Store, RotateCcw, ClipboardCheck, Briefcase, Database, Tag, QrCode } from 'lucide-react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/components/auth/auth-provider'
 
@@ -22,6 +22,7 @@ interface SidebarProps {
 
 export const Sidebar = memo(function Sidebar({ onCollapseChange }: SidebarProps = {}) {
     const pathname = usePathname()
+    const router = useRouter()
     const { profile, user, signOut, loading, isComplianceVisible: globalComplianceVisible } = useAuth()
     const [collapsed, setCollapsed] = useState(false)
     const { can, isImpersonating } = usePermission()
@@ -164,6 +165,10 @@ export const Sidebar = memo(function Sidebar({ onCollapseChange }: SidebarProps 
                         <Link prefetch={true} scroll={false}
                             key={item.href}
                             href={item.href}
+                            onClick={() => {
+                                // Trigger internal refresh to clear stale caches (PRO navigation)
+                                setTimeout(() => router.refresh(), 100);
+                            }}
                             className={cn(
                                 "flex items-center px-4 py-4 rounded-xl transition-all group relative overflow-hidden",
                                 isActive
@@ -255,6 +260,10 @@ const NavGroup = React.memo(function NavGroup({ item, pathname, collapsed, profi
                             <Link prefetch={true} scroll={false}
                                 key={sub.href}
                                 href={sub.href}
+                                onClick={() => {
+                                    // Trigger internal refresh to clear stale caches (PRO navigation)
+                                    setTimeout(() => router.refresh(), 100);
+                                }}
                                 className={cn(
                                     "flex items-center px-4 py-2 rounded-lg transition-all text-sm group",
                                     isActive ? "text-white font-bold shadow-md" : "text-slate-600 hover:text-slate-900 font-medium"

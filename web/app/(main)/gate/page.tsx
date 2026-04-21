@@ -111,8 +111,9 @@ export default function GatePage() {
             setLoading(false)
             setIsInitialLoad(false)
             
+            // If cache is fresh, we still trigger background fetch to ensure sync across pages.
             if (!cacheIsStale(cacheKey, orgId)) {
-                return
+                // (Optional: can add logic here to skip fetch if recently fetched < 5s ago)
             }
         } else {
             if (isInitialLoad && !cached) {

@@ -113,8 +113,12 @@ export function SupplierInwardsDialog({ supplier, unappliedPayment = 0, isOpen, 
         }).filter(group => {
             if (!inwardSearch) return true;
             const q = inwardSearch.toLowerCase();
-            const matchesBill = group.bill_no?.toLowerCase().includes(q) || group.lot_code?.toLowerCase().includes(q);
-            const matchesProduct = group.items.some((item: any) => item.item?.name?.toLowerCase().includes(q));
+            const billNo = String(group.bill_no || '').toLowerCase();
+            const lotCode = String(group.lot_code || '').toLowerCase();
+            const matchesBill = billNo.includes(q) || lotCode.includes(q);
+            const matchesProduct = group.items.some((item: any) => 
+                String(item.item?.name || '').toLowerCase().includes(q)
+            );
             return matchesBill || matchesProduct;
         });
 

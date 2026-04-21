@@ -69,12 +69,9 @@ export default function PurchaseBillsPage() {
         if (cached && !isManualRefresh) {
             setBills(cached.bills || []);
             setGroupedSuppliers(cached.groupedSuppliers || []);
+            // Instant load from cache, but don't return early. 
+            // We want to revalidate in background on every mount to ensure sync.
             setLoading(false);
-            
-            if (!cacheIsStale(cacheKey, orgId)) {
-                return;
-            }
-            console.log("[PurchaseBills] Cache stale, fetching in background...");
         } else if (!isManualRefresh) {
             setLoading(true);
         }

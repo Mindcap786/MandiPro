@@ -82,10 +82,9 @@ export default function Dashboard() {
         const fetchData = async () => {
             const schema = 'mandi';
 
-            // If cache is fresh, don't re-fetch at all
+            // If cache is fresh, we still trigger background fetch to ensure sync across pages.
             if (!cacheIsStale('dashboard', orgId)) {
                 setLoading(false);
-                return;
             }
 
             try {
