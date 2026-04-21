@@ -122,7 +122,7 @@ export function SupplierInwardsDialog({ supplier, unappliedPayment = 0, isOpen, 
         let remainingUnapplied = Number(unappliedPayment || 0);
 
         // Sorting by date ascending for FIFO application
-        const fifoGroups = [...processedGroups].sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        const fifoGroups = [...finalGroups].sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
         fifoGroups.forEach((group: any) => {
             const totalAmount = Number(group.totalAmount || 0);

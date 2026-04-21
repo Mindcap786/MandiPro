@@ -134,6 +134,24 @@ export default function BuyerInvoice({ sale, organization, onRefresh }: InvoiceT
                         <span className="text-gray-400 font-bold uppercase">Invoice No:</span>
                         <span className="font-black">#INV-{displayBillNo}</span>
                     </div>
+                    {sale.lot_no && (
+                        <div className="flex justify-end gap-2">
+                            <span className="text-gray-400 font-bold uppercase">Lot No:</span>
+                            <span className="font-black">{sale.lot_no}</span>
+                        </div>
+                    )}
+                    {sale.vehicle_number && (
+                        <div className="flex justify-end gap-2">
+                            <span className="text-gray-400 font-bold uppercase">Vehicle No:</span>
+                            <span className="font-black uppercase">{sale.vehicle_number}</span>
+                        </div>
+                    )}
+                    {sale.book_no && (
+                        <div className="flex justify-end gap-2">
+                            <span className="text-gray-400 font-bold uppercase">Ref/Book:</span>
+                            <span className="font-black uppercase">{sale.book_no}</span>
+                        </div>
+                    )}
                     <div className="flex justify-end gap-2">
                         <span className="text-gray-400 font-bold uppercase">Date:</span>
                         <span className="font-black">
