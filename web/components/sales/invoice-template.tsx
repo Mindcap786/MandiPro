@@ -134,13 +134,22 @@ export default function BuyerInvoice({ sale, organization, onRefresh }: InvoiceT
                         <span className="text-gray-400 font-bold uppercase">Invoice No:</span>
                         <span className="font-black">#INV-{displayBillNo}</span>
                     </div>
-                    {sale.lot_no && (
-                        <div className="flex justify-end gap-2">
-                            <span className="text-gray-400 font-bold uppercase">Lot No:</span>
-                            <span className="font-black">{sale.lot_no}</span>
-                        </div>
-                    )}
-                    {sale.vehicle_number && (
+                    {(() => {
+                        const masterLot = sale.lot_no;
+                        const itemLots = items.map((i: any) => i.lot?.lot_code).filter(Boolean);
+                        const uniqueLots = Array.from(new Set(itemLots));
+                        const displayLot = masterLot || uniqueLots.join(', ');
+
+                        if (!displayLot) return null;
+
+                        return (
+                            <div className="flex justify-end gap-2">
+                                <span className="text-gray-400 font-bold uppercase">Lot No:</span>
+                                <span className="font-black text-orange-600">{displayLot}</span>
+                            </div>
+                        );
+                    })()}
+                    {sale.lot_no && sale.vehicle_number && (
                         <div className="flex justify-end gap-2">
                             <span className="text-gray-400 font-bold uppercase">Vehicle No:</span>
                             <span className="font-black uppercase">{sale.vehicle_number}</span>

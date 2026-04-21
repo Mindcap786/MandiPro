@@ -191,7 +191,7 @@ export default function PurchaseBillInvoice({
                 {/* Right: Bill Details */}
                 <div className="text-right space-y-0.5 text-xs self-end print:w-1/2 print:flex print:flex-col print:items-end">
                     <div className="flex justify-end gap-2">
-                        <span className="text-gray-400 font-bold uppercase">Bill No:</span>
+                        <span className="text-gray-400 font-bold uppercase">Arrival Bill No:</span>
                         <span className="font-black">#{billNo}</span>
                     </div>
                     {referenceNo && (
