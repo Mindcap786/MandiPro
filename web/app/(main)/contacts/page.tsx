@@ -478,11 +478,16 @@ export default function ContactsPage() {
                                         <TableCell className="text-slate-800 font-black text-xs"><div className="flex items-center gap-2">{contact.phone ? (<><Phone className="w-3.5 h-3.5 text-blue-500" /> {contact.phone}</>) : <span className="text-slate-300">-</span>}</div></TableCell>
                                         <TableCell className="text-slate-800 font-black text-xs"><div className="flex items-center gap-2">{contact.city ? (<><MapPin className="w-3.5 h-3.5 text-red-500" /> {contact.city}</>) : <span className="text-slate-300">-</span>}</div></TableCell>
                                         <TableCell className="text-right">
+                                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-lg hover:bg-orange-50 text-slate-400 hover:text-orange-600 transition-colors" onClick={() => resetSequence(contact.id, contact.name, contact.type)} title="Reset Invoice Sequence"><RotateCcw className="w-3.5 h-3.5" /></Button>
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wide border ${(contact.status || 'active') === 'active' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-50 text-slate-400 border-slate-100'}`}>{contact.status || 'active'}</span>
+                                        </TableCell>
+                                        <TableCell className="text-right">
                                             <div className="flex justify-end gap-1">
                                                 <ContactDialog onSuccess={fetchContacts} initialData={contact}>
                                                     <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-colors" title="Edit Contact"><Pencil className="w-3.5 h-3.5" /></Button>
                                                 </ContactDialog>
-                                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-lg hover:bg-orange-50 text-slate-400 hover:text-orange-600 transition-colors" onClick={() => resetSequence(contact.id, contact.name, contact.type)} title="Reset Invoice Sequence"><RotateCcw className="w-3.5 h-3.5" /></Button>
                                                 <Button variant="ghost" size="sm" type="button" className="h-8 w-8 p-0 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setContactToDelete({ id: contact.id, name: contact.name }) }} title="Delete Contact" disabled={isUpdating === contact.id}><Trash2 className="w-4 h-4" /></Button>
                                             </div>
                                         </TableCell>
