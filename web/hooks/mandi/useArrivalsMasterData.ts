@@ -14,9 +14,11 @@ import { useState, useEffect, useCallback } from "react"
 import { supabase } from "@/lib/supabaseClient"
 import { cacheGet, cacheSet, cacheIsStale } from "@/lib/data-cache"
 
-const CACHE_KEY = 'arrivals_form_master_v2'
+const CACHE_KEY = 'arrivals_form_master_v3'
 const CACHE_TTL = 1000 * 60 * 15 // 15 minutes cache
 const SCHEMA = 'mandi'
+
+const STANDARD_UNITS = ["Box", "Crate", "Kgs", "Tons", "Nug", "Pieces", "Carton"];
 
 export interface ArrivalContact {
   id: string
@@ -55,6 +57,7 @@ export interface ArrivalMasterData {
   marketFeePercent: number
   nirashritPercent: number
   miscFeePercent: number
+  units: string[]
   loading: boolean
   error: string | null
   refetch: () => Promise<void>
@@ -69,6 +72,7 @@ export function useArrivalsMasterData(organizationId: string | undefined): Arriv
   const [marketFeePercent, setMarketFeePercent] = useState(0)
   const [nirashritPercent, setNirashritPercent] = useState(0)
   const [miscFeePercent, setMiscFeePercent] = useState(0)
+  const [units, setUnits] = useState<string[]>(STANDARD_UNITS)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -86,6 +90,7 @@ export function useArrivalsMasterData(organizationId: string | undefined): Arriv
       storage: StorageLocation[]
       banks: BankAccount[]
       settings: { commission_rate_default?: number; market_fee_percent?: number; nirashrit_percent?: number; misc_fee_percent?: number }
+      units: string[]
     }>(CACHE_KEY, currentOrgId)
 
     if (cached) {
@@ -97,6 +102,7 @@ export function useArrivalsMasterData(organizationId: string | undefined): Arriv
       setMarketFeePercent(Number(cached.settings?.market_fee_percent || 0))
       setNirashritPercent(Number(cached.settings?.nirashrit_percent || 0))
       setMiscFeePercent(Number(cached.settings?.misc_fee_percent || 0))
+      setUnits(cached.units || STANDARD_UNITS)
       setLoading(false)
       if (!cacheIsStale(CACHE_KEY, currentOrgId)) return
     }
@@ -115,6 +121,8 @@ export function useArrivalsMasterData(organizationId: string | undefined): Arriv
           .eq("type", "asset").eq("is_active", true).order("name"),
         supabase.schema(SCHEMA).from("mandi_settings").select("commission_rate_default, market_fee_percent, nirashrit_percent, misc_fee_percent")
           .eq("organization_id", currentOrgId).maybeSingle(),
+        supabase.schema(SCHEMA).from("units").select("name")
+          .eq("organization_id", currentOrgId).order("name"),
       ])
 
       const newContacts = contactsRes.status === 'fulfilled' ? (contactsRes.value.data || []) as ArrivalContact[] : contacts
@@ -132,12 +140,17 @@ export function useArrivalsMasterData(organizationId: string | undefined): Arriv
       setNirashritPercent(Number(newSettings?.nirashrit_percent || 0))
       setMiscFeePercent(Number(newSettings?.misc_fee_percent || 0))
 
+      const dbUnits = (unitsRes.status === 'fulfilled' ? (unitsRes.value.data || []) : []).map((u: any) => u.name)
+      const newUnits = Array.from(new Set([...STANDARD_UNITS, ...dbUnits, "Kg"]))
+      setUnits(newUnits)
+
       cacheSet(CACHE_KEY, currentOrgId, {
         contacts: newContacts,
         commodities: newCommodities,
         storage: newStorage,
         banks: newBanks,
         settings: newSettings || {},
+        units: newUnits,
       })
       setError(null)
     } catch (err) {
@@ -159,6 +172,7 @@ export function useArrivalsMasterData(organizationId: string | undefined): Arriv
   return {
     contacts, commodities, storageLocations, bankAccounts,
     defaultCommissionRate, marketFeePercent, nirashritPercent, miscFeePercent,
+    units,
     loading, error, refetch: fetch,
   }
 }

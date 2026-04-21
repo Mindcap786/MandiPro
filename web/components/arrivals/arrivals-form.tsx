@@ -130,6 +130,7 @@ export default function ArrivalsEntryForm() {
         storageLocations, 
         bankAccounts, 
         defaultCommissionRate,
+        units,
         loading: masterLoading,
         error: masterError,
         refetch: refetchMaster
@@ -1208,13 +1209,9 @@ export default function ArrivalsEntryForm() {
                                                                             </SelectTrigger>
                                                                         </FormControl>
                                                                         <SelectContent className="bg-white border-slate-300 text-black font-black shadow-xl rounded-lg">
-                                                                            <SelectItem value="Box" className="font-bold text-xs focus:bg-slate-50">Box</SelectItem>
-                                                                            <SelectItem value="Crate" className="font-bold text-xs focus:bg-slate-50">Crate</SelectItem>
-                                                                            <SelectItem value="Kgs" className="font-bold text-xs focus:bg-slate-50">Kgs</SelectItem>
-                                                                            <SelectItem value="Tons" className="font-bold text-xs focus:bg-slate-50">Tons</SelectItem>
-                                                                            <SelectItem value="Nug" className="font-bold text-xs focus:bg-slate-50">Nug</SelectItem>
-                                                                            <SelectItem value="Pieces" className="font-bold text-xs focus:bg-slate-50">Pieces</SelectItem>
-                                                                            <SelectItem value="Carton" className="font-bold text-xs focus:bg-slate-50">Carton</SelectItem>
+                                                                            {units.map((u) => (
+                                                                                <SelectItem key={u} value={u} className="font-bold text-xs focus:bg-slate-50">{u}</SelectItem>
+                                                                            ))}
                                                                         </SelectContent>
                                                                     </Select>
                                                                     <FormMessage className="text-[9px] mt-0.5" />

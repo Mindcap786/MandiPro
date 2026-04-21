@@ -46,9 +46,10 @@ interface ContactDialogProps {
     children: React.ReactNode
     onSuccess?: () => void
     defaultType?: "farmer" | "buyer" | "supplier"
+    initialData?: any // Add support for editing
 }
 
-export function ContactDialog({ children, onSuccess, defaultType = "farmer" }: ContactDialogProps) {
+export function ContactDialog({ children, onSuccess, defaultType = "farmer", initialData }: ContactDialogProps) {
     const [open, setOpen] = useState(false)
     const { toast } = useToast()
     const { profile } = useAuth()
@@ -63,16 +64,32 @@ export function ContactDialog({ children, onSuccess, defaultType = "farmer" }: C
     const form = useForm<any>({
         resolver: zodResolver(contactSchema),
         defaultValues: {
-            type: defaultType,
-            name: "",
-            internal_id: "",
-            phone: "",
-            city: "",
-            address: "",
+            type: initialData?.type || defaultType,
+            name: initialData?.name || "",
+            internal_id: initialData?.internal_id || "",
+            phone: initialData?.phone || "",
+            city: initialData?.city || "",
+            address: initialData?.address || "",
             openingBalance: 0,
             balanceType: "receivable"
         }
     })
+
+    // Reset form when initialData changes or dialog opens
+    useEffect(() => {
+        if (open) {
+            form.reset({
+                type: initialData?.type || defaultType,
+                name: initialData?.name || "",
+                internal_id: initialData?.internal_id || "",
+                phone: initialData?.phone || "",
+                city: initialData?.city || "",
+                address: initialData?.address || "",
+                openingBalance: 0,
+                balanceType: "receivable"
+            })
+        }
+    }, [open, initialData, defaultType, form])
 
     const [idConflict, setIdConflict] = useState<string | null>(null)
 
@@ -126,27 +143,49 @@ export function ContactDialog({ children, onSuccess, defaultType = "farmer" }: C
         try {
             setLoadingState("Synchronizing...")
             const schema = 'mandi';
-            const { data: newContactData, error: insertError } = await supabase
-                .schema(schema)
-                .from("contacts")
-                .insert({
-                    organization_id: profile.organization_id,
-                    name: data.name,
-                    type: data.type,
-                    status: "active",
-                    internal_id: data.internal_id,
-                    phone: data.phone,
-                    city: data.city,
-                    address: data.address
-                })
-                .select()
-                .abortSignal(controller.signal)
+            
+            let result;
+            if (initialData?.id) {
+                // Update existing contact
+                result = await supabase
+                    .schema(schema)
+                    .from("contacts")
+                    .update({
+                        name: data.name,
+                        type: data.type,
+                        internal_id: data.internal_id,
+                        phone: data.phone,
+                        city: data.city,
+                        address: data.address
+                    })
+                    .eq('id', initialData.id)
+                    .select()
+                    .abortSignal(controller.signal)
+            } else {
+                // Insert new contact
+                result = await supabase
+                    .schema(schema)
+                    .from("contacts")
+                    .insert({
+                        organization_id: profile.organization_id,
+                        name: data.name,
+                        type: data.type,
+                        status: "active",
+                        internal_id: data.internal_id,
+                        phone: data.phone,
+                        city: data.city,
+                        address: data.address
+                    })
+                    .select()
+                    .abortSignal(controller.signal)
+            }
 
-            if (insertError) throw insertError
-            const newContact = newContactData?.[0]
+            const { data: contactResult, error: saveError } = result
+            if (saveError) throw saveError
+            const savedContact = contactResult?.[0]
 
-            // Handle Opening Balance
-            if (data.openingBalance && data.openingBalance > 0 && newContact) {
+            // Handle Opening Balance (Only for NEW contacts)
+            if (!initialData?.id && data.openingBalance && data.openingBalance > 0 && savedContact) {
                 setLoadingState("Setting Balance...")
                 const { error: ledgerError } = await supabase
                     .schema(schema)
@@ -172,7 +211,7 @@ export function ContactDialog({ children, onSuccess, defaultType = "farmer" }: C
             }
 
             setLoadingState("Finalizing...")
-            toast({ title: "Success", description: `${data.type} added successfully` })
+            toast({ title: "Success", description: initialData?.id ? `${data.name} updated successfully` : `${data.type} added successfully` })
             setOpen(false)
             form.reset()
             if (onSuccess) onSuccess()
@@ -203,10 +242,10 @@ export function ContactDialog({ children, onSuccess, defaultType = "farmer" }: C
                 <div className="bg-slate-50 p-8 pb-4 border-b border-slate-100">
                     <DialogHeader>
                         <DialogTitle className="text-3xl font-[1000] italic tracking-tighter text-black uppercase">
-                            ADD <span className="text-blue-600">CONTACT</span>
+                            {initialData?.id ? 'EDIT' : 'ADD'} <span className="text-blue-600">CONTACT</span>
                         </DialogTitle>
                         <DialogDescription className="text-slate-700 font-bold">
-                            Register a new partner in your Mandi network.
+                            {initialData?.id ? `Updating details for ${initialData.name}` : 'Register a new partner in your Mandi network.'}
                         </DialogDescription>
                     </DialogHeader>
                 </div>
@@ -292,34 +331,36 @@ export function ContactDialog({ children, onSuccess, defaultType = "farmer" }: C
                             )}
                         </div>
 
-                        {/* Opening Balance Section */}
-                        <div className="p-4 bg-slate-50/50 rounded-xl border border-slate-100 space-y-3">
-                            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-600">Opening Balance (Optional)</Label>
-                            <div className="flex gap-2">
-                                <div className="flex-1">
-                                    <Input
-                                        type="number"
-                                        placeholder="0.00"
-                                        {...form.register("openingBalance")}
-                                        className="bg-white border-slate-300 text-black font-mono font-bold h-10"
-                                    />
-                                </div>
-                                <div className="w-1/2">
-                                    <Select
-                                        onValueChange={(val: any) => form.setValue("balanceType", val)}
-                                        defaultValue="receivable"
-                                    >
-                                        <SelectTrigger className={`h-10 font-bold ${form.watch('balanceType') === 'receivable' ? 'text-emerald-600 bg-emerald-50 border-emerald-200' : 'text-red-600 bg-red-50 border-red-200'}`}>
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="receivable">To Receive (↓)</SelectItem>
-                                            <SelectItem value="payable">To Pay (↑)</SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                        {/* Opening Balance Section (Only for NEW contacts) */}
+                        {!initialData?.id && (
+                            <div className="p-4 bg-slate-50/50 rounded-xl border border-slate-100 space-y-3">
+                                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-600">Opening Balance (Optional)</Label>
+                                <div className="flex gap-2">
+                                    <div className="flex-1">
+                                        <Input
+                                            type="number"
+                                            placeholder="0.00"
+                                            {...form.register("openingBalance")}
+                                            className="bg-white border-slate-300 text-black font-mono font-bold h-10"
+                                        />
+                                    </div>
+                                    <div className="w-1/2">
+                                        <Select
+                                            onValueChange={(val: any) => form.setValue("balanceType", val)}
+                                            defaultValue="receivable"
+                                        >
+                                            <SelectTrigger className={`h-10 font-bold ${form.watch('balanceType') === 'receivable' ? 'text-emerald-600 bg-emerald-50 border-emerald-200' : 'text-red-600 bg-red-50 border-red-200'}`}>
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="receivable">To Receive (↓)</SelectItem>
+                                                <SelectItem value="payable">To Pay (↑)</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                        )}
                     </div>
 
                     <div className="pt-4">
@@ -330,7 +371,7 @@ export function ContactDialog({ children, onSuccess, defaultType = "farmer" }: C
                                     <span className="uppercase text-sm tracking-widest">{loadingState}</span>
                                 </div>
                             ) : (
-                                "SECURELY SAVE CONTACT"
+                                initialData?.id ? "UPDATE CONTACT DETAILS" : "SECURELY SAVE CONTACT"
                             )}
                         </Button>
                     </div>

@@ -19,6 +19,8 @@ import { SessionBillsView } from "./session-bills-view";
 
 const generateUUID = () => crypto.randomUUID();
 
+const STANDARD_UNITS = ["Box", "Crate", "Kgs", "Tons", "Nug", "Pieces", "Carton"];
+
 export function MandiCommissionForm() {
     const { profile } = useAuth();
     const { toast } = useToast();
@@ -30,7 +32,7 @@ export function MandiCommissionForm() {
     const [farmers, setFarmers] = useState<any[]>([]);
     const [buyers, setBuyers] = useState<any[]>([]);
     const [commodities, setCommodities] = useState<any[]>([]);
-    const [units, setUnits] = useState<string[]>(["Box", "Crate", "Kgs", "Tons", "Nug", "Pieces", "Carton"]);
+    const [units, setUnits] = useState<string[]>(STANDARD_UNITS);
     const [globalUnit, setGlobalUnit] = useState<string>("Box");
     const [settings, setSettings] = useState<any>(null);
 
@@ -93,8 +95,10 @@ export function MandiCommissionForm() {
                 setSettings(setsRes.data);
                 resetCurrentRow(setsRes.data.commission_rate_default);
             }
-            if (unitsRes.data?.length) {
-                setUnits(Array.from(new Set([...unitsRes.data.map(u => u.name), "Kg", "Box"])));
+            if (unitsRes.data) {
+                const dbUnits = unitsRes.data.map(u => u.name);
+                // Merge standard units with DB units, keeping them unique
+                setUnits(Array.from(new Set([...STANDARD_UNITS, ...dbUnits, "Kg"])));
             }
         };
         loadMasterData();

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Plus, Search, Users, Phone, MapPin, Loader2, Printer, Download, ChevronLeft, ChevronRight, RotateCcw, AlertCircle, Trash2, Filter, ChevronDown } from "lucide-react"
+import { Plus, Search, Users, Phone, MapPin, Loader2, Printer, Download, ChevronLeft, ChevronRight, RotateCcw, AlertCircle, Trash2, Filter, ChevronDown, Pencil } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { isNativePlatform } from "@/lib/capacitor-utils"
@@ -79,11 +79,11 @@ export default function ContactsPage() {
         setLoading(true)
         const { data, error } = await supabase.schema(schema)
             .from("contacts")
-            .select("id, name, type, city, phone, status, credit_limit, contact_code, created_at, bill_series_prefix")
+            .select("id, name, type, city, phone, status, credit_limit, contact_code, internal_id, created_at, bill_series_prefix")
             .eq("organization_id", profile.organization_id)
             .neq("status", "deleted")
             .neq("type", "staff") // Hide internal staff from master data
-            .order("name", { ascending: true })
+            .order("created_at", { ascending: false })
         if (error) console.error("Error fetching contacts:", error)
         else setContacts(data || [])
         setLoading(false)
@@ -142,7 +142,11 @@ export default function ContactsPage() {
     }
 
     const filteredContacts = contacts.filter(c => {
-        const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || c.type.toLowerCase().includes(searchTerm.toLowerCase()) || c.city?.toLowerCase().includes(searchTerm.toLowerCase())
+        const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                             c.type.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                             c.city?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                             c.internal_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                             c.contact_code?.toLowerCase().includes(searchTerm.toLowerCase())
         const matchesType = typeFilter === 'all' || c.type === typeFilter
         const matchesLocation = locationFilter === 'all' || c.city === locationFilter
         const contactStatus = c.status || 'active'
@@ -345,11 +349,18 @@ export default function ContactsPage() {
 
                                         {/* Action row */}
                                         <div className="flex border-t border-[#F3F4F6]">
+                                            <ContactDialog onSuccess={fetchContacts} initialData={contact}>
+                                                <button
+                                                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-[#2563EB] active:bg-blue-50 transition-colors border-r border-[#F3F4F6]"
+                                                >
+                                                    <Pencil className="w-3.5 h-3.5" /> Edit
+                                                </button>
+                                            </ContactDialog>
                                             <button
                                                 onClick={() => resetSequence(contact.id, contact.name, contact.type)}
                                                 className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-[#6B7280] active:bg-gray-50 transition-colors border-r border-[#F3F4F6]"
                                             >
-                                                <RotateCcw className="w-3.5 h-3.5" /> Reset Seq.
+                                                <RotateCcw className="w-3.5 h-3.5" /> Reset
                                             </button>
                                             <button
                                                 onClick={() => setContactToDelete({ id: contact.id, name: contact.name })}
@@ -461,14 +472,20 @@ export default function ContactsPage() {
                             ) : (
                                 currentItems.map((contact) => (
                                     <TableRow key={contact.id} className="border-slate-100 hover:bg-slate-50 transition-colors group">
-                                        <TableCell className="font-mono text-[10px] font-black text-slate-400 group-hover:text-blue-600 transition-colors uppercase tracking-widest">{contact.contact_code || '---'}</TableCell>
+                                        <TableCell className="font-mono text-[10px] font-black text-slate-400 group-hover:text-blue-600 transition-colors uppercase tracking-widest">{contact.internal_id || contact.contact_code || '---'}</TableCell>
                                         <TableCell className="font-bold text-black text-sm py-4">{contact.name}</TableCell>
                                         <TableCell><span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wide border ${contact.type === 'farmer' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : contact.type === 'buyer' ? 'bg-blue-50 text-blue-600 border-blue-100' : 'bg-purple-50 text-purple-600 border-purple-100'}`}>{contact.type}</span></TableCell>
                                         <TableCell className="text-slate-800 font-black text-xs"><div className="flex items-center gap-2">{contact.phone ? (<><Phone className="w-3.5 h-3.5 text-blue-500" /> {contact.phone}</>) : <span className="text-slate-300">-</span>}</div></TableCell>
                                         <TableCell className="text-slate-800 font-black text-xs"><div className="flex items-center gap-2">{contact.city ? (<><MapPin className="w-3.5 h-3.5 text-red-500" /> {contact.city}</>) : <span className="text-slate-300">-</span>}</div></TableCell>
-                                        <TableCell className="text-right"><Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-lg hover:bg-orange-50 text-slate-400 hover:text-orange-600 transition-colors" onClick={() => resetSequence(contact.id, contact.name, contact.type)} title="Reset Invoice Sequence"><RotateCcw className="w-3.5 h-3.5" /></Button></TableCell>
-                                        <TableCell className="text-right"><button onClick={() => toggleStatus(contact.id, contact.status || 'active')} disabled={isUpdating === contact.id} className={cn("inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:scale-100", (contact.status || 'active') === 'active' ? "bg-emerald-100/50 border-emerald-200 text-emerald-700" : "bg-slate-100 border-slate-200 text-slate-500")}>{isUpdating === contact.id ? <Loader2 className="w-3 h-3 animate-spin text-slate-400" /> : <span className={cn("w-1.5 h-1.5 rounded-full", (contact.status || 'active') === 'active' ? "bg-emerald-500 animate-pulse" : "bg-slate-400")} />}<span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap">{(contact.status || 'active') === 'active' ? 'Active' : 'Inactive'}</span></button></TableCell>
-                                        <TableCell className="text-right"><Button variant="ghost" size="sm" type="button" className="h-8 w-8 p-0 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setContactToDelete({ id: contact.id, name: contact.name }) }} title="Delete Contact" disabled={isUpdating === contact.id}><Trash2 className="w-4 h-4" /></Button></TableCell>
+                                        <TableCell className="text-right">
+                                            <div className="flex justify-end gap-1">
+                                                <ContactDialog onSuccess={fetchContacts} initialData={contact}>
+                                                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-colors" title="Edit Contact"><Pencil className="w-3.5 h-3.5" /></Button>
+                                                </ContactDialog>
+                                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-lg hover:bg-orange-50 text-slate-400 hover:text-orange-600 transition-colors" onClick={() => resetSequence(contact.id, contact.name, contact.type)} title="Reset Invoice Sequence"><RotateCcw className="w-3.5 h-3.5" /></Button>
+                                                <Button variant="ghost" size="sm" type="button" className="h-8 w-8 p-0 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setContactToDelete({ id: contact.id, name: contact.name }) }} title="Delete Contact" disabled={isUpdating === contact.id}><Trash2 className="w-4 h-4" /></Button>
+                                            </div>
+                                        </TableCell>
                                     </TableRow>
                                 ))
                             )}
