@@ -314,6 +314,11 @@ export default function ContactsPage() {
                                                     >
                                                         {contact.type}
                                                     </span>
+                                                    {(contact.internal_id || contact.contact_code) && (
+                                                        <span className="text-[9px] font-mono font-black border border-slate-200 bg-slate-50 px-1 rounded text-slate-500 uppercase">
+                                                            ID: {contact.internal_id || contact.contact_code}
+                                                        </span>
+                                                    )}
                                                 </div>
                                                 <div className="flex items-center gap-3 mt-0.5">
                                                     {contact.phone && (
@@ -472,7 +477,9 @@ export default function ContactsPage() {
                             ) : (
                                 currentItems.map((contact) => (
                                     <TableRow key={contact.id} className="border-slate-100 hover:bg-slate-50 transition-colors group">
-                                        <TableCell className="font-mono text-[10px] font-black text-slate-400 group-hover:text-blue-600 transition-colors uppercase tracking-widest">{contact.internal_id || contact.contact_code || '---'}</TableCell>
+                                        <TableCell className="font-mono text-[10px] font-black text-blue-600/70 group-hover:text-blue-700 transition-colors uppercase tracking-widest bg-slate-50/50 px-3 py-1 rounded-md inline-block mt-3 ml-3">
+                                            {contact.internal_id || contact.contact_code || '---'}
+                                        </TableCell>
                                         <TableCell className="font-bold text-black text-sm py-4">{contact.name}</TableCell>
                                         <TableCell><span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wide border ${contact.type === 'farmer' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : contact.type === 'buyer' ? 'bg-blue-50 text-blue-600 border-blue-100' : 'bg-purple-50 text-purple-600 border-purple-100'}`}>{contact.type}</span></TableCell>
                                         <TableCell className="text-slate-800 font-black text-xs"><div className="flex items-center gap-2">{contact.phone ? (<><Phone className="w-3.5 h-3.5 text-blue-500" /> {contact.phone}</>) : <span className="text-slate-300">-</span>}</div></TableCell>
