@@ -100,6 +100,11 @@ BEGIN
     v_bill_no := (p_arrival->>'bill_no')::BIGINT;
     IF v_bill_no IS NULL OR v_bill_no <= 0 THEN
         v_bill_no := mandi.get_internal_sequence(v_organization_id, 'bill_no');
+    ELSE
+        -- SYSTEMATIC SYNC: If user gave a manual number, ensure the sequence doesn't fall behind
+        UPDATE mandi.id_sequences 
+        SET last_number = GREATEST(last_number, v_bill_no), updated_at = NOW()
+        WHERE organization_id = v_organization_id AND entity_type = 'bill_no';
     END IF;
 
     INSERT INTO mandi.arrivals (
