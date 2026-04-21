@@ -43,7 +43,7 @@ export default function SaleInvoicePage() {
                         lot:lots(
                             *,
                             item:commodities(*),
-                            arrival:arrivals(vehicle_number, reference_no, contact_bill_no, bill_number)
+                            arrival:arrivals(vehicle_number, reference_no, contact_bill_no, bill_no)
                         )
                     ),
                     sale_adjustments (*)

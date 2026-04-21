@@ -164,26 +164,6 @@ export const LedgerPDFReport = ({
                             <View style={s.cDate}><Text style={s.cell}>{fmtDate(e.entry_date)}</Text></View>
                             <View style={s.cDesc}>
                                 <Text style={s.cellBold}>{e.description || "-"}</Text>
-                                
-                                {/* Show parsed products (converted from line_items) */}
-                                {e.products && e.products.length > 0 && e.products.map((p, idx) => (
-                                    <View key={idx} style={{ marginTop: 2, paddingLeft: 4 }}>
-                                        <Text style={{ fontSize: 7, color: "#666" }}>
-                                            • {p.name} {p.lot_no ? `(Lot #${p.lot_no})` : ''}
-                                            {p.qty ? ` | Qty: ${Number(p.qty).toLocaleString("en-IN", { maximumFractionDigits: 2 })} ${p.unit || ''}` : ''}
-                                            {p.rate ? ` @₹${Number(p.rate).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : ''}
-                                            {p.amount !== undefined ? ` = ₹${Number(p.amount).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : ''}
-                                        </Text>
-                                    </View>
-                                ))}
-                                
-                                {e.charges && e.charges.length > 0 && e.charges.map((c, idx) => (
-                                    <View key={`charge-${idx}`} style={{ marginTop: 2, paddingLeft: 4 }}>
-                                        <Text style={{ fontSize: 7, color: "#888" }}>
-                                            {c.label}: ₹{Number(c.amount).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                        </Text>
-                                    </View>
-                                ))}
                             </View>
                             <View style={s.cDr}>
                                 <Text style={e.debit > 0 ? s.drAmt : s.dim}>{e.debit > 0 ? INR(e.debit) : "-"}</Text>
