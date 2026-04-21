@@ -153,7 +153,7 @@ export function ContactDialog({ children, onSuccess, defaultType = "farmer", ini
                     .update({
                         name: data.name,
                         type: data.type,
-                        internal_id: data.internal_id,
+                        internal_id: data.internal_id?.trim() || null,
                         phone: data.phone,
                         city: data.city,
                         address: data.address
@@ -171,7 +171,7 @@ export function ContactDialog({ children, onSuccess, defaultType = "farmer", ini
                         name: data.name,
                         type: data.type,
                         status: "active",
-                        internal_id: data.internal_id,
+                        internal_id: data.internal_id?.trim() || null,
                         phone: data.phone,
                         city: data.city,
                         address: data.address
