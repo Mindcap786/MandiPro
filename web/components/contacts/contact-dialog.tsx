@@ -285,7 +285,7 @@ export function ContactDialog({ children, onSuccess, defaultType = "farmer", ini
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-700">INTERNAL ID / CODE</Label>
+                                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-700">INTERNAL ID / CODE (OPTIONAL)</Label>
                                     <Input
                                         id="internal_id"
                                         placeholder="ID-101"

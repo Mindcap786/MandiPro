@@ -80,7 +80,7 @@ export function MandiCommissionForm() {
         const loadMasterData = async () => {
             const orgId = profile.organization_id;
             const [contactsRes, commRes, setsRes, unitsRes] = await Promise.all([
-                supabase.schema('mandi').from("contacts").select("id, name, type, city").eq("organization_id", orgId).order("name"),
+                supabase.schema('mandi').from("contacts").select("id, name, type, city, internal_id").eq("organization_id", orgId).order("name"),
                 supabase.schema('mandi').from("commodities").select("*").eq("organization_id", orgId).order("name"),
                 supabase.schema('mandi').from("mandi_settings" as any).select("*").eq("organization_id", orgId).maybeSingle(),
                 supabase.schema('mandi').from("units").select("name").eq("organization_id", orgId),
@@ -380,7 +380,7 @@ export function MandiCommissionForm() {
                              <SearchableSelect
                                 ref={farmerSearchRef}
                                 options={farmers.map((f) => ({
-                                    label: `${f.name}${f.city ? ` (${f.city})` : ""}`,
+                                    label: `${f.name}${f.internal_id ? ` [${f.internal_id}]` : ""}${f.city ? ` (${f.city})` : ""}`,
                                     value: f.id,
                                 }))}
                                 value={currentRow.farmerId || ""}
@@ -492,7 +492,7 @@ export function MandiCommissionForm() {
                     </div>
                     <SearchableSelect
                         ref={buyerSearchRef}
-                        options={buyers.map(b => ({ label: `${b.name}${b.city ? ` (${b.city})` : ""}`, value: b.id }))}
+                        options={buyers.map(b => ({ label: `${b.name}${b.internal_id ? ` [${b.internal_id}]` : ""}${b.city ? ` (${b.city})` : ""}`, value: b.id }))}
                         value={buyerId || ""}
                         onChange={setBuyerId}
                         onSelected={() => buyerLoadingRef.current?.focus()}

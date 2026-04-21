@@ -16,10 +16,11 @@ import { calculateArrivalSettlementAmount, calculateLotSettlementAmount, calcula
 
 const AMOUNT_EPSILON = 0.01;
 
-interface SupplierInwardsDialogProps {
     supplier: {
         id: string;
         name: string;
+        city: string;
+        internal_id?: string;
         balance: number;
         lots: any[];
     } | null;
@@ -178,8 +179,13 @@ export function SupplierInwardsDialog({ supplier, unappliedPayment = 0, isOpen, 
                 <DialogHeader className="px-4 py-3 border-b border-slate-100 bg-slate-50/50 relative shrink-0">
                     <div className="flex flex-col gap-1">
                         <div className="flex items-center justify-between">
-                            <DialogTitle className="text-xl font-black italic tracking-tighter text-black uppercase flex items-center gap-2">
+                             <DialogTitle className="text-xl font-black italic tracking-tighter text-black uppercase flex items-center gap-2">
                                 <span className="text-blue-600">INWARD</span> RECORDS
+                                {supplier?.internal_id && (
+                                    <span className="text-[10px] font-black bg-blue-50 text-blue-600 px-2 py-0.5 rounded-md border border-blue-100 uppercase tracking-widest normal-case italic-none not-italic">
+                                        ID: {supplier.internal_id}
+                                    </span>
+                                )}
                             </DialogTitle>
  
                             <div className="flex-1 flex items-center justify-end gap-3">
@@ -381,7 +387,14 @@ export function SupplierInwardsDialog({ supplier, unappliedPayment = 0, isOpen, 
                                                                         <div className="flex-1 grid grid-cols-4 items-center gap-3">
                                                                             <div className="flex flex-col">
                                                                                 <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Product</span>
-                                                                                <span className="text-[10px] font-black text-slate-900 group-hover/item:text-blue-600 transition-colors truncate">{lot.item?.name || 'Unknown'}</span>
+                                                                                <div className="flex items-center gap-1">
+                                                                                    <span className="text-[10px] font-black text-slate-900 group-hover/item:text-blue-600 transition-colors truncate">{lot.item?.name || 'Unknown'}</span>
+                                                                                    {lot.item?.internal_id && (
+                                                                                        <span className="text-[8px] font-bold text-blue-400 px-1 border border-blue-100 rounded">
+                                                                                            {lot.item.internal_id}
+                                                                                        </span>
+                                                                                    )}
+                                                                                </div>
                                                                             </div>
                                                                             <div className="flex flex-col">
                                                                                 <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Quantity</span>

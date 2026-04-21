@@ -88,8 +88,8 @@ export default function PurchaseBillsPage() {
                         paid_amount,
                         payment_status,
                         net_payable,
-                        farmer:contacts!contact_id(id, name, city),
-                        item:commodities(name),
+                        farmer:contacts!contact_id(id, name, city, internal_id),
+                        item:commodities(name, internal_id),
                         arrival:arrivals(arrival_date, reference_no, arrival_type, hire_charges, hamali_expenses, other_expenses, bill_no, contact_bill_no),
                         sale_items(amount, qty, rate)
                     `)
@@ -217,6 +217,7 @@ export default function PurchaseBillsPage() {
                         id: contactId,
                         name: lot.farmer?.name || 'Unknown Supplier',
                         city: lot.farmer?.city || '',
+                        internal_id: lot.farmer?.internal_id || '',
                         lots: [],
                         totalPurchaseValue: 0,
                         totalPaid: 0,
@@ -558,7 +559,14 @@ export default function PurchaseBillsPage() {
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 {/* Name */}
-                                                <div className="text-base md:text-xl font-black text-black truncate">{supplier.name}</div>
+                                                <div className="flex items-center gap-2">
+                                                    <div className="text-base md:text-xl font-black text-black truncate">{supplier.name}</div>
+                                                    {supplier.internal_id && (
+                                                        <span className="text-[10px] font-black bg-blue-50 text-blue-600 px-2 py-0.5 rounded-md border border-blue-100 uppercase tracking-widest flex-shrink-0">
+                                                            {supplier.internal_id}
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 {/* City */}
                                                 <div className="text-xs text-slate-400 font-bold flex items-center gap-1 mt-0.5">
                                                     <Receipt className="w-3 h-3 flex-shrink-0" />
