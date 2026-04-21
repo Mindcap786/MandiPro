@@ -162,6 +162,7 @@ export default function ArrivalsEntryForm() {
         const timer = setTimeout(() => setShowUnlock(true), 12000);
         return () => clearTimeout(timer);
     }, []);
+    const isManualBillNo = useRef(false);
     const [showPreview, setShowPreview] = useState(false);
     const [search, setSearch] = useState("");
     const [openFarmer, setOpenFarmer] = useState(false);
@@ -351,9 +352,8 @@ export default function ArrivalsEntryForm() {
         const fetchNextBillNo = async () => {
             if (!profile?.organization_id || !selectedContactId) return;
             
-            // Only auto-populate if currently 0 or empty
-            const currentBillNo = form.getValues('bill_no');
-            if (currentBillNo && currentBillNo !== 0) return;
+            // Only auto-populate if NOT manually edited by user
+            if (isManualBillNo.current) return;
 
             // Priority: Try to get contact-specific sequence first
             const { data, error } = await supabase
@@ -743,6 +743,7 @@ export default function ArrivalsEntryForm() {
                     farmer_charges: 0
                 }]
             });
+            isManualBillNo.current = false;
         } catch (error: any) {
             console.error("onSubmit: Caught Error:", error);
             toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -955,7 +956,16 @@ export default function ArrivalsEntryForm() {
                                                 <FormItem>
                                                     <FormLabel className="text-[10px] font-bold text-slate-700 uppercase tracking-wide ml-1">{getLabel('reference_no', 'Ref / Bill No')}</FormLabel>
                                                     <FormControl>
-                                                        <Input placeholder="#" {...field} required={isMandatory('reference_no')} className="bg-white border border-slate-300 h-9 text-xs text-slate-900 font-bold rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all uppercase shadow-sm" />
+                                                        <Input 
+                                                            placeholder="#" 
+                                                            {...field} 
+                                                            onChange={(e) => {
+                                                                field.onChange(e);
+                                                                isManualBillNo.current = true;
+                                                            }}
+                                                            required={isMandatory('reference_no')} 
+                                                            className="bg-white border border-slate-300 h-9 text-xs text-slate-900 font-bold rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all uppercase shadow-sm" 
+                                                        />
                                                     </FormControl>
                                                 </FormItem>
                                             )}
