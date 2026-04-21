@@ -1,251 +1,187 @@
--- 1. Drop all existing versions of confirm_sale_transaction to avoid "not unique" errors
-DO $$
-DECLARE
-    r RECORD;
-BEGIN
-    FOR r IN (
-        SELECT 'DROP FUNCTION ' || n.nspname || '.' || p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ');' as drop_cmd
-        FROM pg_proc p
-        JOIN pg_namespace n ON p.pronamespace = n.oid
-        WHERE p.proname = 'confirm_sale_transaction'
-        AND n.nspname = 'mandi'
-    ) LOOP
-        EXECUTE r.drop_cmd;
-    END LOOP;
-END $$;
+-- Drop existing function overloads to ensure a clean slate
+DROP FUNCTION IF EXISTS mandi.confirm_sale_transaction(uuid,date,uuid,jsonb,numeric,numeric,numeric,numeric,text,text,text,date,text,uuid,boolean,numeric,date,numeric,numeric,numeric,numeric,numeric,numeric,boolean,numeric,numeric,numeric,numeric,text,text,boolean,text,uuid);
+DROP FUNCTION IF EXISTS mandi.confirm_sale_transaction(uuid,date,uuid,jsonb,numeric,numeric,numeric,numeric,text,text,text,date,text,uuid,boolean,numeric,date,numeric,numeric,numeric,numeric,numeric,numeric,boolean,numeric,numeric,numeric,numeric,text,text,boolean,text);
+DROP FUNCTION IF EXISTS mandi.confirm_sale_transaction(uuid,date,uuid,jsonb,numeric,numeric,numeric,numeric,text,text,text,date,text,uuid,boolean,numeric,date,numeric,numeric,numeric,numeric,numeric,numeric);
 
--- 2. Create the unified Pro-Grade confirm_sale_transaction function
--- Matching the 33-parameter signature expected by the Next.js API route
+-- CREATE unified RPC with correct UUID return type and sequence logic
 CREATE OR REPLACE FUNCTION mandi.confirm_sale_transaction(
-    p_organization_id   UUID,
-    p_sale_date         DATE,
-    p_buyer_id          UUID,
-    p_items             JSONB,
-    p_total_amount      NUMERIC DEFAULT 0,
-    p_header_discount   NUMERIC DEFAULT 0,
-    p_discount_percent  NUMERIC DEFAULT 0,
-    p_discount_amount   NUMERIC DEFAULT 0,
-    p_payment_mode      TEXT DEFAULT 'credit',
-    p_narration         TEXT DEFAULT NULL,
-    p_cheque_number     TEXT DEFAULT NULL,
-    p_cheque_date       DATE DEFAULT NULL,
-    p_cheque_bank       TEXT DEFAULT NULL,
-    p_bank_account_id   UUID DEFAULT NULL,
-    p_cheque_status     BOOLEAN DEFAULT FALSE,
-    p_amount_received   NUMERIC DEFAULT 0,
-    p_due_date          DATE DEFAULT NULL,
-    p_market_fee        NUMERIC DEFAULT 0,
-    p_nirashrit         NUMERIC DEFAULT 0,
-    p_misc_fee          NUMERIC DEFAULT 0,
-    p_loading_charges   NUMERIC DEFAULT 0,
-    p_unloading_charges NUMERIC DEFAULT 0,
-    p_other_expenses    NUMERIC DEFAULT 0,
-    p_gst_enabled       BOOLEAN DEFAULT FALSE,
-    p_cgst_amount       NUMERIC DEFAULT 0,
-    p_sgst_amount       NUMERIC DEFAULT 0,
-    p_igst_amount       NUMERIC DEFAULT 0,
-    p_gst_total         NUMERIC DEFAULT 0,
-    p_place_of_supply   TEXT DEFAULT NULL,
-    p_buyer_gstin       TEXT DEFAULT NULL,
-    p_is_igst           BOOLEAN DEFAULT FALSE,
-    p_idempotency_key   TEXT DEFAULT NULL,
-    p_created_by        UUID DEFAULT NULL
+    p_organization_id uuid,
+    p_sale_date date,
+    p_buyer_id uuid,
+    p_items jsonb,
+    p_total_amount numeric DEFAULT 0,
+    p_header_discount numeric DEFAULT 0,
+    p_discount_percent numeric DEFAULT 0,
+    p_discount_amount numeric DEFAULT 0,
+    p_payment_mode text DEFAULT 'credit',
+    p_narration text DEFAULT NULL,
+    p_cheque_number text DEFAULT NULL,
+    p_cheque_date date DEFAULT NULL,
+    p_cheque_bank text DEFAULT NULL,
+    p_bank_account_id uuid DEFAULT NULL,
+    p_cheque_status boolean DEFAULT false,
+    p_amount_received numeric DEFAULT 0,
+    p_due_date date DEFAULT NULL,
+    p_market_fee numeric DEFAULT 0,
+    p_nirashrit numeric DEFAULT 0,
+    p_misc_fee numeric DEFAULT 0,
+    p_loading_charges numeric DEFAULT 0,
+    p_unloading_charges numeric DEFAULT 0,
+    p_other_expenses numeric DEFAULT 0,
+    p_gst_enabled boolean DEFAULT false,
+    p_cgst_amount numeric DEFAULT 0,
+    p_sgst_amount numeric DEFAULT 0,
+    p_igst_amount numeric DEFAULT 0,
+    p_gst_total numeric DEFAULT 0,
+    p_place_of_supply text DEFAULT NULL,
+    p_buyer_gstin text DEFAULT NULL,
+    p_is_igst boolean DEFAULT false,
+    p_idempotency_key text DEFAULT NULL,
+    p_created_by uuid DEFAULT NULL
 )
-RETURNS JSONB
+RETURNS uuid
 LANGUAGE plpgsql
 SECURITY DEFINER
-AS $function$
+AS $$
 DECLARE
-    v_sale_id         UUID;
-    v_voucher_id      UUID;
-    v_bill_no         BIGINT;
-    v_item            RECORD;
-    v_payment_status  TEXT;
-    v_total_paid      NUMERIC := COALESCE(p_amount_received, 0);
+    v_sale_id uuid;
+    v_item jsonb;
+    v_bill_no bigint;
+    v_contact_bill_no bigint;
 BEGIN
-    -- 1. Idempotency Check
+    -- Check for existing idempotency key
     IF p_idempotency_key IS NOT NULL THEN
-        SELECT id, bill_no INTO v_sale_id, v_bill_no 
-        FROM mandi.sales 
-        WHERE organization_id = p_organization_id 
-          AND idempotency_key = p_idempotency_key;
-        
-        IF FOUND THEN
-            RETURN jsonb_build_object('success', true, 'sale_id', v_sale_id, 'bill_no', v_bill_no, 'message', 'Duplicate prevented');
+        SELECT id INTO v_sale_id FROM mandi.sales WHERE idempotency_key = p_idempotency_key LIMIT 1;
+        IF v_sale_id IS NOT NULL THEN
+            RETURN v_sale_id;
         END IF;
     END IF;
 
-    -- 2. Determine Payment Status
-    v_payment_status := CASE
-        WHEN p_payment_mode IN ('cash', 'upi', 'bank_transfer', 'UPI/BANK', 'bank_upi') THEN 'paid'
-        WHEN p_payment_mode IN ('cheque', 'CHEQUE') AND p_cheque_status = TRUE THEN 'paid'
-        WHEN v_total_paid >= p_total_amount AND p_total_amount > 0 THEN 'paid'
-        WHEN v_total_paid > 0 THEN 'partial'
-        ELSE 'pending'
-    END;
+    -- Generate global bill number (MAX+1 logic)
+    SELECT COALESCE(MAX(bill_no), 0) + 1 INTO v_bill_no 
+    FROM mandi.sales 
+    WHERE organization_id = p_organization_id;
 
-    -- 3. Get Next Bill Sequence
-    v_bill_no := core.next_sale_no(p_organization_id);
-    
-    -- 4. Create Sale Record
+    -- Generate contact-specific bill number
+    IF p_buyer_id IS NOT NULL THEN
+        v_contact_bill_no := mandi.get_next_contact_bill_no(p_organization_id, p_buyer_id, 'sale');
+    END IF;
+
+    -- Create Sales Header
     INSERT INTO mandi.sales (
-        organization_id, buyer_id, sale_date, payment_mode, total_amount, bill_no,
-        market_fee, nirashrit, misc_fee, loading_charges, unloading_charges, other_expenses,
-        payment_status, idempotency_key, due_date,
-        cheque_no, cheque_date, cheque_status, bank_name,
-        cgst_amount, sgst_amount, igst_amount, gst_total,
-        discount_percent, discount_amount, narration,
-        paid_amount, balance_due, created_by
+        organization_id,
+        sale_date,
+        buyer_id,
+        total_amount,
+        bill_no,
+        contact_bill_no,
+        payment_mode,
+        narration,
+        cheque_no,
+        cheque_date,
+        bank_name,
+        bank_account_id,
+        cheque_status,
+        amount_received,
+        due_date,
+        market_fee,
+        nirashrit,
+        misc_fee,
+        loading_charges,
+        unloading_charges,
+        other_expenses,
+        status,
+        payment_status,
+        gst_enabled,
+        cgst_amount,
+        sgst_amount,
+        igst_amount,
+        gst_total,
+        place_of_supply,
+        buyer_gstin,
+        is_igst,
+        idempotency_key,
+        created_by
     ) VALUES (
-        p_organization_id, p_buyer_id, p_sale_date, p_payment_mode, 
-        ROUND(p_total_amount::NUMERIC, 2), v_bill_no,
-        ROUND(COALESCE(p_market_fee, 0)::NUMERIC, 2),
-        ROUND(COALESCE(p_nirashrit, 0)::NUMERIC, 2),
-        ROUND(COALESCE(p_misc_fee, 0)::NUMERIC, 2),
-        ROUND(COALESCE(p_loading_charges, 0)::NUMERIC, 2),
-        ROUND(COALESCE(p_unloading_charges, 0)::NUMERIC, 2),
-        ROUND(COALESCE(p_other_expenses, 0)::NUMERIC, 2),
-        v_payment_status, p_idempotency_key, p_due_date,
-        p_cheque_number, p_cheque_date, p_cheque_status, p_cheque_bank,
-        ROUND(COALESCE(p_cgst_amount, 0), 2),
-        ROUND(COALESCE(p_sgst_amount, 0), 2),
-        ROUND(COALESCE(p_igst_amount, 0), 2),
-        ROUND(COALESCE(p_gst_total, 0), 2),
-        ROUND(COALESCE(p_discount_percent, 0), 2),
-        ROUND(COALESCE(p_discount_amount, 0), 2),
+        p_organization_id,
+        p_sale_date,
+        p_buyer_id,
+        p_total_amount,
+        v_bill_no,
+        v_contact_bill_no,
+        p_payment_mode,
         p_narration,
-        v_total_paid,
-        p_total_amount - v_total_paid,
+        p_cheque_number,
+        p_cheque_date,
+        p_cheque_bank,
+        p_bank_account_id,
+        p_cheque_status,
+        p_amount_received,
+        p_due_date,
+        p_market_fee,
+        p_nirashrit,
+        p_misc_fee,
+        p_loading_charges,
+        p_unloading_charges,
+        p_other_expenses,
+        'completed',
+        CASE 
+            WHEN p_amount_received >= p_total_amount THEN 'paid'
+            WHEN p_amount_received > 0 THEN 'partial'
+            ELSE 'pending'
+        END,
+        p_gst_enabled,
+        p_cgst_amount,
+        p_sgst_amount,
+        p_igst_amount,
+        p_gst_total,
+        p_place_of_supply,
+        p_buyer_gstin,
+        p_is_igst,
+        p_idempotency_key,
         p_created_by
     ) RETURNING id INTO v_sale_id;
 
-    -- 5. Process Sale Items & Stock
-    FOR v_item IN SELECT * FROM jsonb_to_recordset(p_items) AS x(lot_id UUID, quantity NUMERIC, rate_per_unit NUMERIC, amount NUMERIC) LOOP
-        INSERT INTO mandi.sale_items (sale_id, lot_id, quantity, rate_per_unit, total_amount)
-        VALUES (v_sale_id, v_item.lot_id, v_item.quantity, v_item.rate_per_unit, COALESCE(v_item.amount, v_item.quantity * v_item.rate_per_unit));
+    -- Create Sale Items
+    FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
+    LOOP
+        INSERT INTO mandi.sale_items (
+            sale_id,
+            organization_id,
+            item_id,
+            lot_id,
+            qty,
+            rate,
+            amount,
+            unit,
+            gst_rate,
+            tax_amount,
+            created_by
+        ) VALUES (
+            v_sale_id,
+            p_organization_id,
+            (v_item->>'item_id')::uuid,
+            (v_item->>'lot_id')::uuid,
+            (v_item->>'qty')::numeric,
+            (v_item->>'rate')::numeric,
+            (v_item->>'amount')::numeric,
+            v_item->>'unit',
+            COALESCE((v_item->>'gst_rate')::numeric, 0),
+            COALESCE((v_item->>'tax_amount')::numeric, 0),
+            p_created_by
+        );
 
-        -- Update Lot Quantities and Close if Empty
-        UPDATE mandi.lots 
-        SET current_qty = current_qty - v_item.quantity,
-            status = CASE WHEN (current_qty - v_item.quantity) <= 0.01 THEN 'sold' ELSE status END
-        WHERE id = v_item.lot_id;
+        -- Update Lot Quantity (Atomic Stock Update)
+        IF (v_item->>'lot_id') IS NOT NULL THEN
+            UPDATE mandi.lots
+            SET current_qty = current_qty - (v_item->>'qty')::numeric
+            WHERE id = (v_item->>'lot_id')::uuid;
+        END IF;
     END LOOP;
 
-    -- 6. Financial Posting (Double-Entry Ledger)
+    -- Trigger Financial Ledger Entries
     PERFORM mandi.post_sale_ledger(v_sale_id);
 
-    -- 7. Handle Instant Payment Voucher if paid_amount > 0
-    IF v_total_paid > 0 THEN
-        INSERT INTO mandi.vouchers (
-            organization_id, date, party_id, type, amount, 
-            payment_mode, sale_id, reference_no, narration, bank_account_id
-        ) VALUES (
-            p_organization_id, p_sale_date, p_buyer_id, 'receipt', v_total_paid,
-            p_payment_mode, v_sale_id, 'INV-' || v_bill_no,
-            'Payment received for invoice #' || v_bill_no,
-            p_bank_account_id
-        ) RETURNING id INTO v_voucher_id;
-        
-        PERFORM mandi.post_voucher_ledger_v2(v_voucher_id);
-    END IF;
-
-    RETURN jsonb_build_object('success', true, 'sale_id', v_sale_id, 'bill_no', v_bill_no);
+    RETURN v_sale_id;
 END;
-$function$;
-
--- 3. Update commit_mandi_session to use the new unified signature
-CREATE OR REPLACE FUNCTION mandi.commit_mandi_session(p_session_id uuid)
- RETURNS jsonb
- LANGUAGE plpgsql
- SECURITY DEFINER
-AS $function$
-DECLARE
-    v_session           RECORD;
-    v_farmer            RECORD;
-    v_org_id            UUID;
-    v_lot_prefix        TEXT;
-    v_arrival_id        UUID;
-    v_bill_no           BIGINT;
-    v_net_qty           NUMERIC;
-    v_total_net_qty     NUMERIC := 0;
-    v_total_commission  NUMERIC := 0;
-    v_total_purchase    NUMERIC := 0;
-    v_item_amount       NUMERIC;
-    v_sale_rate         NUMERIC;
-    v_final_sale_items  JSONB := '[]'::JSONB;
-    v_item              JSONB;
-    v_sale_items_tmp    JSONB := '[]'::JSONB;
-    v_lot_id            UUID;
-    v_arrival_ids       UUID[] := '{}';
-BEGIN
-    SELECT * INTO v_session FROM mandi.mandi_sessions WHERE id = p_session_id;
-    IF NOT FOUND THEN RAISE EXCEPTION 'Session % not found', p_session_id; END IF;
-    IF v_session.status = 'committed' THEN RAISE EXCEPTION 'Session already committed'; END IF;
-    
-    v_org_id := v_session.organization_id;
-    v_lot_prefix := COALESCE(NULLIF(v_session.lot_no, ''), 'MCS-' || TO_CHAR(v_session.session_date, 'YYMMDD'));
-
-    FOR v_farmer IN SELECT * FROM mandi.mandi_session_farmers WHERE session_id = p_session_id ORDER BY sort_order ASC LOOP
-        v_net_qty := GREATEST(v_farmer.qty - COALESCE(v_farmer.less_units, 0), 0);
-        
-        SELECT COALESCE(MAX(bill_no), 0) + 1 INTO v_bill_no FROM mandi.arrivals WHERE organization_id = v_org_id;
-
-        INSERT INTO mandi.arrivals (organization_id, arrival_date, party_id, arrival_type, lot_prefix, vehicle_number, reference_no, bill_no, status)
-        VALUES (v_org_id, v_session.session_date, v_farmer.farmer_id, 'commission', v_lot_prefix, v_session.vehicle_no, v_session.book_no, v_bill_no, 'pending')
-        RETURNING id INTO v_arrival_id;
-
-        INSERT INTO mandi.lots (
-            organization_id, arrival_id, item_id, lot_code, contact_id, 
-            initial_qty, current_qty, gross_quantity, unit, supplier_rate, 
-            commission_percent, less_percent, less_units, 
-            loading_cost, farmer_charges, variety, grade, 
-            arrival_type, status,
-            net_payable
-        )
-        VALUES (
-            v_org_id, v_arrival_id, v_farmer.item_id, v_lot_prefix || '-' || LPAD(v_bill_no::TEXT, 3, '0'), v_farmer.farmer_id, 
-            v_net_qty, v_net_qty, v_farmer.qty, v_farmer.unit, v_farmer.rate, 
-            v_farmer.commission_percent, v_farmer.less_percent, v_farmer.less_units, 
-            v_farmer.loading_charges, v_farmer.other_charges, v_farmer.variety, v_farmer.grade, 
-            'commission', 'active',
-            COALESCE(v_farmer.net_payable, 0)
-        )
-        RETURNING id INTO v_lot_id;
-
-        UPDATE mandi.mandi_session_farmers SET arrival_id = v_arrival_id WHERE id = v_farmer.id;
-        PERFORM mandi.post_arrival_ledger(v_arrival_id);
-        
-        v_total_net_qty := v_total_net_qty + v_net_qty;
-        v_total_commission := v_total_commission + COALESCE(v_farmer.commission_amount, 0);
-        v_total_purchase := v_total_purchase + COALESCE(v_farmer.net_amount, 0);
-        v_arrival_ids := array_append(v_arrival_ids, v_arrival_id);
-        
-        v_sale_items_tmp := v_sale_items_tmp || jsonb_build_object('lot_id', v_lot_id, 'item_id', v_farmer.item_id, 'quantity', v_net_qty, 'unit', v_farmer.unit);
-    END LOOP;
-
-    IF v_session.buyer_id IS NOT NULL AND v_total_net_qty > 0 THEN
-        v_item_amount := v_session.buyer_payable - COALESCE(v_session.buyer_loading_charges, 0) - COALESCE(v_session.buyer_packing_charges, 0);
-        v_sale_rate := CASE WHEN v_total_net_qty > 0 THEN ROUND(v_item_amount / v_total_net_qty, 2) ELSE 0 END;
-        
-        FOR v_item IN SELECT * FROM jsonb_array_elements(v_sale_items_tmp) LOOP
-            v_final_sale_items := v_final_sale_items || (v_item || jsonb_build_object('rate_per_unit', v_sale_rate, 'amount', ROUND((v_item->>'quantity')::NUMERIC * v_sale_rate, 2)));
-        END LOOP;
-
-        PERFORM mandi.confirm_sale_transaction(
-            p_organization_id   := v_org_id,
-            p_sale_date        := v_session.session_date,
-            p_buyer_id         := v_session.buyer_id,
-            p_items            := v_final_sale_items,
-            p_total_amount     := v_item_amount,
-            p_payment_mode     := 'credit',
-            p_loading_charges  := COALESCE(v_session.buyer_loading_charges, 0),
-            p_other_expenses   := COALESCE(v_session.buyer_packing_charges, 0),
-            p_idempotency_key  := p_session_id::TEXT
-        );
-    END IF;
-
-    UPDATE mandi.mandi_sessions SET status = 'committed', total_purchase = v_total_purchase, total_commission = v_total_commission, updated_at = NOW() WHERE id = p_session_id;
-
-    RETURN jsonb_build_object('success', true, 'purchase_bill_ids', to_jsonb(v_arrival_ids));
-END;
-$function$;
+$$;
