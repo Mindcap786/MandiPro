@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { format } from "date-fns";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import { CalendarIcon, Camera, Plus, Trash2, Loader2, Package, ShieldAlert, Settings, Info, Check, ChevronsUpDown, Search, Landmark, Zap, Wallet, CalendarClock, CheckCircle2, AlertTriangle } from "lucide-react";
+import { CalendarIcon, Camera, Plus, Trash2, Loader2, Package, ShieldAlert, Settings, Info, Check, ChevronsUpDown, Search, Landmark, Zap, Wallet, CalendarClock, CheckCircle2, AlertTriangle, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
