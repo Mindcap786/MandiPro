@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { format } from "date-fns";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import { CalendarIcon, Camera, Plus, Trash2, Loader2, Package, ShieldAlert, Settings, Info, Check, ChevronsUpDown, Search, Landmark, Zap, Wallet, CalendarClock, CheckCircle2, AlertTriangle, Truck } from "lucide-react";
+import { CalendarIcon, Camera, Plus, Trash2, Loader2, Package, ShieldAlert, Settings, Info, Check, ChevronsUpDown, Search, Landmark, Zap, Wallet, CalendarClock, CheckCircle2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -958,34 +958,70 @@ export default function ArrivalsEntryForm() {
                         </div>
 
                         {/* Main Form Content */}
-                        {/* Compact Transport & Expenses Row */}
-                        <div className="bg-white border border-slate-200 rounded-2xl p-4 mb-6 shadow-sm">
-                            <div className="flex flex-col lg:flex-row lg:items-center gap-6">
-                                <div className="flex items-center gap-3 shrink-0 pr-6 lg:border-r lg:border-slate-100">
-                                    <div className="h-10 w-10 rounded-xl bg-green-500/10 flex items-center justify-center text-green-600">
-                                        <Truck className="w-5 h-5" />
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 relative z-10">
+                            {/* LEFT COLUMN: Summary & Type Selection (Simplified) */}
+                            <div className="space-y-4">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
+                                    <div className="flex items-center gap-2">
+                                        <div className="h-6 w-1 bg-blue-600 rounded-full shadow-sm" />
+                                        <h3 className="text-lg font-black text-slate-800 tracking-tight uppercase">Arrival <span className="text-blue-600">Items</span></h3>
                                     </div>
-                                    <div>
-                                        <h3 className="text-[10px] font-black text-slate-900 uppercase tracking-widest leading-none">Transport</h3>
-                                        <p className="text-[8px] text-slate-500 font-bold uppercase tracking-tighter mt-1">& Expenses</p>
+
+                                    {/* Integrated Arrival Type Selection */}
+                                    <div className="flex flex-col items-center sm:items-end gap-1">
+                                        <Tabs
+                                            value={arrivalType}
+                                            onValueChange={(v: any) => {
+                                                setArrivalType(v);
+                                                form.setValue('arrival_type', v);
+                                            }}
+                                            className="w-full sm:w-auto"
+                                        >
+                                            <TabsList className="bg-slate-100/80 p-1 rounded-xl h-11 w-full sm:w-[320px] grid grid-cols-3 border border-slate-200 shadow-sm backdrop-blur-sm">
+                                                <TabsTrigger value="direct" className="rounded-lg font-black uppercase tracking-widest text-[9px] data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm text-slate-500 transition-all">
+                                                    Direct
+                                                </TabsTrigger>
+                                                <TabsTrigger value="commission" className="rounded-lg font-black uppercase tracking-widest text-[9px] data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm text-slate-500 transition-all">
+                                                    Farmer
+                                                </TabsTrigger>
+                                                <TabsTrigger value="commission_supplier" className="rounded-lg font-black uppercase tracking-widest text-[9px] data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm text-slate-500 transition-all">
+                                                    Supplier
+                                                </TabsTrigger>
+                                            </TabsList>
+                                        </Tabs>
+                                        <span className="text-[8px] text-slate-400 font-bold uppercase tracking-widest italic opacity-70">
+                                            Pricing & Commission Logic
+                                        </span>
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-2 md:grid-cols-4 lg:flex-1 gap-4">
+                                <div className="grid grid-cols-1 gap-6">
+                                    {/* Core header fields moved to the top bar above */}
+                                </div>
+                            </div>
+
+                            {/* RIGHT COLUMN: Transport & Expenses */}
+                            <div className="space-y-4 lg:border-l lg:border-gray-100 lg:pl-6">
+                                <div className="flex items-center gap-2">
+                                    <div className="h-6 w-1 bg-green-600 rounded-full" />
+                                    <h3 className="text-lg font-bold text-gray-900 tracking-tight uppercase">Transport <span className="text-green-600">& Expenses</span></h3>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
                                     {isVisible('vehicle_type') && (
                                         <FormField
                                             control={form.control}
                                             name="vehicle_type"
                                             render={({ field }) => (
-                                                <FormItem className="space-y-1">
-                                                    <FormLabel className="text-[8px] font-bold text-slate-500 uppercase tracking-wide ml-1">Type</FormLabel>
-                                                    <Select onValueChange={field.onChange} value={field.value}>
+                                                <FormItem>
+                                                    <FormLabel className="text-[10px] font-bold text-slate-700 uppercase tracking-wide ml-1">{getLabel('vehicle_type', 'Vehicle Type')}</FormLabel>
+                                                    <Select onValueChange={field.onChange} value={field.value} required={isMandatory('vehicle_type')}>
                                                         <FormControl>
-                                                            <SelectTrigger className="bg-slate-50 border-slate-200 h-8 text-[10px] font-bold rounded-lg px-2">
-                                                                <SelectValue placeholder="Type" />
+                                                            <SelectTrigger className="bg-white border border-slate-300 h-9 text-xs text-slate-900 font-bold rounded-lg shadow-sm">
+                                                                <SelectValue placeholder={getLabel('vehicle_type', 'Type')} />
                                                             </SelectTrigger>
                                                         </FormControl>
-                                                        <SelectContent className="bg-white">
+                                                        <SelectContent className="bg-white border-gray-200 text-gray-900 shadow-xl">
                                                             <SelectItem value="Pickup">Pickup</SelectItem>
                                                             <SelectItem value="Truck">Truck</SelectItem>
                                                             <SelectItem value="Tempo">Tempo</SelectItem>
@@ -1001,130 +1037,143 @@ export default function ArrivalsEntryForm() {
                                             control={form.control}
                                             name="guarantor"
                                             render={({ field }) => (
-                                                <FormItem className="space-y-1">
-                                                    <FormLabel className="text-[8px] font-bold text-slate-500 uppercase tracking-wide ml-1">Guarantor</FormLabel>
+                                                <FormItem>
+                                                    <FormLabel className="text-[10px] font-bold text-slate-700 uppercase tracking-wide ml-1">{getLabel('guarantor', 'Guarantor')}</FormLabel>
                                                     <FormControl>
-                                                        <Input placeholder="Optional" {...field} className="bg-slate-50 border-slate-200 h-8 text-[10px] font-bold rounded-lg px-2" />
+                                                        <Input placeholder="Optional" {...field} required={isMandatory('guarantor')} className="bg-white border border-slate-300 h-9 text-xs text-slate-900 font-bold rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500/10" />
                                                     </FormControl>
                                                 </FormItem>
                                             )}
                                         />
                                     )}
-                                    {isVisible('driver_name') && (
-                                        <div className="col-span-2 flex gap-2">
-                                            <FormField
-                                                control={form.control}
-                                                name="driver_name"
-                                                render={({ field }) => (
-                                                    <FormItem className="flex-1 space-y-1">
-                                                        <FormLabel className="text-[8px] font-bold text-slate-500 uppercase tracking-wide ml-1">Driver</FormLabel>
-                                                        <FormControl>
-                                                            <Input placeholder="Name" {...field} className="bg-slate-50 border-slate-200 h-8 text-[10px] font-bold rounded-lg px-2" />
-                                                        </FormControl>
-                                                    </FormItem>
-                                                )}
-                                            />
-                                            {isVisible('driver_mobile') && (
-                                                <FormItem className="flex-1 space-y-1">
-                                                    <FormLabel className="text-[8px] font-bold text-slate-500 uppercase tracking-wide ml-1">Mobile</FormLabel>
-                                                    <Input
-                                                        placeholder="Number"
-                                                        value={form.watch('driver_mobile')}
-                                                        onChange={(e) => form.setValue('driver_mobile', e.target.value)}
-                                                        className="bg-slate-50 border-slate-200 h-8 text-[10px] font-bold rounded-lg px-2"
-                                                    />
-                                                </FormItem>
-                                            )}
-                                        </div>
-                                    )}
                                 </div>
 
-                                <div className="grid grid-cols-3 gap-2 shrink-0 lg:w-[240px] lg:border-l lg:border-slate-100 lg:pl-6">
-                                    {[
-                                        { id: 'hamali_expenses', label: 'Loading' },
-                                        { id: 'hire_charges', label: 'Advance' },
-                                        { id: 'other_expenses', label: 'Other' }
-                                    ].map(exp => (
-                                        isVisible(exp.id) && (
+                                {isVisible('driver_name') && (
+                                    <FormField
+                                        control={form.control}
+                                        name="driver_name"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel className="text-[10px] font-bold text-slate-700 uppercase tracking-wide ml-1">{getLabel('driver_name', 'Driver Details')}</FormLabel>
+                                                <div className="flex gap-2">
+                                                    <FormControl>
+                                                        <Input placeholder="Driver Name" {...field} required={isMandatory('driver_name')} className="bg-white border border-slate-300 h-9 text-xs flex-1 text-slate-900 font-bold rounded-lg shadow-sm" />
+                                                    </FormControl>
+                                                    {isVisible('driver_mobile') && (
+                                                        <Input
+                                                            placeholder={getLabel('driver_mobile', 'Mobile No')}
+                                                            value={form.watch('driver_mobile')}
+                                                            onChange={(e) => form.setValue('driver_mobile', e.target.value)}
+                                                            required={isMandatory('driver_mobile')}
+                                                            className="bg-white border-slate-300 h-9 text-xs flex-1 text-slate-900 font-bold rounded-lg text-center shadow-sm focus:ring-2 focus:ring-green-500/10"
+                                                        />
+                                                    )}
+                                                </div>
+                                            </FormItem>
+                                        )}
+                                    />
+                                )}
+
+                                <div className="p-4 bg-slate-50/50 rounded-xl space-y-3 border border-slate-100">
+                                    <div className="text-[9px] font-bold text-slate-600 uppercase tracking-wide mb-2">Trip Expenses</div>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {isVisible('hamali_expenses') && (
                                             <FormField
-                                                key={exp.id}
                                                 control={form.control}
-                                                name={exp.id as any}
+                                                name="hamali_expenses"
                                                 render={({ field }) => (
-                                                    <FormItem className="space-y-1">
-                                                        <FormLabel className="text-[8px] font-bold text-slate-500 uppercase tracking-wide text-center block">{exp.label}</FormLabel>
+                                                    <FormItem className="space-y-0.5">
+                                                        <FormLabel className="text-[8px] uppercase text-slate-700 truncate font-bold">{getLabel('hamali_expenses', 'Loading')}</FormLabel>
                                                         <FormControl>
-                                                            <Input type="number" {...field} className="h-8 bg-slate-50 border-slate-200 text-[10px] text-center font-bold rounded-lg px-1" />
+                                                            <Input type="number" {...field} required={isMandatory('hamali_expenses')} className="bg-white border border-slate-300 h-8 text-xs text-center text-slate-900 font-bold rounded-md focus:border-green-500/30 shadow-sm" />
                                                         </FormControl>
                                                     </FormItem>
                                                 )}
                                             />
-                                        )
-                                    ))}
+                                        )}
+                                        {isVisible('hire_charges') && (
+                                            <FormField
+                                                control={form.control}
+                                                name="hire_charges"
+                                                render={({ field }) => (
+                                                    <FormItem className="space-y-0.5">
+                                                        <FormLabel className="text-[8px] uppercase text-slate-700 truncate font-bold">{getLabel('hire_charges', 'Advance')}</FormLabel>
+                                                        <FormControl>
+                                                            <Input type="number" {...field} required={isMandatory('hire_charges')} className="bg-white border border-slate-300 h-8 text-xs text-center text-slate-900 font-bold rounded-md focus:border-green-500/30 shadow-sm" />
+                                                        </FormControl>
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        )}
+                                        {isVisible('other_expenses') && (
+                                            <FormField
+                                                control={form.control}
+                                                name="other_expenses"
+                                                render={({ field }) => (
+                                                    <FormItem className="space-y-0.5">
+                                                        <FormLabel className="text-[8px] uppercase text-slate-700 truncate font-bold">{getLabel('other_expenses', 'Other')}</FormLabel>
+                                                        <FormControl>
+                                                            <Input type="number" {...field} required={isMandatory('other_expenses')} className="bg-white border border-slate-300 h-8 text-xs text-center text-slate-900 font-bold rounded-md focus:border-green-500/30 shadow-sm" />
+                                                        </FormControl>
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        )}
+                                    </div>
+
+                                    {/* Contextual Note for Transport Expenses */}
+                                    {(isVisible('hamali_expenses') || isVisible('hire_charges') || isVisible('other_expenses')) && totalTripDeductions > 0 && (
+                                        <div className="mt-3 p-3 rounded-lg border border-blue-100 bg-blue-50">
+                                            <div className="flex items-start gap-2">
+                                                <Info className="w-3 h-3 text-blue-400 shrink-0 mt-0.5" />
+                                                <p className="text-[9px] text-gray-600 leading-relaxed">
+                                                    {arrivalType === 'direct' ? (
+                                                        <span>
+                                                            <strong className="text-gray-900">Direct Purchase:</strong> Transport expenses <strong className="text-orange-600">borne by Mandi</strong> (not deducted from supplier payment).
+                                                        </span>
+                                                    ) : (
+                                                        <span>
+                                                            <strong className="text-blue-700">Commission:</strong> Transport expenses will be <strong className="text-gray-900">proportionally deducted</strong> from {arrivalType === 'commission_supplier' ? 'supplier' : 'farmer'} payment based on item value.
+                                                        </span>
+                                                    )}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
 
                         {/* ITEMS LOADER SECTION */}
-                        <div className="pt-2 space-y-4">
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-3 border-b border-slate-100">
+                        <div className="pt-6 space-y-4">
+                            <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                    <div className="h-6 w-1 bg-purple-600 rounded-full shadow-sm" />
-                                    <h3 className="text-lg font-black text-slate-800 tracking-tight uppercase">Consignment <span className="text-purple-600">Details</span></h3>
+                                    <div className="h-5 w-1 bg-purple-600 rounded-full shadow-sm" />
+                                    <h3 className="text-base font-bold text-slate-800 tracking-tight uppercase">Consignment <span className="text-purple-600">Details</span></h3>
                                 </div>
-
-                                <div className="flex items-center gap-4">
-                                    {/* Integrated Arrival Type Selection */}
-                                    <div className="flex flex-col items-center sm:items-end gap-0.5">
-                                        <Tabs
-                                            value={arrivalType}
-                                            onValueChange={(v: any) => {
-                                                setArrivalType(v);
-                                                form.setValue('arrival_type', v);
-                                            }}
-                                            className="w-full sm:w-auto"
-                                        >
-                                            <TabsList className="bg-slate-100/80 p-0.5 rounded-lg h-9 w-full sm:w-[280px] grid grid-cols-3 border border-slate-200 shadow-sm backdrop-blur-sm">
-                                                <TabsTrigger value="direct" className="rounded-md font-black uppercase tracking-widest text-[8px] data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm text-slate-500">
-                                                    Direct
-                                                </TabsTrigger>
-                                                <TabsTrigger value="commission" className="rounded-md font-black uppercase tracking-widest text-[8px] data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm text-slate-500">
-                                                    Farmer
-                                                </TabsTrigger>
-                                                <TabsTrigger value="commission_supplier" className="rounded-md font-black uppercase tracking-widest text-[8px] data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm text-slate-500">
-                                                    Supplier
-                                                </TabsTrigger>
-                                            </TabsList>
-                                        </Tabs>
-                                        <span className="text-[7px] text-slate-400 font-bold uppercase tracking-widest italic opacity-60">
-                                            Pricing & Commission Logic
-                                        </span>
-                                    </div>
-
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={() => append({ 
-                                            item_id: "", 
-                                            qty: 1, 
-                                            unit: "Box", 
-                                            unit_weight: 0, 
-                                            supplier_rate: 0, 
-                                            commission_percent: (currentArrivalType === 'commission' || currentArrivalType === 'commission_supplier') ? defaultCommissionRate : 0, 
-                                            less_percent: 0, 
-                                            less_units: 0, 
-                                            packing_cost: 0, 
-                                            loading_cost: 0, 
-                                            farmer_charges: 0,
-                                            sale_price: 0,
-                                            barcode: "",
-                                            storage_location: form.getValues('storage_location') || ""
-                                        })}
-                                        className="bg-purple-50 border border-purple-200 text-purple-700 hover:bg-purple-100 font-bold text-[9px] uppercase tracking-widest h-9 px-4 rounded-xl transition-all shadow-sm"
-                                    >
-                                        <Plus className="w-3.5 h-3.5 mr-1" /> ADD LINE ITEM
-                                    </Button>
-                                </div>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => append({ 
+                                        item_id: "", 
+                                        qty: 1, 
+                                        unit: "Box", 
+                                        unit_weight: 0, 
+                                        supplier_rate: 0, 
+                                        commission_percent: (currentArrivalType === 'commission' || currentArrivalType === 'commission_supplier') ? defaultCommissionRate : 0, 
+                                        less_percent: 0, 
+                                        less_units: 0, 
+                                        packing_cost: 0, 
+                                        loading_cost: 0, 
+                                        farmer_charges: 0,
+                                        sale_price: 0,
+                                        barcode: "",
+                                        storage_location: form.getValues('storage_location') || ""
+                                    })}
+                                    className="bg-purple-50 border border-purple-200 text-purple-700 hover:bg-purple-100 font-bold text-[10px] uppercase tracking-wide h-8 px-4 rounded-lg transition-all shadow-sm"
+                                >
+                                    <Plus className="w-3.5 h-3.5 mr-1" /> ADD LINE ITEM
+                                </Button>
                             </div>
 
                             {/* Consignment Items Grid */}
@@ -1928,13 +1977,11 @@ export default function ArrivalsEntryForm() {
                     </div>
                 </DialogContent>
             </Dialog>
-            
             <LotQRSlip 
                 lots={qrLots} 
                 open={qrSlipsOpen} 
                 onClose={() => setQrSlipsOpen(false)} 
             />
-            
             <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
                 <DialogContent className="max-w-md p-0 overflow-hidden border-none rounded-[32px] shadow-2xl bg-white">
                     <div className={cn(
