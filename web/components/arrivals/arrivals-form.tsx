@@ -1928,11 +1928,13 @@ export default function ArrivalsEntryForm() {
                     </div>
                 </DialogContent>
             </Dialog>
+            
             <LotQRSlip 
                 lots={qrLots} 
                 open={qrSlipsOpen} 
                 onClose={() => setQrSlipsOpen(false)} 
             />
+            
             <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
                 <DialogContent className="max-w-md p-0 overflow-hidden border-none rounded-[32px] shadow-2xl bg-white">
                     <div className={cn(
