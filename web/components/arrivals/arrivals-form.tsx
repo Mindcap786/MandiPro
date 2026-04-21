@@ -961,12 +961,37 @@ export default function ArrivalsEntryForm() {
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 relative z-10">
                             {/* LEFT COLUMN: Summary & Type Selection (Simplified) */}
                             <div className="space-y-4">
-                                <div className="flex flex-col gap-3">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <div className="h-5 w-1 bg-blue-600 rounded-full shadow-sm" />
-                                            <h3 className="text-base font-bold text-slate-800 tracking-tight uppercase">Arrival <span className="text-blue-600">Items</span></h3>
-                                        </div>
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
+                                    <div className="flex items-center gap-2">
+                                        <div className="h-6 w-1 bg-blue-600 rounded-full shadow-sm" />
+                                        <h3 className="text-lg font-black text-slate-800 tracking-tight uppercase">Arrival <span className="text-blue-600">Items</span></h3>
+                                    </div>
+
+                                    {/* Integrated Arrival Type Selection */}
+                                    <div className="flex flex-col items-center sm:items-end gap-1">
+                                        <Tabs
+                                            value={arrivalType}
+                                            onValueChange={(v: any) => {
+                                                setArrivalType(v);
+                                                form.setValue('arrival_type', v);
+                                            }}
+                                            className="w-full sm:w-auto"
+                                        >
+                                            <TabsList className="bg-slate-100/80 p-1 rounded-xl h-11 w-full sm:w-[320px] grid grid-cols-3 border border-slate-200 shadow-sm backdrop-blur-sm">
+                                                <TabsTrigger value="direct" className="rounded-lg font-black uppercase tracking-widest text-[9px] data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm text-slate-500 transition-all">
+                                                    Direct
+                                                </TabsTrigger>
+                                                <TabsTrigger value="commission" className="rounded-lg font-black uppercase tracking-widest text-[9px] data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm text-slate-500 transition-all">
+                                                    Farmer
+                                                </TabsTrigger>
+                                                <TabsTrigger value="commission_supplier" className="rounded-lg font-black uppercase tracking-widest text-[9px] data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm text-slate-500 transition-all">
+                                                    Supplier
+                                                </TabsTrigger>
+                                            </TabsList>
+                                        </Tabs>
+                                        <span className="text-[8px] text-slate-400 font-bold uppercase tracking-widest italic opacity-70">
+                                            Pricing & Commission Logic
+                                        </span>
                                     </div>
                                 </div>
 
@@ -1509,35 +1534,7 @@ export default function ArrivalsEntryForm() {
                                 ))}
                             </div>
                             
-                            {/* Relocated Arrival Type Selection */}
-                            <div className="mt-8 pt-6 border-t border-slate-100 mb-6">
-                                <div className="max-w-md mx-auto space-y-3">
-                                    <Label className="text-[10px] font-bold text-slate-700 uppercase tracking-widest text-center block mb-2">Arrival Type Selection</Label>
-                                    <Tabs
-                                        value={arrivalType}
-                                        onValueChange={(v: any) => {
-                                            setArrivalType(v);
-                                            form.setValue('arrival_type', v);
-                                        }}
-                                        className="w-full"
-                                    >
-                                        <TabsList className="bg-slate-100 p-1.5 rounded-2xl h-14 w-full grid grid-cols-3 border border-slate-200 shadow-inner">
-                                            <TabsTrigger value="direct" className="rounded-xl font-black uppercase tracking-widest text-[10px] data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-lg text-slate-500 transition-all border border-transparent data-[state=active]:border-slate-100">
-                                                Direct Purchase
-                                            </TabsTrigger>
-                                            <TabsTrigger value="commission" className="rounded-xl font-black uppercase tracking-widest text-[10px] data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-lg text-slate-500 transition-all border border-transparent data-[state=active]:border-slate-100">
-                                                Farmer Cons.
-                                            </TabsTrigger>
-                                            <TabsTrigger value="commission_supplier" className="rounded-xl font-black uppercase tracking-widest text-[10px] data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-lg text-slate-500 transition-all border border-transparent data-[state=active]:border-slate-100">
-                                                Supplier Cons.
-                                            </TabsTrigger>
-                                        </TabsList>
-                                    </Tabs>
-                                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter text-center italic mt-2 opacity-60">
-                                        Select consistent flow for pricing & commission logic
-                                    </p>
-                                </div>
-                            </div>
+
 
                             {/* Consolidated Advance / Amount Paid Section */}
                             {isVisible('advance') && (
