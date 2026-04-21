@@ -132,11 +132,7 @@ export default function SalesTable({ data, isLoading }: { data: any[], isLoading
                             // Database computes this with all charges correctly.
                             const grandTotal = Number(row.total_amount_inc_tax) || Number(row.total_amount) || 0;
 
-                            const totalPaid = row.vouchers
-                                ?.filter((v: any) => v.type?.toLowerCase() === 'receipt')
-                                .filter((v: any) => v.cheque_status?.toLowerCase() !== 'cancelled' && v.cheque_status?.toLowerCase() !== 'v_cancelled')
-                                .reduce((sum: number, v: any) => sum + (Number(v.amount) || 0), 0) || 0;
-
+                            const totalPaid = Number(row.paid_amount) || 0;
                             const pendingAmt = grandTotal - totalPaid;
 
                             // Trade profit is intentionally hidden in list view for performance (no nested items fetched).

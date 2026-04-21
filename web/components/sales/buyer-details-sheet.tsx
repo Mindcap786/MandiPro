@@ -26,7 +26,7 @@ export function BuyerDetailsSheet({ buyer, open, onOpenChange }: { buyer: any, o
             .from('sales')
             .select('id, bill_no, contact_bill_no, sale_date, total_amount, payment_status')
             .eq('buyer_id', buyer.contact_id)
-            .eq('payment_status', 'pending')
+            .in('payment_status', ['pending', 'partial'])
             .order('sale_date', { ascending: false });
 
         setInvoices(data || []);
