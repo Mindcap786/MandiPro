@@ -349,34 +349,41 @@ export default function ArrivalsEntryForm() {
     }, [profile, refetchMaster]);
 
     const selectedContactId = form.watch('contact_id');
+    // Track which contactId we've already fetched a bill number for.
+    // This prevents re-fetching (and changing the number) when the user
+    // switches away and switches BACK to the same contact.
+    const fetchedForContact = useRef<string | null>(null);
+
     useEffect(() => {
-        // Reset manual override whenever the user switches to a different party
-        // so the new party's auto-number always shows fresh
+        // Skip if no data or already fetched for this contact
+        if (!profile?.organization_id || !selectedContactId) return;
+        if (fetchedForContact.current === selectedContactId) return;
+
+        // Track that we've now shown this contact their number
+        fetchedForContact.current = selectedContactId;
         isManualBillNo.current = false;
 
         const fetchNextBillNo = async () => {
-            if (!profile?.organization_id || !selectedContactId) return;
-
+            // Direct table query — no RPC, no sequences, no global counters.
+            // Returns MAX(contact_bill_no) + 1 for this party specifically.
+            // If they have zero arrivals, MAX is null → coalesces to 0 → returns 1.
             const { data, error } = await supabase
                 .schema('mandi')
-                .rpc('get_next_contact_bill_no', {
-                    p_organization_id: profile.organization_id,
-                    p_contact_id: selectedContactId,
-                    p_type: 'arrival'
-                });
+                .from('arrivals')
+                .select('contact_bill_no')
+                .eq('organization_id', profile.organization_id)
+                .eq('party_id', selectedContactId)
+                .order('contact_bill_no', { ascending: false })
+                .limit(1)
+                .maybeSingle();
 
-            if (!error && data != null) {
-                form.setValue('bill_no', Number(data));
-                form.setValue('reference_no', String(data));
-            }
-            // No global fallback — if RPC fails, leave field blank
+            const nextBillNo = (Number(data?.contact_bill_no ?? 0) + 1);
+            form.setValue('bill_no', nextBillNo);
+            form.setValue('reference_no', String(nextBillNo));
         };
 
-        if (profile?.organization_id && selectedContactId) {
-            fetchNextBillNo();
-        }
+        fetchNextBillNo();
     }, [profile?.organization_id, selectedContactId]);
-
 
 
     if (authLoading || masterLoading) {
@@ -732,6 +739,8 @@ export default function ArrivalsEntryForm() {
                 }]
             });
             isManualBillNo.current = false;
+            fetchedForContact.current = null; // allow re-fetch for next arrival
+
         } catch (error: any) {
             console.error("onSubmit: Caught Error:", error);
             toast({ title: "Error", description: error.message, variant: "destructive" });
