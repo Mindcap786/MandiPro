@@ -346,22 +346,41 @@ export default function ArrivalsEntryForm() {
         };
     }, [profile, refetchMaster]);
 
+    const selectedContactId = form.watch('contact_id');
     useEffect(() => {
         const fetchNextBillNo = async () => {
-            if (!profile?.organization_id) return;
+            if (!profile?.organization_id || !selectedContactId) return;
+            
+            // Only auto-populate if currently 0 or empty
+            const currentBillNo = form.getValues('bill_no');
+            if (currentBillNo && currentBillNo !== 0) return;
+
+            // Priority: Try to get contact-specific sequence first
             const { data, error } = await supabase
                 .schema('mandi')
-                .rpc('get_next_bill_no', { p_organization_id: profile.organization_id });
+                .rpc('get_next_contact_bill_no', { 
+                    p_organization_id: profile.organization_id, 
+                    p_contact_id: selectedContactId,
+                    p_type: arrivalType === 'direct' ? 'purchase' : 'arrival'
+                });
             
             if (!error && data) {
                 form.setValue('bill_no', Number(data));
+            } else {
+                // Fallback to global sequence
+                const { data: globalData, error: globalError } = await supabase
+                    .schema('mandi')
+                    .rpc('get_next_bill_no', { p_organization_id: profile.organization_id });
+                if (!globalError && globalData) {
+                    form.setValue('bill_no', Number(globalData));
+                }
             }
         };
 
-        if (profile?.organization_id) {
+        if (profile?.organization_id && selectedContactId) {
             fetchNextBillNo();
         }
-    }, [profile?.organization_id, form]);
+    }, [profile?.organization_id, selectedContactId, arrivalType]);
 
 
 

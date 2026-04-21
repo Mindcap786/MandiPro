@@ -39,8 +39,8 @@ export default function PurchaseBillInvoice({
     const variety = lot.variety || ''
     const grade = lot.grade || ''
 
-    const billNo = arrival?.contact_bill_no || arrival?.bill_no || lot.lot_code || 'N/A'
-    const referenceNo = arrival?.reference_no || ''
+    const billNo = arrival?.reference_no || arrival?.contact_bill_no || arrival?.bill_no || lot.lot_code || 'N/A'
+    const referenceNo = arrival?.reference_no ? '' : (arrival?.contact_bill_no || '')
     const vehicleNo = arrival?.vehicle_number || ''
     const vehicleType = arrival?.vehicle_type || ''
     const arrivalDate = arrival?.arrival_date || lot.created_at

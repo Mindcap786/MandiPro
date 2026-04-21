@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     .select(`
       id, sale_date, invoice_no, status, payment_status, payment_mode,
       subtotal, discount_amount, gst_amount, total_amount, paid_amount, balance_due,
-      narration, created_at,
+      narration, created_at, vehicle_number, book_no, lot_no,
       buyer:contacts(id, name, contact_type, phone)
     `, { count: 'exact' })
     .order('sale_date', { ascending: false })

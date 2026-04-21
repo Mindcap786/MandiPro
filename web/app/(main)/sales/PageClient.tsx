@@ -45,7 +45,8 @@ export default function Sales() {
     const { t } = useLanguage();
 
     const _orgId = profile?.organization_id;
-    const _cached = _orgId ? cacheGet<any>("sales_page", _orgId) : null;
+    const initialCacheKey = `sales_page_${subDays(new Date(), 7).toISOString().split('T')[0].replace(/-/g, '')}_${new Date().toISOString().split('T')[0].replace(/-/g, '')}`;
+    const _cached = _orgId ? cacheGet<any>(initialCacheKey, _orgId) : null;
 
     const [sales, setSales] = useState<any[]>(_cached?.sales || []);
     const [loading, setLoading] = useState(!_cached);

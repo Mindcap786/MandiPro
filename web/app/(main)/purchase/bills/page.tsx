@@ -26,7 +26,8 @@ export default function PurchaseBillsPage() {
 
     // Pre-populate from cache for instant render on re-navigation
     const _orgId = profile?.organization_id;
-    const _cached = _orgId ? cacheGet<any>('purchase_bills', _orgId) : null;
+    const initialCacheKey = `purchase_bills_${subDays(new Date(), 30).toISOString().split('T')[0].replace(/-/g, '')}_${new Date().toISOString().split('T')[0].replace(/-/g, '')}`;
+    const _cached = _orgId ? cacheGet<any>(initialCacheKey, _orgId) : null;
 
     const [bills, setBills] = useState<any[]>(_cached?.bills || []);
     const [groupedSuppliers, setGroupedSuppliers] = useState<any[]>(_cached?.groupedSuppliers || []);
@@ -662,8 +663,8 @@ export default function PurchaseBillsPage() {
             <SupplierInwardsDialog
                 supplier={selectedSupplier ? groupedSuppliers.find(s => s.id === selectedSupplier.id) || selectedSupplier : null}
                 unappliedPayment={(() => {
-                    const s = selectedSupplier ? groupedSuppliers.find(gs => gs.id === selectedSupplier.id) : null;
-                    if (!s) return 0;
+                    const s = selectedSupplier ? (groupedSuppliers.find(gs => gs.id === selectedSupplier.id) || selectedSupplier) : null;
+                    if (!s || !Array.isArray(s.lots)) return 0;
                     const totalPaid = s.totalPaid || 0;
                     const lotAdvances = s.lots.reduce((sum: number, l: any) => sum + Number(l.advance || 0), 0);
                     // Unique arrival advances

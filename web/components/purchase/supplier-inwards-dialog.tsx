@@ -113,14 +113,23 @@ export function SupplierInwardsDialog({ supplier, unappliedPayment = 0, isOpen, 
             };
         }).filter(group => {
             if (!inwardSearch) return true;
-            const q = inwardSearch.toLowerCase();
-            const billNo = String(group.bill_no || '').toLowerCase();
-            const lotCode = String(group.lot_code || '').toLowerCase();
-            const matchesBill = billNo.includes(q) || lotCode.includes(q);
-            const matchesProduct = group.items.some((item: any) => 
-                String(item.item?.name || '').toLowerCase().includes(q)
-            );
-            return matchesBill || matchesProduct;
+            try {
+                const q = inwardSearch.toLowerCase();
+                const billNo = String(group.bill_no || '').toLowerCase();
+                const lotCode = String(group.lot_code || '').toLowerCase();
+                const matchesBill = billNo.includes(q) || lotCode.includes(q);
+                
+                const matchesProduct = Array.isArray(group.items) && group.items.some((item: any) => {
+                    const itemName = String(item.item?.name || item.name || '').toLowerCase();
+                    const itemId = String(item.item?.internal_id || item.internal_id || '').toLowerCase();
+                    return itemName.includes(q) || itemId.includes(q);
+                });
+                
+                return matchesBill || matchesProduct;
+            } catch (err) {
+                console.error("Search filter error:", err);
+                return true; // Don't crash
+            }
         });
 
         // distribute unapplied payment (FIFO)
@@ -164,10 +173,14 @@ export function SupplierInwardsDialog({ supplier, unappliedPayment = 0, isOpen, 
 
         // Return for display in LIFO order (Newest first)
         return [...fifoGroups].sort((a: any, b: any) => {
-            const dateA = new Date(a.date).getTime();
-            const dateB = new Date(b.date).getTime();
-            if (dateA !== dateB) return dateB - dateA;
-            return String(b.key).localeCompare(String(a.key));
+            const dateA = a.date instanceof Date ? a.date.getTime() : new Date(a.date).getTime();
+            const dateB = b.date instanceof Date ? b.date.getTime() : new Date(b.date).getTime();
+            
+            const timeA = isNaN(dateA) ? 0 : dateA;
+            const timeB = isNaN(dateB) ? 0 : dateB;
+
+            if (timeA !== timeB) return timeB - timeA;
+            return String(b.key || '').localeCompare(String(a.key || ''));
         });
     }, [supplier, dateRange, inwardSearch]);
 

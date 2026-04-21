@@ -26,6 +26,11 @@ export function MandiCommissionForm() {
     const { toast } = useToast();
     const { isCommitting, commitSession, fetchSessionDetail } = useMandiSession();
 
+    // Session Metadata
+    const [lotNo, setLotNo] = useState("");
+    const [vehicleNo, setVehicleNo] = useState("");
+    const [bookNo, setBookNo] = useState("");
+
     // ─────────────────────────────────────────────────────────────
     // Master Data State
     // ─────────────────────────────────────────────────────────────
