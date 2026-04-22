@@ -226,7 +226,7 @@ export default function PurchaseBillInvoice({
                                 </p>
                             </td>
                             <td className="py-2 text-center font-bold text-sm tracking-tighter">
-                                {Math.round(netQty * 100) / 100} <span className="text-[7px] text-gray-400 font-normal">{unit}</span>
+                                {Math.round(netQty * 100) / 100} <span className="text-[11px] text-gray-500 font-bold ml-0.5 uppercase tracking-tight">{unit}</span>
                             </td>
                             <td className="py-2 text-right font-bold text-sm tracking-tighter">
                                 ₹{toNumber(lot.supplier_rate).toLocaleString()}
