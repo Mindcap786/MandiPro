@@ -323,11 +323,11 @@ const getScenarioStyles = (scenario: string = "") => {
     
     // 2. Purchase Scenarios (Emerald/Orange/Amber)
     if (lower.includes('purchase') || lower.includes('buy')) {
-        if (lower.includes('full') && (lower.includes('amount') || lower.includes('paid'))) 
+        if (lower.includes('scenario 1') || (lower.includes('full') && (lower.includes('amount') || lower.includes('paid')))) 
             return { bg: "bg-emerald-50/60", border: "border-emerald-200", chipBg: "bg-emerald-100", chipBorder: "border-emerald-200", text: "text-emerald-700", color: "#10b981" };
-        if (lower.includes('udhaar') || lower.includes('credit') || lower.includes('outstanding')) 
+        if (lower.includes('scenario 3') || (lower.includes('udhaar') || lower.includes('credit') || lower.includes('outstanding'))) 
             return { bg: "bg-orange-50/60", border: "border-orange-200", chipBg: "bg-orange-100", chipBorder: "border-orange-200", text: "text-orange-700", color: "#f97316" };
-        if (lower.includes('partial')) 
+        if (lower.includes('scenario 2') || lower.includes('partial')) 
             return { bg: "bg-amber-50/60", border: "border-amber-200", chipBg: "bg-amber-100", chipBorder: "border-amber-200", text: "text-amber-700", color: "#f59e0b" };
     }
 
@@ -624,16 +624,14 @@ const getTransactionScenario = (
     
     if (flowType === 'purchase') {
         const { isFullyCash, isFullyUdhaar, isPartial, totalValue } = getPurchaseSettlementTotals(group);
-        // Always determine scenario if we have ANY ledger legs for this purchase
         if (totalValue > AMOUNT_EPSILON || group.length > 0) {
-            if (isFullyCash) return t('daybook.scenarios.purchase_full');
-            if (isFullyUdhaar) return t('daybook.scenarios.purchase_udhaar');
-            if (isPartial) return t('daybook.scenarios.purchase_partial');
-            // Fallback: if cash entries exist but no contact entries, treat as full cash
+            if (isFullyCash) return "SCENARIO 1: FULL PAID PURCHASE";
+            if (isFullyUdhaar) return "SCENARIO 3: UDHAAR PURCHASE";
+            if (isPartial) return "SCENARIO 2: PARTIAL PURCHASE";
+            
             const hasAnyCashLeg = group.some(l => isLiquidAccountEntry(l) && Number(l.credit || 0) > AMOUNT_EPSILON);
-            if (hasAnyCashLeg) return t('daybook.scenarios.purchase_full');
-            // No cash = full udhaar
-            return t('daybook.scenarios.purchase_udhaar');
+            if (hasAnyCashLeg) return "SCENARIO 1: FULL PAID PURCHASE";
+            return "SCENARIO 3: UDHAAR PURCHASE";
         }
     }
     
@@ -645,14 +643,13 @@ const getTransactionScenario = (
             const saleTotal = saleLegs.reduce((sum, l) => sum + Number(l.debit || 0), 0);
             const paidTotal = paymentLegs.reduce((sum, l) => sum + Number(l.credit || 0), 0);
             
-            // Logic: Balance based on THIS transaction group (which we've already grouped via linking)
-            if (paidTotal >= saleTotal - AMOUNT_EPSILON && saleTotal > AMOUNT_EPSILON) return t('daybook.scenarios.sale_full');
-            if (paidTotal <= AMOUNT_EPSILON) return t('daybook.scenarios.sale_udhaar');
-            return t('daybook.scenarios.sale_partial');
+            if (paidTotal >= saleTotal - AMOUNT_EPSILON && saleTotal > AMOUNT_EPSILON) return "SCENARIO 1: FULL CASH SALE";
+            if (paidTotal <= AMOUNT_EPSILON) return "SCENARIO 3: UDHAAR SALE";
+            return "SCENARIO 2: PARTIAL CASH SALE";
         }
         
-        if (flowType === 'sale_payment') return t('daybook.scenarios.sale_payment');
-        if (flowType === 'sale') return t('daybook.scenarios.sale_entry');
+        if (flowType === 'sale_payment') return "SALE SETTLEMENT";
+        if (flowType === 'sale') return "SALE RECORD";
     }
 
     if (flowType === 'receipt' || flowType === 'receive_receipt') {
@@ -670,6 +667,11 @@ const getTransactionScenario = (
         return t('daybook.scenarios.payment');
     }
     if (flowType === 'opening_balance') return 'OPENING BALANCE';
+
+    // Transfer Scenarios
+    if (flowType === 'transfer') return 'BANK TRANSFER';
+    if (flowType === 'deposit') return 'CASH DEPOSIT';
+    if (flowType === 'withdrawal') return 'CASH WITHDRAWAL';
     
     return t(`daybook.labels.${flowType}`) || flowType.charAt(0).toUpperCase() + flowType.slice(1);
 };
@@ -805,6 +807,14 @@ const getEntryDescription = (
         if (gainLeg) {
             return `Settlement Gain from ${counterpartyName || t('common.unknown')}`;
         }
+    }
+
+    if (flowType === 'transfer' || flowType === 'deposit' || flowType === 'withdrawal') {
+        const fromLeg = group.find(l => Number(l.credit || 0) > 0);
+        const toLeg = group.find(l => Number(l.debit || 0) > 0);
+        const fromName = fromLeg?.account?.name || 'Unknown Source';
+        const toName = toLeg?.account?.name || 'Unknown Destination';
+        return `Internal Funds Transfer: ${fromName} → ${toName}`;
     }
 
     if (flowType === 'paid_receipt') {
@@ -1749,7 +1759,7 @@ export default function DayBook() {
                                                         {isInflow ? '+' : '-'}₹{(leg.displayCredit || leg.displayDebit || 0).toLocaleString()}
                                                     </p>
                                                     <p className="text-[8px] font-black uppercase text-slate-400 mt-1 tracking-widest opacity-60">
-                                                        {isInflow ? 'Inflow' : 'Outflow'}
+                                                        {isInflow ? 'CREDIT (IN)' : 'DEBIT (OUT)'}
                                                     </p>
                                                 </div>
                                             </div>
@@ -2020,14 +2030,14 @@ export default function DayBook() {
                                 <th className="p-6"><Tag className="w-3 h-3 inline mr-1" /> {t('daybook.table.type')}</th>
                                 <th className="p-6 text-right">
                                     <div className="flex flex-col items-end">
-                                        <span><ArrowUpRight className="w-4 h-4 inline mr-1" /> Naam (Debit)</span>
-                                        <span className="text-[9px] font-bold text-slate-400 capitalize tracking-normal mt-1">₹ (Items Sold / Cash Paid)</span>
+                                        <span><ArrowUpRight className="w-4 h-4 inline mr-1" /> DEBIT (OUT)</span>
+                                        <span className="text-[9px] font-bold text-slate-400 capitalize tracking-normal mt-1">₹ (Goods Sold / Money Paid)</span>
                                     </div>
                                 </th>
                                 <th className="p-6 text-right pr-8">
                                     <div className="flex flex-col items-end">
-                                        <span><ArrowDownLeft className="w-4 h-4 inline mr-1" /> Jama (Credit)</span>
-                                        <span className="text-[9px] font-bold text-slate-400 capitalize tracking-normal mt-1">₹ (Items Rec'd / Cash Rec'd)</span>
+                                        <span><ArrowDownLeft className="w-4 h-4 inline mr-1" /> CREDIT (IN)</span>
+                                        <span className="text-[9px] font-bold text-slate-400 capitalize tracking-normal mt-1">₹ (Goods Rec'd / Money Rec'd)</span>
                                     </div>
                                 </th>
                             </tr>
