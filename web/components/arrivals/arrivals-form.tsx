@@ -671,7 +671,7 @@ export default function ArrivalsEntryForm() {
                 hamali_expenses: values.hamali_expenses,
                 other_expenses: values.other_expenses,
                 advance: values.advance,
-                advance_payment_mode: values.advance_payment_mode,
+                advance_payment_mode: values.advance_payment_mode || 'credit',
                 advance_bank_account_id: values.advance_bank_account_id || null,
                 advance_cheque_no: values.advance_cheque_no || null,
                 advance_cheque_date: values.advance_cheque_date ? format(values.advance_cheque_date as Date, 'yyyy-MM-dd') : null,

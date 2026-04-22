@@ -34,8 +34,8 @@ export default function PurchaseBillInvoice({
     // ── Data extraction ──────────────────────────────────────────
     const farmerName = lot.farmer?.name || lot.contact?.name || 'Unknown Supplier'
     const farmerCity = lot.farmer?.city || lot.contact?.city || ''
-    const itemName = formatCommodityName(lot.item?.name || 'Item', lot.item?.custom_attributes || lot.custom_attributes)
-    const lotCode = lot.lot_code || 'N/A'
+    const itemName = formatCommodityName(lot.item?.name, lot.custom_attributes || lot.item?.custom_attributes)
+    const lotCode = arrival?.lot_prefix || lot.lot_code || 'N/A'
     const unit = lot.unit || 'Unit'
 
     const billNo = arrival?.reference_no || arrival?.contact_bill_no || arrival?.bill_no || lot.lot_code || 'N/A'
@@ -264,9 +264,9 @@ export default function PurchaseBillInvoice({
                             Payment & Settlement
                         </span>
                         <div className="grid grid-cols-[100px_1fr] gap-x-2 gap-y-1.5 text-[10px]">
-                            <span className="text-gray-400 font-bold uppercase">Mode of Pay</span>
-                            <span className="font-black text-indigo-700 uppercase tracking-wider">
-                                {paymentMode === 'credit' || paymentMode === 'udhaar' ? 'CREDIT (UDHAAR)' : paymentMode}
+                            <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Mode of Pay</span>
+                            <span className="font-black text-blue-600 uppercase text-[10px] tracking-tight">
+                                {(advance + paidAmount) <= 0 ? 'UDHAAR (CREDIT)' : (paymentMode === 'credit' || paymentMode === 'udhaar' ? 'CREDIT (UDHAAR)' : paymentMode)}
                             </span>
                             
                             {advance > 0 && (
