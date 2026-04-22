@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { formatCommodityName } from "@/lib/utils/commodity-utils";
 
 import { useMandiSession, MandiSessionInput, MandiSessionFarmerRow, computeFarmerRow } from "@/hooks/mandi/useMandiSession";
 import { AddedFarmerCard } from "./farmer-row";
@@ -280,10 +281,7 @@ export function MandiCommissionForm() {
     // Renders
     // ─────────────────────────────────────────────────────────────
     const buildItemLabel = (item: any) => {
-        const parts = [];
-        if (item.internal_id) parts.push(`[${item.internal_id}]`);
-        parts.push(item.name);
-        return parts.join(" ");
+        return formatCommodityName(item.name, item.custom_attributes);
     };
 
     if (committedSessionData) {

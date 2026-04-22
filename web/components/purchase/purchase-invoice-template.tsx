@@ -4,6 +4,7 @@ import { format } from "date-fns"
 import { toWords } from "@/lib/number-to-words"
 import { usePlatformBranding } from "@/hooks/use-platform-branding"
 import { DocumentWatermark } from "@/components/common/document-branding"
+import { formatCommodityName } from "@/lib/utils/commodity-utils"
 import {
     calculateLotSettlementAmount,
     calculateLotGrossValue,
@@ -33,11 +34,9 @@ export default function PurchaseBillInvoice({
     // ── Data extraction ──────────────────────────────────────────
     const farmerName = lot.farmer?.name || lot.contact?.name || 'Unknown Supplier'
     const farmerCity = lot.farmer?.city || lot.contact?.city || ''
-    const itemName = lot.item?.name || 'Item'
+    const itemName = formatCommodityName(lot.item?.name || 'Item', lot.item?.custom_attributes || lot.custom_attributes)
     const lotCode = lot.lot_code || 'N/A'
     const unit = lot.unit || 'Unit'
-    const variety = lot.variety || ''
-    const grade = lot.grade || ''
 
     const billNo = arrival?.reference_no || arrival?.contact_bill_no || arrival?.bill_no || lot.lot_code || 'N/A'
     const referenceNo = arrival?.reference_no ? '' : (arrival?.contact_bill_no || '')
@@ -238,11 +237,6 @@ export default function PurchaseBillInvoice({
                                     <p className="text-[8px] font-black text-orange-600 tracking-tighter uppercase tabular-nums">
                                         {lotCode}
                                     </p>
-                                    {(variety || grade) && (
-                                        <p className="text-[7px] text-gray-400 font-bold uppercase tracking-widest opacity-70">
-                                            {variety}{variety && grade ? ' • ' : ''}{grade}
-                                        </p>
-                                    )}
                                 </div>
                             </td>
                             <td className="py-2 text-center font-bold text-sm tracking-tighter">

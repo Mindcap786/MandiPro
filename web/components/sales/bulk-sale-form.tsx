@@ -483,10 +483,19 @@ export function BulkLotSaleForm() {
                                     </div>
                                     {selectedLot && (
                                         <div className="bg-white p-6 rounded-2xl border border-slate-200 space-y-4 shadow-sm animate-in fade-in slide-in-from-top-2">
+                                            <div className="flex flex-col gap-1 border-b border-slate-100 pb-3 mb-1">
+                                                <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest leading-none">Commodity Identity</span>
+                                                <span className="text-sm font-[1000] text-slate-900 uppercase tracking-tight">
+                                                    {(() => {
+                                                        const item = commodities.find(c => c.id === selectedLot.item_id);
+                                                        return formatCommodityName(item?.name || "Unknown", selectedLot.custom_attributes || item?.custom_attributes);
+                                                    })()}
+                                                </span>
+                                            </div>
                                             <div className="flex items-center justify-between">
                                                 <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Available Stock</span>
                                                 <Badge className="bg-blue-50 text-blue-600 border-blue-100 text-xs font-black px-3 py-1 rounded-full uppercase">
-                                                    {selectedLot.current_qty} {selectedLot.unit}
+                                                    {selectedLot.lot_code} • {selectedLot.current_qty} {selectedLot.unit}
                                                 </Badge>
                                             </div>
                                             <div className="pt-4 border-t border-slate-100 flex items-center justify-between font-black">

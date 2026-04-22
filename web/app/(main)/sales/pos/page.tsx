@@ -313,7 +313,7 @@ export default function POSPage() {
 
             // 2. Fetch Inventory/Stock Data (Lots + Commodities)
             const [lotRes, commodityRes] = await Promise.all([
-                supabase.schema('mandi').from('lots').select('id, item_id, arrival_id, unit, sale_price, wholesale_price, supplier_rate, qr_code, current_qty, storage_location, lot_code, contact_id(name)').eq('organization_id', orgId).in('status', ['active', 'available', 'partial']).gt('current_qty', 0).order('created_at', { ascending: true }),
+                supabase.schema('mandi').from('lots').select('id, item_id, arrival_id, unit, sale_price, wholesale_price, supplier_rate, qr_code, current_qty, storage_location, lot_code, custom_attributes, contact_id(name)').eq('organization_id', orgId).in('status', ['active', 'available', 'partial']).gt('current_qty', 0).order('created_at', { ascending: true }),
                 supabase.schema('mandi').from('commodities').select('id, name, local_name, barcode, gst_rate, sale_price, image_url, sku_code, custom_attributes').eq('organization_id', orgId)
             ]);
 
@@ -331,7 +331,7 @@ export default function POSPage() {
                 const contactData = Array.isArray(lot.contact_id) ? lot.contact_id[0] : lot.contact_id;
                 const supplierName = contactData?.name || 'Anonymous Supplier';
                 
-                const key = `${lot.item_id}|${lot.unit}|${price}|${supplierName}`;
+                const key = `${lot.item_id}|${lot.unit}|${price}|${supplierName}|${JSON.stringify(lot.custom_attributes || {})}`;
 
                 if (!stockMap[key]) {
                     let imgUrl = commodity.image_url || null;
@@ -339,12 +339,18 @@ export default function POSPage() {
                         const visual = getIntelligentVisual(commodity.name || '', { Package });
                         if (visual.type === 'img' && visual.src) imgUrl = visual.src;
                     }
+                    
+                    const displayAttributes = {
+                        ...(commodity.custom_attributes || {}),
+                        ...(lot.custom_attributes || {})
+                    };
+
                     stockMap[key] = {
                         item_id: lot.item_id,
-                        item_name: formatCommodityName(commodity.name, commodity.custom_attributes) || lot.item_id,
+                        item_name: formatCommodityName(commodity.name, displayAttributes) || lot.item_id,
                         local_name: commodity.local_name || '',
                         sku_code: commodity.sku_code || '',
-                        custom_attributes: commodity.custom_attributes || {},
+                        custom_attributes: displayAttributes,
                         unit: lot.unit,
                         total_qty: 0,
                         image_url: imgUrl,
@@ -1035,7 +1041,6 @@ export default function POSPage() {
                                     <div className="font-black text-slate-900 text-sm leading-tight flex flex-wrap items-center gap-1">
                                         {c.item.name} 
                                         {language !== 'en' && c.item.local_name && <span className="text-[10px] text-slate-500 font-bold ml-1">({c.item.local_name})</span>}
-                                        {c.item.grade && c.item.grade !== 'A' && <span className="text-[10px] text-emerald-600 font-black ml-1">[{c.item.grade}]</span>}
                                         <span className="text-[10px] text-slate-400 font-bold ml-1">({c.item.unit})</span>
                                         {c.item.sku_code && <span className="text-[8px] text-indigo-500 bg-indigo-50 px-1 py-0.5 rounded-md font-black tracking-widest">{c.item.sku_code}</span>}
                                     </div>

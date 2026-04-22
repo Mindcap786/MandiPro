@@ -236,10 +236,7 @@ export function ItemDialog({ children, onSuccess, initialItem }: ItemDialogProps
     useEffect(() => {
         if (open) {
             const initialAttrs = initialItem?.custom_attributes || {};
-            // If no custom attributes, provide a default "Variety" one
-            if (Object.keys(initialAttrs).length === 0) {
-                initialAttrs["Variety"] = "";
-            }
+
             // Sanitize null DB values → empty strings so Zod doesn't reject them
             // z.string().optional() accepts undefined but NOT null
             const sanitized = Object.fromEntries(

@@ -472,7 +472,15 @@ const syncBasis = watchedDistributions?.map(d => ({
                             {selectedLot && (
                                 <div className="bg-emerald-50 border border-emerald-100 p-6 rounded-2xl flex flex-col justify-center animate-in fade-in">
                                     <div className="flex justify-between items-center mb-2">
-                                        <span className="text-[10px] font-black uppercase text-emerald-600 tracking-widest">Lot Availability</span>
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] font-black uppercase text-emerald-600 tracking-widest">Lot Availability</span>
+                                            <span className="text-xs font-black text-emerald-900 uppercase tracking-tight">
+                                                {(() => {
+                                                    const item = items.find(i => i.id === selectedLot.item_id);
+                                                    return formatCommodityName(item?.name || "Unknown", selectedLot.custom_attributes || item?.custom_attributes);
+                                                })()}
+                                            </span>
+                                        </div>
                                         <Badge className="bg-emerald-100 text-emerald-800 border-none shadow-none text-[10px]">{selectedLot.lot_code}</Badge>
                                     </div>
                                     <div className="flex justify-between items-end border-b border-emerald-200/50 pb-2 mb-2">

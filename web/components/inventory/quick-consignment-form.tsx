@@ -71,6 +71,7 @@ import { toast } from 'sonner'
 import { cacheGet, cacheSet, cacheIsStale } from '@/lib/data-cache'
 import { ItemDialog } from '@/components/inventory/item-dialog'
 import { Switch } from '@/components/ui/switch'
+import { formatCommodityName } from '@/lib/utils/commodity-utils'
 
 const formSchema = z.object({
     arrival_date: z.date(),
@@ -87,6 +88,8 @@ const formSchema = z.object({
     notes: z.string().optional(),
     rows: z.array(z.object({
         item_id: z.string().min(1, 'Required'),
+        variety: z.string().optional(),
+        grade: z.string().optional(),
         unit: z.string().min(1, 'Required'),
         qty: z.union([z.number(), z.literal('')]).transform(v => v === '' ? 0 : v),
         rate: z.union([z.number(), z.literal('')]).transform(v => v === '' ? 0 : v),
@@ -387,14 +390,16 @@ export function QuickPurchaseForm() {
         try {
             // Explicitly map items to ensure types and field names match RPC expectation precisely
             const rpcItems = values.rows.map(row => ({
-                item_id: row.item_id, // Ensure this key matches RPC exactly
+                item_id: row.item_id,
                 qty: Number(row.qty),
                 unit: row.unit,
                 rate: Number(row.rate),
                 commission: Number(row.commission),
                 weight_loss: Number(row.weight_loss),
                 less_units: Number(row.less_units),
-                commission_type: row.commission_type
+                commission_type: row.commission_type,
+                variety: row.variety || null,
+                grade: row.grade || null
             }))
 
             const { data, error } = await supabase.schema('mandi').rpc('record_quick_purchase', {
@@ -616,7 +621,24 @@ export function QuickPurchaseForm() {
                                                 <div className="w-8 h-8 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center font-black text-[10px]">
                                                     {index + 1}
                                                 </div>
-                                                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Line Item</div>
+                                                <div className="flex flex-col">
+                                                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Line Item</div>
+                                                    <div className="text-sm font-black text-slate-900 uppercase tracking-tight">
+                                                        {(() => {
+                                                            const item = items.find(i => i.id === row.item_id);
+                                                            const baseName = item?.name || "Pick Item";
+                                                            const baseAttributes = item?.custom_attributes || {};
+                                                            
+                                                            const displayAttributes = {
+                                                                ...baseAttributes,
+                                                                variety: row.variety || baseAttributes.variety,
+                                                                grade: row.grade || baseAttributes.grade
+                                                            };
+
+                                                            return formatCommodityName(baseName, displayAttributes);
+                                                        })()}
+                                                    </div>
+                                                </div>
                                             </div>
                                             <Button
                                                 type="button"
@@ -630,7 +652,7 @@ export function QuickPurchaseForm() {
                                         </div>
 
                                         {/* Item */}
-                                        <div className="md:col-span-4">
+                                        <div className="md:col-span-4 space-y-4">
                                             <FormField
                                                 control={form.control}
                                                 name={`rows.${index}.item_id`}
@@ -645,25 +667,20 @@ export function QuickPurchaseForm() {
                                                             </ItemDialog>
                                                         </div>
                                                         <SearchableSelect
-                                                            options={items.map(item => {
-                                                                const specs = item.custom_attributes ? 
-                                                                    Object.entries(item.custom_attributes)
-                                                                        .map(([k, v]) => `${k}: ${v}`)
-                                                                        .join(", ") : "";
-                                                                const label = [
-                                                                    item.name,
-                                                                    item.local_name ? `(${item.local_name})` : "",
-                                                                    item.sku_code ? `[${item.sku_code}]` : "",
-                                                                    specs ? `- ${specs}` : ""
-                                                                ].filter(Boolean).join(" ");
-                                                                return { value: item.id, label };
-                                                            })}
+                                                            options={items.map(item => ({
+                                                                value: item.id,
+                                                                label: formatCommodityName(item.name, item.custom_attributes)
+                                                            }))}
                                                             value={field.value}
                                                             onChange={(val) => {
                                                                 field.onChange(val);
                                                                 const selectedItem = items.find(i => i.id === val);
                                                                 if (selectedItem?.default_unit) {
                                                                     form.setValue(`rows.${index}.unit`, selectedItem.default_unit);
+                                                                }
+                                                                if (selectedItem?.custom_attributes) {
+                                                                    if (selectedItem.custom_attributes.variety) form.setValue(`rows.${index}.variety`, selectedItem.custom_attributes.variety);
+                                                                    if (selectedItem.custom_attributes.grade) form.setValue(`rows.${index}.grade`, selectedItem.custom_attributes.grade);
                                                                 }
                                                             }}
                                                             placeholder="Select Item"
@@ -673,6 +690,33 @@ export function QuickPurchaseForm() {
                                                     </FormItem>
                                                 )}
                                             />
+
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <FormField
+                                                    control={form.control}
+                                                    name={`rows.${index}.variety`}
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel className="text-[9px] font-black uppercase text-slate-400">Variety</FormLabel>
+                                                            <FormControl>
+                                                                <Input {...field} placeholder="e.g. Red" className="h-10 bg-slate-50 border-none rounded-xl text-xs font-black shadow-sm" />
+                                                            </FormControl>
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                                <FormField
+                                                    control={form.control}
+                                                    name={`rows.${index}.grade`}
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel className="text-[9px] font-black uppercase text-slate-400">Grade</FormLabel>
+                                                            <FormControl>
+                                                                <Input {...field} placeholder="e.g. A" className="h-10 bg-slate-50 border-none rounded-xl text-xs font-black shadow-sm" />
+                                                            </FormControl>
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                            </div>
                                         </div>
 
                                         {/* Price / Qty / Unit Grid */}

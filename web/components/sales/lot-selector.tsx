@@ -106,7 +106,7 @@ export function LotSelector({ onSelect, selectedLotId, commodityId }: LotSelecto
                                 }`}>
                                 {selectedLotDisplay.storage_location}
                             </Badge>
-                            <span className="text-slate-400 font-medium truncate ml-auto">{formatCommodityName(selectedLotDisplay.commodities?.name, selectedLotDisplay.commodities?.custom_attributes) || 'Unknown Item'}</span>
+                            <span className="text-slate-400 font-medium truncate ml-auto">{formatCommodityName(selectedLotDisplay.commodities?.name, selectedLotDisplay.custom_attributes || selectedLotDisplay.commodities?.custom_attributes) || 'Unknown Item'}</span>
                         </div>
                     ) : (
                         <span className="text-slate-400 font-medium">Pick Stock Lot...</span>
@@ -177,7 +177,7 @@ export function LotSelector({ onSelect, selectedLotId, commodityId }: LotSelecto
                                     <div className="flex items-center gap-4 text-xs font-bold uppercase tracking-widest text-slate-400">
                                         <div className="flex items-center gap-1.5">
                                             <Package className="w-3.5 h-3.5" />
-                                            {formatCommodityName(lot.commodities?.name, lot.commodities?.custom_attributes)}
+                                            {formatCommodityName(lot.commodities?.name, lot.custom_attributes || lot.commodities?.custom_attributes)}
                                         </div>
                                         <div className="flex items-center gap-1.5 border-l border-slate-200 pl-4">
                                             <User className="w-3.5 h-3.5" />

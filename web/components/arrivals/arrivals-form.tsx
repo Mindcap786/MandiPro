@@ -62,6 +62,8 @@ import { formatCommodityName } from "@/lib/utils/commodity-utils";
 
 const itemSchema = z.object({
     item_id: z.string().optional(),
+    variety: z.string().optional(),
+    grade: z.string().optional(),
     qty: z.coerce.number().min(0, "Qty must be at least 0"),
     unit: z.string().optional(),
     unit_weight: z.coerce.number().min(0).default(0),
@@ -691,7 +693,7 @@ export default function ArrivalsEntryForm() {
                  const createdLotsForQr = result.lot_codes.map((code: string, idx: number) => {
                      const item = values.items[idx];
                      const itemData = availableItems?.find(i => i.id === item.item_id);
-                     const itemName = itemData ? formatCommodityName(itemData.name, itemData.custom_attributes) : 'Unknown Item';
+                     const itemName = itemData ? formatCommodityName(itemData.name, { ...itemData.custom_attributes, variety: item.variety, grade: item.grade }) : 'Unknown Item';
                      const partyName = contacts?.find(c => c.id === values.contact_id)?.name || 'Unknown Party';
                      return {
                         qrNumber: `MANDI_LOT:{"orgId":"${profile.organization_id}","lotCode":"${code}","type":"${values.arrival_type}"}`,
@@ -1186,6 +1188,33 @@ export default function ArrivalsEntryForm() {
                                         <div className="absolute -left-2.5 -top-2.5 w-6 h-6 bg-slate-900 border-2 border-white text-white rounded-full flex items-center justify-center text-[10px] font-black shadow-lg z-10 group-hover:bg-purple-600 transition-colors">
                                             {index + 1}
                                         </div>
+                                        <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-50">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-slate-500 group-hover:bg-purple-50 group-hover:text-purple-600 transition-colors">
+                                                    <Package className="w-4 h-4" />
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Stock Item</span>
+                                                    <span className="text-sm font-black text-slate-900 group-hover:text-purple-700 transition-colors uppercase tracking-tight">
+                                                        {(() => {
+                                                            const item = form.watch(`items.${index}`);
+                                                            const itemData = availableItems.find(i => i.id === item.item_id);
+                                                            const baseName = itemData?.name || "Pick Item";
+                                                            const baseAttributes = itemData?.custom_attributes || {};
+                                                            
+                                                            // Merge existing attributes with typed variety/grade for dynamic display
+                                                            const displayAttributes = {
+                                                                ...baseAttributes,
+                                                                variety: item.variety || baseAttributes.variety,
+                                                                grade: item.grade || baseAttributes.grade
+                                                            };
+
+                                                            return formatCommodityName(baseName, displayAttributes);
+                                                        })()}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
                                         <div className="grid grid-cols-12 gap-4 items-start">
 
                                             {/* REDESIGNED GRID: 2 Rows, Line 1: Item, Qty, Rate | Line 2: Unit, Storage */}
@@ -1216,6 +1245,11 @@ export default function ArrivalsEntryForm() {
                                                                                 if (selectedItem?.default_unit) {
                                                                                     form.setValue(`items.${index}.unit`, selectedItem.default_unit);
                                                                                 }
+                                                                                // Pre-fill variety/grade if available in commodity
+                                                                                if (selectedItem?.custom_attributes) {
+                                                                                    if (selectedItem.custom_attributes.variety) form.setValue(`items.${index}.variety`, selectedItem.custom_attributes.variety);
+                                                                                    if (selectedItem.custom_attributes.grade) form.setValue(`items.${index}.grade`, selectedItem.custom_attributes.grade);
+                                                                                }
                                                                             }}
                                                                             placeholder="Select Item"
                                                                             className="bg-white border border-slate-300 text-slate-900 font-bold h-9 rounded-lg text-xs"
@@ -1227,6 +1261,43 @@ export default function ArrivalsEntryForm() {
                                                         </div>
                                                     )}
 
+                                                    {isVisible('variety') && (
+                                                        <div className="col-span-6 md:col-span-3 lg:col-span-3">
+                                                            <FormField
+                                                                control={form.control}
+                                                                name={`items.${index}.variety`}
+                                                                render={({ field }) => (
+                                                                    <FormItem>
+                                                                        <FormLabel className="text-[9px] font-bold text-slate-700 uppercase tracking-wide mb-0.5 block">Variety</FormLabel>
+                                                                        <FormControl>
+                                                                            <Input {...field} placeholder="e.g. Red" className="bg-white border border-slate-300 h-9 text-xs text-slate-900 font-bold rounded-lg" />
+                                                                        </FormControl>
+                                                                    </FormItem>
+                                                                )}
+                                                            />
+                                                        </div>
+                                                    )}
+
+                                                    {isVisible('grade') && (
+                                                        <div className="col-span-6 md:col-span-3 lg:col-span-3">
+                                                            <FormField
+                                                                control={form.control}
+                                                                name={`items.${index}.grade`}
+                                                                render={({ field }) => (
+                                                                    <FormItem>
+                                                                        <FormLabel className="text-[9px] font-bold text-slate-700 uppercase tracking-wide mb-0.5 block">Grade</FormLabel>
+                                                                        <FormControl>
+                                                                            <Input {...field} placeholder="e.g. A" className="bg-white border border-slate-300 h-9 text-xs text-slate-900 font-bold rounded-lg" />
+                                                                        </FormControl>
+                                                                    </FormItem>
+                                                                )}
+                                                            />
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* ROW 2: Qty, Rate, Unit, Storage */}
+                                                <div className="col-span-12 grid grid-cols-12 gap-3 mt-2">
                                                     {isVisible('qty') && (
                                                         <div className="col-span-6 md:col-span-3 lg:col-span-3">
                                                             <FormField
@@ -1245,28 +1316,8 @@ export default function ArrivalsEntryForm() {
                                                         </div>
                                                     )}
 
-                                                    {isVisible('supplier_rate') && (
-                                                        <div className="col-span-6 md:col-span-3 lg:col-span-3">
-                                                            <FormField
-                                                                control={form.control}
-                                                                name={`items.${index}.supplier_rate`}
-                                                                render={({ field }) => (
-                                                                    <FormItem>
-                                                                        <FormLabel className="text-[9px] font-bold text-slate-700 uppercase tracking-wide mb-0.5 block">Rate</FormLabel>
-                                                                        <FormControl>
-                                                                            <Input type="number" {...field} className="h-9 bg-white border border-slate-300 text-slate-900 font-bold text-center rounded-lg text-xs" />
-                                                                        </FormControl>
-                                                                    </FormItem>
-                                                                )}
-                                                            />
-                                                        </div>
-                                                    )}
-                                                </div>
-
-                                                {/* ROW 2: Unit, Storage Destination */}
-                                                <div className="col-span-12 grid grid-cols-12 gap-3">
                                                     {isVisible('unit') && (
-                                                        <div className="col-span-12 md:col-span-6">
+                                                        <div className="col-span-6 md:col-span-3 lg:col-span-3">
                                                             <FormField
                                                                 control={form.control}
                                                                 name={`items.${index}.unit`}
@@ -1291,18 +1342,35 @@ export default function ArrivalsEntryForm() {
                                                         </div>
                                                     )}
 
+                                                    {isVisible('supplier_rate') && (
+                                                        <div className="col-span-6 md:col-span-3 lg:col-span-3">
+                                                            <FormField
+                                                                control={form.control}
+                                                                name={`items.${index}.supplier_rate`}
+                                                                render={({ field }) => (
+                                                                    <FormItem>
+                                                                        <FormLabel className="text-[9px] font-bold text-slate-700 uppercase tracking-wide mb-0.5 block">Rate</FormLabel>
+                                                                        <FormControl>
+                                                                            <Input type="number" {...field} className="h-9 bg-white border border-slate-300 text-slate-900 font-bold text-center rounded-lg text-xs" />
+                                                                        </FormControl>
+                                                                    </FormItem>
+                                                                )}
+                                                            />
+                                                        </div>
+                                                    )}
+
                                                     {isVisible('storage_location') && (
-                                                        <div className="col-span-12 md:col-span-6">
+                                                        <div className="col-span-6 md:col-span-3 lg:col-span-3">
                                                             <FormField
                                                                 control={form.control}
                                                                 name={`items.${index}.storage_location`}
                                                                 render={({ field }) => (
                                                                     <FormItem>
-                                                                        <FormLabel className="text-[9px] font-bold text-blue-700 uppercase tracking-wide mb-0.5 block">Storage Location</FormLabel>
+                                                                        <FormLabel className="text-[9px] font-bold text-blue-700 uppercase tracking-wide mb-0.5 block">Storage</FormLabel>
                                                                         <Select onValueChange={field.onChange} value={field.value}>
                                                                             <FormControl>
                                                                                 <SelectTrigger className="bg-blue-50 border border-blue-200 h-9 text-xs text-blue-900 font-bold rounded-lg px-3">
-                                                                                    <SelectValue placeholder="Select Location" />
+                                                                                    <SelectValue placeholder="Select" />
                                                                                 </SelectTrigger>
                                                                             </FormControl>
                                                                             <SelectContent className="bg-white">
@@ -1892,7 +1960,7 @@ export default function ArrivalsEntryForm() {
                                     <div className="border border-slate-100 rounded-2xl overflow-hidden divide-y divide-slate-100">
                                         {pendingValues.items.map((item: any, idx: number) => {
                                             const itemData = availableItems.find(i => i.id === item.item_id);
-                                           const itemName = itemData ? formatCommodityName(itemData.name, itemData.custom_attributes) : "Unknown Item";
+                                            const itemName = itemData ? formatCommodityName(itemData.name, { ...itemData.custom_attributes, variety: item.variety, grade: item.grade }) : "Unknown Item";
                                             return (
                                                 <div key={idx} className="p-4 flex items-center justify-between bg-white text-sm">
                                                     <div className="space-y-0.5">

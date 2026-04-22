@@ -1,6 +1,7 @@
 import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
 import { format } from 'date-fns';
 import { toWords } from '@/lib/number-to-words';
+import { formatCommodityName } from '@/lib/utils/commodity-utils';
 
 // Create styles
 const styles = StyleSheet.create({
@@ -390,13 +391,10 @@ export const InvoiceTemplate = ({
                             <Text style={[styles.col1, { fontSize: 6.5 }]}>{index + 1}</Text>
                             <View style={styles.col2}>
                                 <Text style={{ fontWeight: 'bold', fontSize: 7.5, textTransform: 'uppercase' }}>
-                                    {item.lot?.item?.name || item.item_name || 'Item'}
+                                    {formatCommodityName(item.lot?.item?.name || item.item_name || 'Item', item.lot?.item?.custom_attributes || item.custom_attributes)}
                                 </Text>
                                 <Text style={{ fontSize: 6.5, fontWeight: 'bold', color: '#f97316', marginTop: 1 }}>
                                     {item.lot?.lot_code || 'N/A'}
-                                </Text>
-                                <Text style={{ fontSize: 5.5, color: '#666', marginTop: 1, textTransform: 'uppercase', opacity: 0.8 }}>
-                                    {(item.lot?.variety || item.variety || '')} {(item.lot?.grade || item.grade) && `- ${(item.lot?.grade || item.grade)}`}
                                 </Text>
                             </View>
                             <View style={[styles.col3, { flexDirection: 'row', justifyContent: 'flex-end', gap: 2 }]}>

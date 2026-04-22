@@ -39,6 +39,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { cacheDelete, cacheClearPrefix } from "@/lib/data-cache";
 import { calculateArrivalLevelExpenses, calculateLotSettlementAmount } from "@/lib/purchase-payables";
+import { formatCommodityName } from "@/lib/utils/commodity-utils";
 
 interface PurchaseBillDetailsSheetProps {
     lotId: string | null;
@@ -133,7 +134,7 @@ export function PurchaseBillDetailsSheet({ lotId, isOpen, isLocked, onClose, onU
             const { data: lotData, error: lotError } = await supabase
                 .schema('mandi')
                 .from('lots')
-                .select('*, farmer:contacts(name, city), item:commodities(name), purchase_bills(payment_status), sale_items(amount, qty, rate)')
+                .select('*, farmer:contacts(name, city), item:commodities(name, custom_attributes), purchase_bills(payment_status), sale_items(amount, qty, rate)')
                 .eq('id', lotId)
                 .single();
 
@@ -208,7 +209,7 @@ export function PurchaseBillDetailsSheet({ lotId, isOpen, isLocked, onClose, onU
                 if (profile?.organization_id) {
                     const [storageRes, itemsRes, bankRes] = await Promise.all([
                         supabase.schema('mandi').from("storage_locations").select("name").eq("organization_id", profile.organization_id).eq("is_active", true),
-                        supabase.schema('mandi').from("commodities").select("id, name, default_unit").eq("organization_id", profile.organization_id),
+                        supabase.schema('mandi').from("commodities").select("id, name, default_unit, custom_attributes").eq("organization_id", profile.organization_id),
                         supabase.schema('mandi').from("accounts").select("id, name, is_default").eq("organization_id", profile.organization_id).eq("type", 'asset').eq('account_sub_type', 'bank')
                     ]);
                     if (storageRes.data) setStorageLocations(storageRes.data);
@@ -317,8 +318,10 @@ export function PurchaseBillDetailsSheet({ lotId, isOpen, isLocked, onClose, onU
                     supplier_rate: formData.supplier_rate,
                     initial_qty: formData.initial_qty,
                     current_qty: formData.initial_qty,
-                    grade: formData.grade,
-                    variety: formData.variety,
+                    custom_attributes: {
+                        variety: formData.variety || null,
+                        grade: formData.grade || null
+                    },
                     barcode: formData.barcode,
                     commission_percent: formData.commission_percent,
                     less_percent: formData.less_percent,
@@ -772,7 +775,7 @@ export function PurchaseBillDetailsSheet({ lotId, isOpen, isLocked, onClose, onU
                                                         className="w-full justify-between bg-white border-slate-200 h-12 text-slate-900 font-bold px-4 hover:bg-slate-50 focus:ring-2 focus:ring-blue-500/20"
                                                         disabled={isSoldOut}
                                                     >
-                                                        {formData.item_id ? availableItems.find(i => i.id === formData.item_id)?.name : "Select Item..."}
+                                                        {formData.item_id ? formatCommodityName(availableItems.find(i => i.id === formData.item_id)?.name || "", { ...availableItems.find(i => i.id === formData.item_id)?.custom_attributes, variety: formData.variety, grade: formData.grade }) : "Select Item..."}
                                                         <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                                     </Button>
                                                 </PopoverTrigger>
@@ -816,7 +819,7 @@ export function PurchaseBillDetailsSheet({ lotId, isOpen, isLocked, onClose, onU
                                                                             <div className="w-8 h-8 rounded bg-white flex items-center justify-center border border-slate-200 text-[10px] font-black uppercase text-slate-500 shadow-sm">
                                                                                 {item.name.substring(0, 2)}
                                                                             </div>
-                                                                            <span className="font-bold text-sm">{item.name}</span>
+                                                                            <span className="font-bold text-sm">{formatCommodityName(item.name, item.custom_attributes)}</span>
                                                                         </div>
                                                                         {formData.item_id === item.id && <Check className="h-4 w-4 text-blue-600" />}
                                                                     </div>
@@ -905,32 +908,30 @@ export function PurchaseBillDetailsSheet({ lotId, isOpen, isLocked, onClose, onU
                                                 />
                                             </div>
                                         )}
-                                        {isVisible('grade') && (
-                                            <div className="space-y-2">
-                                                <Label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
-                                                    {getLabel('grade', 'Grade')} {isMandatory('grade') && <span className="text-red-500">*</span>}
-                                                </Label>
-                                                <Input
-                                                    value={formData.grade}
-                                                    onChange={(e) => setFormData({ ...formData, grade: e.target.value })}
-                                                    className={cn("bg-white border-slate-200 h-11 text-slate-900 font-bold focus:ring-2 focus:ring-blue-500/20", isMandatory('grade') && !formData.grade && "border-red-500")}
-                                                    disabled={isSoldOut}
-                                                />
-                                            </div>
-                                        )}
-                                        {isVisible('variety') && (
-                                            <div className="space-y-2">
-                                                <Label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
-                                                    {getLabel('variety', 'Variety')} {isMandatory('variety') && <span className="text-red-500">*</span>}
-                                                </Label>
-                                                <Input
-                                                    value={formData.variety}
-                                                    onChange={(e) => setFormData({ ...formData, variety: e.target.value })}
-                                                    className={cn("bg-white border-slate-200 h-11 text-slate-900 font-bold focus:ring-2 focus:ring-blue-500/20", isMandatory('variety') && !formData.variety && "border-red-500")}
-                                                    disabled={isSoldOut}
-                                                />
-                                            </div>
-                                        )}
+                                        <div className="grid grid-cols-2 gap-4">
+                                            {isVisible('variety') && (
+                                                <div className="space-y-2">
+                                                    <Input
+                                                        value={formData.variety}
+                                                        onChange={(e) => setFormData({ ...formData, variety: e.target.value })}
+                                                        placeholder={getLabel('variety', 'Variety (e.g. Red)')}
+                                                        className={cn("bg-white border-slate-200 h-11 text-slate-900 font-bold focus:ring-2 focus:ring-blue-500/20", isMandatory('variety') && !formData.variety && "border-red-500")}
+                                                        disabled={isSoldOut}
+                                                    />
+                                                </div>
+                                            )}
+                                            {isVisible('grade') && (
+                                                <div className="space-y-2">
+                                                    <Input
+                                                        value={formData.grade}
+                                                        onChange={(e) => setFormData({ ...formData, grade: e.target.value })}
+                                                        placeholder={getLabel('grade', 'Grade (e.g. A)')}
+                                                        className={cn("bg-white border-slate-200 h-11 text-slate-900 font-bold focus:ring-2 focus:ring-blue-500/20", isMandatory('grade') && !formData.grade && "border-red-500")}
+                                                        disabled={isSoldOut}
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
                                         {isVisible('barcode') && (
                                             <div className="space-y-2">
                                                 <Label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">

@@ -1257,19 +1257,10 @@ function NewSaleForm() {
                                                             <FormItem>
                                                                 <FormControl>
                                                                     <SearchableSelect
-                                                                        options={items.map(i => {
-                                                                            const specs = i.custom_attributes ?
-                                                                                Object.entries(i.custom_attributes)
-                                                                                    .map(([k, v]) => `${k}: ${v}`)
-                                                                                    .join(", ") : "";
-                                                                            const label = [
-                                                                                i.name,
-                                                                                (language !== 'en' && i.local_name) ? `(${i.local_name})` : "",
-                                                                                i.sku_code ? `[${i.sku_code}]` : "",
-                                                                                specs ? `- {${specs}}` : ""
-                                                                            ].filter(Boolean).join(" ");
-                                                                            return { value: i.id, label };
-                                                                        })}
+                                                                        options={items.map(i => ({
+                                                                            value: i.id,
+                                                                            label: formatCommodityName(i.name, i.custom_attributes)
+                                                                        }))}
                                                                         value={field.value}
                                                                         onChange={(val) => {
                                                                             field.onChange(val);
