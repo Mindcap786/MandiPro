@@ -16,6 +16,7 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useToast } from "@/hooks/use-toast";
 import { Trash2, Loader2, ArrowLeft, Plus, CheckCircle2, AlertTriangle, Truck, CalendarIcon, Landmark, Zap, ChevronDown, ChevronUp, Users, PackageOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatCommodityName } from "@/lib/utils/commodity-utils";
 import { ContactDialog } from "@/components/contacts/contact-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
@@ -151,7 +152,7 @@ const NewInvoiceForm = () => {
                     .not('name', 'ilike', '%transit%')
                     .not('name', 'ilike', '%charge%'),
                 supabase.schema('core').from('organizations').select('name, settings').eq('id', orgId).single(),
-                supabase.schema('mandi').from('commodities').select('id, name, local_name, sku_code, gst_rate')
+                supabase.schema('mandi').from('commodities').select('id, name, local_name, sku_code, gst_rate, custom_attributes')
                     .eq('organization_id', orgId)
                     .order('name'),
                 supabase.schema('mandi').from('lots').select('id, lot_code, arrival_id, current_qty, unit, sale_price, item_id, supplier_rate, arrival_type, contact_id, contacts(name)').eq('organization_id', orgId).gt('current_qty', 0).in('status', ['active', 'available']),
@@ -448,7 +449,7 @@ const syncBasis = watchedDistributions?.map(d => ({
                                     <div className="space-y-2">
                                         <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Select Item (Optional)</Label>
                                         <SearchableSelect 
-                                            options={items.map(i => ({ label: i.name, value: i.id }))} 
+                                            options={items.map(i => ({ label: formatCommodityName(i.name, i.custom_attributes), value: i.id }))} 
                                             value={selectedCommodityId || ""} 
                                             onChange={(val) => {
                                                 setSelectedCommodityId(val);

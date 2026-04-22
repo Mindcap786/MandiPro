@@ -13,6 +13,7 @@ import LotQRSlip, { LotQRData } from "./lot-qr-slip";
 import { Printer } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { cn } from "@/lib/utils";
+import { formatCommodityName } from "@/lib/utils/commodity-utils";
 
 interface ArrivalDetailsSheetProps {
     arrivalId: string | null;
@@ -67,7 +68,7 @@ export function ArrivalDetailsSheet({ arrivalId, isOpen, onClose, onUpdate }: Ar
 
             const { data: lotsData, error: lotsError } = await supabase.schema("mandi")
                 .from('lots')
-                .select(`*, item:commodities(name)`)
+                .select(`*, item:commodities(name, custom_attributes)`)
                 .eq('arrival_id', arrivalId)
                 .order('created_at', { ascending: true });
 
@@ -232,7 +233,7 @@ export function ArrivalDetailsSheet({ arrivalId, isOpen, onClose, onUpdate }: Ar
                                                     <Package className="w-4 h-4 text-gray-500" />
                                                 </div>
                                                 <div>
-                                                    <div className="text-sm font-bold text-white">{lot.item?.name || 'Unknown Item'}</div>
+                                                    <div className="text-sm font-bold text-white">{formatCommodityName(lot.item?.name, lot.item?.custom_attributes) || 'Unknown Item'}</div>
                                                     <div className="text-[10px] font-mono text-gray-500 uppercase tracking-widest">{lot.lot_code}</div>
                                                 </div>
                                             </div>
@@ -286,8 +287,7 @@ export function ArrivalDetailsSheet({ arrivalId, isOpen, onClose, onUpdate }: Ar
                                             <div className="p-4 flex flex-col gap-3">
                                                 <div className="flex justify-between items-start">
                                                     <div>
-                                                        <div className="text-[10px] uppercase tracking-widest font-bold text-gray-500">Item Name</div>
-                                                        <div className="text-xl font-black text-white">{lot.item?.name || 'Unknown'}</div>
+                                                        <div className="text-xl font-black text-white">{formatCommodityName(lot.item?.name, lot.item?.custom_attributes) || 'Unknown'}</div>
                                                     </div>
                                                     <div className="text-right">
                                                         <div className="text-[10px] uppercase tracking-widest font-bold text-gray-500">Date</div>
@@ -335,7 +335,7 @@ export function ArrivalDetailsSheet({ arrivalId, isOpen, onClose, onUpdate }: Ar
                     qrNumber: lot.qr_code || 'No QR',
                     orgId: arrival?.organization_id || '',
                     arrivalType: arrival?.arrival_type || 'direct',
-                    itemName: lot.item?.name || 'Unknown',
+                    itemName: formatCommodityName(lot.item?.name, lot.item?.custom_attributes) || 'Unknown',
                     partyName: arrival?.contacts?.name || '',
                     qty: lot.initial_qty,
                     initialQty: lot.initial_qty,

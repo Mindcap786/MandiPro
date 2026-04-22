@@ -8,6 +8,7 @@ import { useLanguage } from '@/components/i18n/language-provider'
 import { QRCodeSVG } from 'qrcode.react'
 import { toast, Toaster } from 'sonner'
 import { getIntelligentVisual } from '@/lib/utils/commodity-mapping'
+import { formatCommodityName } from '@/lib/utils/commodity-utils'
 import { cn } from '@/lib/utils'
 import { motion, AnimatePresence } from 'framer-motion'
 import { SearchableSelect } from '@/components/ui/searchable-select'
@@ -340,7 +341,7 @@ export default function POSPage() {
                     }
                     stockMap[key] = {
                         item_id: lot.item_id,
-                        item_name: commodity.name || lot.item_id,
+                        item_name: formatCommodityName(commodity.name, commodity.custom_attributes) || lot.item_id,
                         local_name: commodity.local_name || '',
                         sku_code: commodity.sku_code || '',
                         custom_attributes: commodity.custom_attributes || {},

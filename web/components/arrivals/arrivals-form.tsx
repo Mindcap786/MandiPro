@@ -58,6 +58,7 @@ import { cacheGet, cacheSet, cacheIsStale } from "@/lib/data-cache";
 import { useArrivalsMasterData } from "@/hooks/mandi/useArrivalsMasterData";
 import { useArrivals } from "@/hooks/mandi/useArrivals";
 import { useFieldGovernance } from "@/hooks/useFieldGovernance";
+import { formatCommodityName } from "@/lib/utils/commodity-utils";
 
 const itemSchema = z.object({
     item_id: z.string().optional(),
@@ -689,7 +690,8 @@ export default function ArrivalsEntryForm() {
             if (result.lot_codes && result.lot_codes.length > 0) {
                  const createdLotsForQr = result.lot_codes.map((code: string, idx: number) => {
                      const item = values.items[idx];
-                     const itemName = availableItems?.find(i => i.id === item.item_id)?.name || 'Unknown Item';
+                     const itemData = availableItems?.find(i => i.id === item.item_id);
+                     const itemName = itemData ? formatCommodityName(itemData.name, itemData.custom_attributes) : 'Unknown Item';
                      const partyName = contacts?.find(c => c.id === values.contact_id)?.name || 'Unknown Party';
                      return {
                         qrNumber: `MANDI_LOT:{"orgId":"${profile.organization_id}","lotCode":"${code}","type":"${values.arrival_type}"}`,
@@ -1206,7 +1208,7 @@ export default function ArrivalsEntryForm() {
                                                                             </ItemDialog>
                                                                         </div>
                                                                         <SearchableSelect
-                                                                            options={availableItems.map(i => ({ value: i.id, label: `${i.name} ${i.local_name ? `(${i.local_name})` : ""}` }))}
+                                                                            options={availableItems.map(i => ({ value: i.id, label: formatCommodityName(i.name, i.custom_attributes) }))}
                                                                             value={field.value}
                                                                             onChange={(val) => {
                                                                                 field.onChange(val);
@@ -1889,7 +1891,8 @@ export default function ArrivalsEntryForm() {
                                     </div>
                                     <div className="border border-slate-100 rounded-2xl overflow-hidden divide-y divide-slate-100">
                                         {pendingValues.items.map((item: any, idx: number) => {
-                                            const itemName = availableItems.find(i => i.id === item.item_id)?.name || "Unknown Item";
+                                            const itemData = availableItems.find(i => i.id === item.item_id);
+                                           const itemName = itemData ? formatCommodityName(itemData.name, itemData.custom_attributes) : "Unknown Item";
                                             return (
                                                 <div key={idx} className="p-4 flex items-center justify-between bg-white text-sm">
                                                     <div className="space-y-0.5">

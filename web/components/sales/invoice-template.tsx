@@ -7,6 +7,7 @@ import { toWords } from "@/lib/number-to-words"
 import { QRCodeSVG } from "qrcode.react"
 import { usePlatformBranding } from "@/hooks/use-platform-branding"
 import { DocumentWatermark } from "@/components/common/document-branding"
+import { formatCommodityName } from "@/lib/utils/commodity-utils"
 
 interface InvoiceTemplateProps {
     sale: any
@@ -221,13 +222,12 @@ export default function BuyerInvoice({ sale, organization, onRefresh }: InvoiceT
                         {items.map((item: any) => (
                             <tr key={item.id} className="group">
                                 <td className="py-0.5">
-                                    <p className="font-black text-xs tracking-tight uppercase leading-none">{item.lot?.item?.name || item.item_name || 'Item'}</p>
+                                    <p className="font-black text-xs tracking-tight uppercase leading-none">
+                                        {formatCommodityName(item.lot?.item?.name || item.item_name || 'Item', item.lot?.item?.custom_attributes)}
+                                    </p>
                                     <div className="flex flex-col gap-0 mt-0">
                                         <p className="text-[8px] font-black text-orange-600 tracking-tighter uppercase tabular-nums">
                                             {item.lot?.lot_code || 'N/A'}
-                                        </p>
-                                        <p className="text-[7px] text-gray-400 font-bold uppercase tracking-widest opacity-70">
-                                            {(item.lot?.variety || item.variety || '')} {(item.lot?.grade || item.grade) && `• ${(item.lot?.grade || item.grade)}`}
                                         </p>
                                     </div>
                                 </td>

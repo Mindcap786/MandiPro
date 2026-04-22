@@ -8,6 +8,7 @@ import { ItemDialog } from "@/components/inventory/item-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { formatCommodityName } from "@/lib/utils/commodity-utils"
 import { Plus, Search, Package, Scale, Tag, Loader2, Pencil } from "lucide-react"
 
 export default function ItemsPage() {
@@ -142,11 +143,11 @@ export default function ItemsPage() {
                                                     <Tag className="w-4 h-4 text-blue-600" />
                                                 </div>
                                                 <span className="text-black text-sm">
-                                                    {item.name}
+                                                    {formatCommodityName(item.name, item.custom_attributes)}
                                                 </span>
                                                 {item.custom_attributes && Object.keys(item.custom_attributes).length > 0 && (
                                                     <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-50 border border-blue-100 text-[8px] font-black text-blue-600 uppercase">
-                                                        <Scale className="w-2.5 h-2.5" /> {Object.keys(item.custom_attributes).length} Specs
+                                                        <Scale className="w-2.5 h-2.5" /> Specs
                                                     </div>
                                                 )}
                                             </div>

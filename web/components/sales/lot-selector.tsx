@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Check, Search, Package, User, Clock, Loader2 } from "lucide-react"
+import { formatCommodityName } from "@/lib/utils/commodity-utils"
 import { supabase } from "@/lib/supabaseClient"
 import { useAuth } from "@/components/auth/auth-provider"
 import {
@@ -39,7 +40,7 @@ export function LotSelector({ onSelect, selectedLotId, commodityId }: LotSelecto
             .select(`
                 *,
                 contacts (name),
-                commodities (name)
+                commodities (name, custom_attributes)
             `)
             .eq("organization_id", profile.organization_id)
             .in("status", ["active", "available"])
@@ -69,7 +70,7 @@ export function LotSelector({ onSelect, selectedLotId, commodityId }: LotSelecto
                 const { data } = await supabase
                     .schema('mandi')
                     .from("lots")
-                    .select(`*, commodities(name)`)
+                    .select(`*, commodities(name, custom_attributes)`)
                     .eq("id", selectedLotId)
                     .single()
                 if (data) setSelectedLotDisplay(data)
@@ -105,7 +106,7 @@ export function LotSelector({ onSelect, selectedLotId, commodityId }: LotSelecto
                                 }`}>
                                 {selectedLotDisplay.storage_location}
                             </Badge>
-                            <span className="text-slate-400 font-medium truncate ml-auto">{selectedLotDisplay.commodities?.name || 'Unknown Item'}</span>
+                            <span className="text-slate-400 font-medium truncate ml-auto">{formatCommodityName(selectedLotDisplay.commodities?.name, selectedLotDisplay.commodities?.custom_attributes) || 'Unknown Item'}</span>
                         </div>
                     ) : (
                         <span className="text-slate-400 font-medium">Pick Stock Lot...</span>
@@ -176,7 +177,7 @@ export function LotSelector({ onSelect, selectedLotId, commodityId }: LotSelecto
                                     <div className="flex items-center gap-4 text-xs font-bold uppercase tracking-widest text-slate-400">
                                         <div className="flex items-center gap-1.5">
                                             <Package className="w-3.5 h-3.5" />
-                                            {lot.commodities?.name}
+                                            {formatCommodityName(lot.commodities?.name, lot.commodities?.custom_attributes)}
                                         </div>
                                         <div className="flex items-center gap-1.5 border-l border-slate-200 pl-4">
                                             <User className="w-3.5 h-3.5" />

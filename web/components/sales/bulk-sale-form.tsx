@@ -10,6 +10,7 @@ import {
     Zap, Truck, Settings2, Calculator, Info, Landmark,
     CalendarCheck, History, Tag
 } from "lucide-react";
+import { formatCommodityName } from "@/lib/utils/commodity-utils";
 import { Button } from "@/components/ui/button";
 import { 
     Form, FormControl, FormField, FormItem, 
@@ -186,7 +187,7 @@ export function BulkLotSaleForm() {
                 .select("id, name, local_name, sku_code, custom_attributes, gst_rate")
                 .eq("organization_id", profile.organization_id)
                 .order("name");
-            if (cData) setCommodities(cData.map(c => ({ ...c, label: c.name, value: c.id })));
+            if (cData) setCommodities(cData.map(c => ({ ...c, label: formatCommodityName(c.name, c.custom_attributes), value: c.id })));
 
             // Fetch Bank Accounts - EXPLICIT MANDI SCHEMA
             const { data: bankData } = await supabase
