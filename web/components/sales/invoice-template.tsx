@@ -158,11 +158,8 @@ export default function BuyerInvoice({ sale, organization, onRefresh }: InvoiceT
                         );
                     })()}
                     {(() => {
-                        const arrivalVehicleNo = items.map((i: any) => i.lot?.arrival?.vehicle_number).find(Boolean);
-                        const displayVehicleNo = sale.vehicle_number || arrivalVehicleNo;
-
-                        const arrivalBookNo = items.map((i: any) => i.lot?.arrival?.contact_bill_no || i.lot?.arrival?.bill_no || i.lot?.arrival?.reference_no).find(Boolean);
-                        const displayBookNo = sale.book_no || arrivalBookNo;
+                        const displayVehicleNo = sale.vehicle_number;
+                        const displayBookNo = sale.book_no;
 
                         if (!displayVehicleNo && !displayBookNo) return null;
 
