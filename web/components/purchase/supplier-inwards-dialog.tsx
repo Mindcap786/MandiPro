@@ -414,110 +414,124 @@ export function SupplierInwardsDialog({ supplier, unappliedPayment = 0, isOpen, 
                                                     >
                                                         <div className="px-4 pb-4 pt-1 space-y-2">
                                                             {group.paymentStatus !== 'paid' && (
-                                                                <div className="flex justify-end">
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="sm"
-                                                                        className="text-[9px] font-black text-blue-600 uppercase tracking-widest hover:bg-blue-50 rounded-lg h-7 px-3 border border-blue-100/20"
-                                                                        onClick={() => onPay(supplier.id, Math.round(group.pendingAmount > 0 ? group.pendingAmount : group.totalAmount), group.bill_no || group.lot_code, group.arrival_id)}
-                                                                    >
-                                                                        Settlement
-                                                                    </Button>
-                                                                </div>
-                                                            )}
-                                                            {group.items.map((lot: any) => {
-                                                                const qty = lot.initial_qty || 0;
-                                                                const lotTotal = calculateLotGrossValue(lot);
+                                                                 <div className="flex justify-end gap-2">
+                                                                     <Button
+                                                                         variant="ghost"
+                                                                         size="sm"
+                                                                         className="text-[9px] font-black text-purple-600 uppercase tracking-widest hover:bg-purple-50 rounded-lg h-7 px-3 border border-purple-100/20"
+                                                                         onClick={() => router.push(`/purchase/bills/invoice/${group.items[0].id}`)}
+                                                                     >
+                                                                         <FileText className="w-3 h-3 mr-1" />
+                                                                         Bill
+                                                                     </Button>
+                                                                     <Button
+                                                                         variant="ghost"
+                                                                         size="sm"
+                                                                         className="text-[9px] font-black text-blue-600 uppercase tracking-widest hover:bg-blue-50 rounded-lg h-7 px-3 border border-blue-100/20"
+                                                                         onClick={() => onPay(supplier.id, Math.round(group.pendingAmount > 0 ? group.pendingAmount : group.totalAmount), group.bill_no || group.lot_code, group.arrival_id)}
+                                                                     >
+                                                                         Settlement
+                                                                     </Button>
+                                                                 </div>
+                                                             )}
+                                                             {group.paymentStatus === 'paid' && (
+                                                                 <div className="flex justify-end">
+                                                                     <Button
+                                                                         variant="ghost"
+                                                                         size="sm"
+                                                                         className="text-[9px] font-black text-purple-600 uppercase tracking-widest hover:bg-purple-50 rounded-lg h-7 px-3 border border-purple-100/20"
+                                                                         onClick={() => router.push(`/purchase/bills/invoice/${group.items[0].id}`)}
+                                                                     >
+                                                                         <FileText className="w-3 h-3 mr-1" />
+                                                                         View Bill
+                                                                     </Button>
+                                                                 </div>
+                                                             )}
+                                                             {group.items.map((lot: any) => {
+                                                                 const qty = lot.initial_qty || 0;
+                                                                 const lotTotal = calculateLotGrossValue(lot);
 
-                                                                const isSold = (lot.current_qty !== undefined && lot.current_qty <= 0);
-                                                                const isFullyPaid = group.paymentStatus === 'paid';
-                                                                const isLocked = isSold && isFullyPaid;
-                                                                return (
-                                                                    <div key={lot.id} className="flex gap-2 items-center bg-white p-2 rounded-xl border border-slate-100 group/item hover:border-blue-200 transition-all shadow-sm">
-                                                                        <div className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center shrink-0">
-                                                                            <Box className="w-4 h-4 text-slate-400 group-hover/item:text-blue-500 transition-colors" />
-                                                                        </div>
-                                                                        <div className="flex-1 grid grid-cols-4 items-center gap-3">
-                                                                            <div className="flex flex-col">
-                                                                                <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Product</span>
-                                                                                <div className="flex items-center gap-1">
-                                                                                    <span className="text-[10px] font-black text-slate-900 group-hover/item:text-blue-600 transition-colors truncate">{lot.item?.name || 'Unknown'}</span>
-                                                                                    {lot.item?.internal_id && (
-                                                                                        <span className="text-[8px] font-bold text-blue-400 px-1 border border-blue-100 rounded">
-                                                                                            {lot.item.internal_id}
-                                                                                        </span>
-                                                                                    )}
-                                                                                </div>
-                                                                            </div>
-                                                                            <div className="flex flex-col">
-                                                                                <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Quantity</span>
-                                                                                <span className="text-[10px] font-bold text-slate-700">{qty} {lot.unit === 'box' ? 'BOX' : 'PCS'}</span>
-                                                                            </div>
-                                                                            <div className="flex flex-col">
-                                                                                <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Net Rate</span>
-                                                                                <span className="text-[10px] font-bold text-slate-700">₹{lot.supplier_rate || 0}</span>
-                                                                            </div>
-                                                                            <div className="flex flex-col text-right pr-2">
-                                                                                <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Amount</span>
-                                                                                <span className={cn(
-                                                                                    "text-xs font-[1000] tracking-tighter",
-                                                                                    lotTotal >= 0 ? "text-emerald-600" : "text-rose-600"
-                                                                                )}>
-                                                                                    ₹{Math.round(lotTotal).toLocaleString()}
-                                                                                </span>
-                                                                            </div>
-                                                                        </div>
-                                                                        <div className="flex items-center gap-2 pl-3 border-l border-slate-50">
-                                                                            <Button
-                                                                                size="sm"
-                                                                                onClick={() => router.push(`/purchase/bills/invoice/${lot.id}`)}
-                                                                                className="h-7 px-3 rounded-lg transition-all text-[9px] font-black uppercase tracking-tighter bg-purple-600 text-white hover:bg-purple-700"
-                                                                            >
-                                                                                <FileText className="w-3 h-3 mr-1" />
-                                                                                Bill
-                                                                            </Button>
-                                                                            <Popover>
-                                                                                <PopoverTrigger asChild>
-                                                                                    <Button
-                                                                                        size="sm"
-                                                                                        variant="outline"
-                                                                                        className="h-7 px-3 rounded-lg transition-all text-[9px] font-black uppercase tracking-tighter border-slate-200 hover:bg-slate-50"
-                                                                                    >
-                                                                                        <Truck className="w-3 h-3 mr-1" />
-                                                                                        Transfer
-                                                                                    </Button>
-                                                                                </PopoverTrigger>
-                                                                                <PopoverContent className="w-48 p-2 z-[250] bg-white border-slate-200 shadow-xl" align="end">
-                                                                                    <div className="text-[10px] font-black uppercase text-slate-500 mb-2 px-2 tracking-widest">Move to Godown</div>
-                                                                                    <div className="space-y-1">
-                                                                                        {storageLocations.map((loc) => (
-                                                                                            <Button
-                                                                                                key={loc.name}
-                                                                                                variant="ghost"
-                                                                                                className="w-full justify-start text-[10px] font-bold h-8 hover:bg-blue-50 hover:text-blue-600 rounded-md"
-                                                                                                onClick={() => handleRelocate(lot.id, loc.name)}
-                                                                                            >
-                                                                                                {loc.name}
-                                                                                            </Button>
-                                                                                        ))}
-                                                                                    </div>
-                                                                                </PopoverContent>
-                                                                            </Popover>
+                                                                 const isSold = (lot.current_qty !== undefined && lot.current_qty <= 0);
+                                                                 const isFullyPaid = group.paymentStatus === 'paid';
+                                                                 const isLocked = isSold && isFullyPaid;
+                                                                 return (
+                                                                     <div key={lot.id} className="flex gap-2 items-center bg-white p-2 rounded-xl border border-slate-100 group/item hover:border-blue-200 transition-all shadow-sm">
+                                                                         <div className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center shrink-0">
+                                                                             <Box className="w-4 h-4 text-slate-400 group-hover/item:text-blue-500 transition-colors" />
+                                                                         </div>
+                                                                         <div className="flex-1 grid grid-cols-4 items-center gap-3">
+                                                                             <div className="flex flex-col">
+                                                                                 <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Product</span>
+                                                                                 <div className="flex items-center gap-1">
+                                                                                     <span className="text-[10px] font-black text-slate-900 group-hover/item:text-blue-600 transition-colors truncate">{lot.item?.name || 'Unknown'}</span>
+                                                                                     {lot.item?.internal_id && (
+                                                                                         <span className="text-[8px] font-bold text-blue-400 px-1 border border-blue-100 rounded">
+                                                                                             {lot.item.internal_id}
+                                                                                         </span>
+                                                                                     )}
+                                                                                 </div>
+                                                                             </div>
+                                                                             <div className="flex flex-col">
+                                                                                 <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Quantity</span>
+                                                                                 <span className="text-[10px] font-bold text-slate-700">{qty} {lot.unit === 'box' ? 'BOX' : 'PCS'}</span>
+                                                                             </div>
+                                                                             <div className="flex flex-col">
+                                                                                 <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Net Rate</span>
+                                                                                 <span className="text-[10px] font-bold text-slate-700">₹{lot.supplier_rate || 0}</span>
+                                                                             </div>
+                                                                             <div className="flex flex-col text-right pr-2">
+                                                                                 <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Amount</span>
+                                                                                 <span className={cn(
+                                                                                     "text-xs font-[1000] tracking-tighter",
+                                                                                     lotTotal >= 0 ? "text-emerald-600" : "text-rose-600"
+                                                                                 )}>
+                                                                                     ₹{Math.round(lotTotal).toLocaleString()}
+                                                                                 </span>
+                                                                             </div>
+                                                                         </div>
+                                                                         <div className="flex items-center gap-2 pl-3 border-l border-slate-50">
+                                                                             <Popover>
+                                                                                 <PopoverTrigger asChild>
+                                                                                     <Button
+                                                                                         size="sm"
+                                                                                         variant="outline"
+                                                                                         className="h-7 px-3 rounded-lg transition-all text-[9px] font-black uppercase tracking-tighter border-slate-200 hover:bg-slate-50"
+                                                                                     >
+                                                                                         <Truck className="w-3 h-3 mr-1" />
+                                                                                         Transfer
+                                                                                     </Button>
+                                                                                 </PopoverTrigger>
+                                                                                 <PopoverContent className="w-48 p-2 z-[250] bg-white border-slate-200 shadow-xl" align="end">
+                                                                                     <div className="text-[10px] font-black uppercase text-slate-500 mb-2 px-2 tracking-widest">Move to Godown</div>
+                                                                                     <div className="space-y-1">
+                                                                                         {storageLocations.map((loc) => (
+                                                                                             <Button
+                                                                                                 key={loc.name}
+                                                                                                 variant="ghost"
+                                                                                                 className="w-full justify-start text-[10px] font-bold h-8 hover:bg-blue-50 hover:text-blue-600 rounded-md"
+                                                                                                 onClick={() => handleRelocate(lot.id, loc.name)}
+                                                                                             >
+                                                                                                 {loc.name}
+                                                                                             </Button>
+                                                                                         ))}
+                                                                                     </div>
+                                                                                 </PopoverContent>
+                                                                             </Popover>
 
-                                                                            <Button
-                                                                                size="sm"
-                                                                                onClick={() => onEditLot(lot.id, isLocked)}
-                                                                                className={cn(
-                                                                                    "h-7 px-3 rounded-lg transition-all text-[9px] font-black uppercase tracking-tighter",
-                                                                                    isLocked ? "bg-slate-100 text-slate-400" : "bg-slate-900 text-white hover:bg-blue-600"
-                                                                                )}
-                                                                            >
-                                                                                {isLocked ? 'View' : 'Edit'}
-                                                                            </Button>
-                                                                        </div>
-                                                                    </div>
-                                                                );
-                                                            })}
+                                                                             <Button
+                                                                                 size="sm"
+                                                                                 onClick={() => onEditLot(lot.id, isLocked)}
+                                                                                 className={cn(
+                                                                                     "h-7 px-3 rounded-lg transition-all text-[9px] font-black uppercase tracking-tighter",
+                                                                                     isLocked ? "bg-slate-100 text-slate-400" : "bg-slate-900 text-white hover:bg-blue-600"
+                                                                                 )}
+                                                                             >
+                                                                                 {isLocked ? 'View' : 'Edit'}
+                                                                             </Button>
+                                                                         </div>
+                                                                     </div>
+                                                                 );
+                                                             })}
                                                         </div>
                                                     </motion.div>
                                                 )}

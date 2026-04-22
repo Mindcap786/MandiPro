@@ -142,23 +142,6 @@ export default function BuyerInvoice({ sale, organization, onRefresh }: InvoiceT
                         <span className="text-gray-400 font-bold uppercase">Invoice No:</span>
                         <span className="font-black">#INV-{displayBillNo}</span>
                     </div>
-                    {(() => {
-                        const masterLot = sale.lot_no;
-                        const itemLots = items
-                            .map((i: any) => i.lot?.lot_code)
-                            .filter((code: any) => code && code !== 'N/A');
-                        const uniqueLots = Array.from(new Set(itemLots));
-                        const displayLot = (masterLot && masterLot !== 'N/A') ? masterLot : uniqueLots.join(', ');
-
-                        if (!displayLot || displayLot === '') return null;
-
-                        return (
-                            <div className="flex justify-end gap-2">
-                                <span className="text-gray-400 font-bold uppercase">Lot No:</span>
-                                <span className="font-black text-orange-600">{displayLot}</span>
-                            </div>
-                        );
-                    })()}
                     <div className="flex justify-end gap-2">
                         <span className="text-gray-400 font-bold uppercase">Date:</span>
                         <span className="font-black">

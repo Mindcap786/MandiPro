@@ -51,29 +51,37 @@ export default function PurchaseBillInvoice({
 
     const paymentMode = arrival?.payment_mode || lot.payment_mode || 'udhaar'
 
-    // ── Financial calculations (reusing existing lib) ────────────
-    const isSettled = !!lot.settlement_at;
-    const grossQty = toNumber(lot.gross_quantity) || toNumber(lot.initial_qty)
-    const netQty = grossQty - ((grossQty * toNumber(lot.less_percent) / 100) + toNumber(lot.less_units))
-
-    // SOURCE OF TRUTH: Use settled values if available, else fallback to live calc
-    const netGoodsValue = isSettled 
-        ? toNumber(lot.settlement_goods_value) 
-        : netQty * toNumber(lot.supplier_rate);
-
-    const commissionAmount = isSettled ? toNumber(lot.settlement_commission) : (netGoodsValue * toNumber(lot.commission_percent)) / 100;
-    const lotExpenses = isSettled ? toNumber(lot.settlement_expenses) : (toNumber(lot.packing_cost) + toNumber(lot.loading_cost) + toNumber(lot.farmer_charges));
+    // ── Financial calculations (Aggregated across all lots) ──────
+    const lotsToProcess = arrivalLots.length > 0 ? arrivalLots : [lot];
     
-    const advance = toNumber(lot.advance)
-    const paidAmount = toNumber(lot?.paid_amount);
+    let totalGrossQty = 0;
+    let totalNetGoodsValue = 0;
+    let totalCommission = 0;
+    let totalLotExpenses = 0;
+    let totalAdvance = 0;
+    let totalPaidAmount = 0;
+    let totalOtherCharges = 0;
+    let totalArrivalExpenseShare = 0;
 
-    // Missing UI variables
-    const loadingCost = toNumber(lot.loading_cost);
-    const packingCost = toNumber(lot.packing_cost);
-    const otherCut = toNumber(lot.other_charges || 0);
-    const arrivalExpenseShare = toNumber(lot.farmer_charges || 0);
+    lotsToProcess.forEach(l => {
+        const isSettled = !!l.settlement_at;
+        const gQty = toNumber(l.gross_quantity) || toNumber(l.initial_qty);
+        const nQty = gQty - ((gQty * toNumber(l.less_percent) / 100) + toNumber(l.less_units));
+        const goodsVal = isSettled 
+            ? toNumber(l.settlement_goods_value) 
+            : nQty * toNumber(l.supplier_rate);
+        
+        totalGrossQty += gQty;
+        totalNetGoodsValue += goodsVal;
+        totalCommission += isSettled ? toNumber(l.settlement_commission) : (goodsVal * toNumber(l.commission_percent)) / 100;
+        totalLotExpenses += isSettled ? toNumber(l.settlement_expenses) : (toNumber(l.packing_cost) + toNumber(l.loading_cost));
+        totalAdvance += toNumber(l.advance);
+        totalPaidAmount += toNumber(l.paid_amount);
+        totalOtherCharges += toNumber(l.other_charges || 0);
+        totalArrivalExpenseShare += toNumber(l.farmer_charges || 0);
+    });
 
-    const finalPayable = Math.max(0, netGoodsValue - commissionAmount - lotExpenses - advance - paidAmount)
+    const finalPayable = Math.max(0, totalNetGoodsValue - totalCommission - totalLotExpenses - totalAdvance - totalPaidAmount - totalOtherCharges - totalArrivalExpenseShare)
 
     // Organization address
     const fullAddress = [
@@ -201,32 +209,40 @@ export default function PurchaseBillInvoice({
                 <table className="w-full text-left">
                     <thead>
                         <tr className="border-b-2 border-black">
-                            <th className="py-2 text-[10px] font-black uppercase tracking-[0.2em] text-black text-left">Item / Lot</th>
+                            <th className="py-2 text-[10px] font-black uppercase tracking-[0.2em] text-black text-left">Item Details</th>
                             <th className="py-2 text-[10px] font-black uppercase tracking-[0.2em] text-black text-center">Net Qty</th>
                             <th className="py-2 text-[10px] font-black uppercase tracking-[0.2em] text-black text-right">Rate</th>
                             <th className="py-2 text-[10px] font-black uppercase tracking-[0.2em] text-black text-right">Amount</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                        <tr>
-                            <td className="py-2">
-                                <p className="font-black text-xs tracking-tight uppercase leading-none">{itemName}</p>
-                                {lotCode && lotCode !== 'N/A' && (
-                                    <p className="text-[10px] font-black text-white bg-orange-600 px-1.5 py-0.5 rounded inline-block tracking-widest uppercase tabular-nums mt-1.5">
-                                        {lotCode}
-                                    </p>
-                                )}
-                            </td>
-                            <td className="py-2 text-center font-bold text-sm tracking-tighter">
-                                {Math.round(netQty * 100) / 100} <span className="text-[11px] text-gray-500 font-bold ml-0.5 uppercase tracking-tight">{unit}</span>
-                            </td>
-                            <td className="py-2 text-right font-bold text-sm tracking-tighter">
-                                ₹{toNumber(lot.supplier_rate).toLocaleString()}
-                            </td>
-                            <td className="py-2 text-right font-black text-sm tracking-tighter">
-                                ₹{Math.round(netGoodsValue).toLocaleString()}
-                            </td>
-                        </tr>
+                        {lotsToProcess.map((l: any) => {
+                            const lGrossQty = toNumber(l.gross_quantity) || toNumber(l.initial_qty);
+                            const lNetQty = lGrossQty - ((lGrossQty * toNumber(l.less_percent) / 100) + toNumber(l.less_units));
+                            const lIsSettled = !!l.settlement_at;
+                            const lGoodsVal = lIsSettled 
+                                ? toNumber(l.settlement_goods_value) 
+                                : lNetQty * toNumber(l.supplier_rate);
+
+                            return (
+                                <tr key={l.id}>
+                                    <td className="py-2">
+                                        <p className="font-black text-xs tracking-tight uppercase leading-none">
+                                            {formatCommodityName(l.item?.name || lot.item?.name, l.custom_attributes || l.item?.custom_attributes || lot.custom_attributes)}
+                                        </p>
+                                    </td>
+                                    <td className="py-2 text-center font-bold text-sm tracking-tighter">
+                                        {Math.round(lNetQty * 100) / 100} <span className="text-[11px] text-gray-500 font-bold ml-0.5 uppercase tracking-tight">{l.unit || unit}</span>
+                                    </td>
+                                    <td className="py-2 text-right font-bold text-sm tracking-tighter">
+                                        ₹{toNumber(l.supplier_rate).toLocaleString()}
+                                    </td>
+                                    <td className="py-2 text-right font-black text-sm tracking-tighter">
+                                        ₹{Math.round(lGoodsVal).toLocaleString()}
+                                    </td>
+                                </tr>
+                            );
+                        })}
                     </tbody>
                 </table>
             </div>
@@ -244,13 +260,13 @@ export default function PurchaseBillInvoice({
                         <div className="grid grid-cols-[100px_1fr] gap-x-2 gap-y-1.5 text-[10px]">
                             <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Mode of Pay</span>
                             <span className="font-black text-blue-600 uppercase text-[10px] tracking-tight">
-                                {(advance + paidAmount) <= 0 ? 'UDHAAR (CREDIT)' : (paymentMode === 'credit' || paymentMode === 'udhaar' ? 'CREDIT (UDHAAR)' : paymentMode)}
+                                {(totalAdvance + totalPaidAmount) <= 0 ? 'UDHAAR (CREDIT)' : (paymentMode === 'credit' || paymentMode === 'udhaar' ? 'CREDIT (UDHAAR)' : paymentMode)}
                             </span>
                             
-                            {advance > 0 && (
+                            {totalAdvance > 0 && (
                                 <>
                                     <span className="text-gray-400 font-bold uppercase">Paid Amount</span>
-                                    <span className="font-black text-emerald-700">₹{advance.toLocaleString()}</span>
+                                    <span className="font-black text-emerald-700">₹{totalAdvance.toLocaleString()}</span>
                                 </>
                             )}
 
@@ -299,53 +315,53 @@ export default function PurchaseBillInvoice({
                         {/* Net Goods Value */}
                         <div className="flex justify-between items-center text-xs mb-2">
                             <span className="font-black text-slate-800 uppercase">Net Goods Value</span>
-                            <span className="font-black text-slate-800">₹{Math.round(netGoodsValue).toLocaleString()}</span>
+                            <span className="font-black text-slate-800">₹{Math.round(totalNetGoodsValue).toLocaleString()}</span>
                         </div>
 
                         {/* Commission — only for commission types */}
-                        {commissionAmount > 0.01 && (
+                        {totalCommission > 0.01 && (
                             <div className="flex justify-between items-center text-xs border-t border-gray-100 pt-1">
                                 <span className="font-bold text-purple-600 uppercase">
                                     Commission
                                 </span>
                                 <span className="font-bold text-purple-600">
-                                    − ₹{Math.round(commissionAmount).toLocaleString()}
+                                    − ₹{Math.round(totalCommission).toLocaleString()}
                                 </span>
                             </div>
                         )}
 
                         {/* Other Charges */}
-                        {otherCut > 0 && (
+                        {totalOtherCharges > 0 && (
                             <div className="flex justify-between items-center text-xs">
                                 <span className="text-gray-400 font-bold uppercase tracking-widest">Other Charges</span>
-                                <span className="font-bold text-red-500">− ₹{Math.round(otherCut).toLocaleString()}</span>
+                                <span className="font-bold text-red-500">− ₹{Math.round(totalOtherCharges).toLocaleString()}</span>
                             </div>
                         )}
 
-                        {/* Loading/Packing Cost */}
-                        {(loadingCost > 0 || packingCost > 0) || arrivalExpenseShare > 0.01 ? (
+                        {/* Loading/Packing Cost + Arrival Expenses */}
+                        {(totalLotExpenses > 0) || totalArrivalExpenseShare > 0.01 ? (
                             <div className="flex justify-between items-center text-xs border-t border-gray-100 pt-1">
                                 <span className="text-gray-400 font-bold uppercase tracking-widest">Expenses / Transport</span>
-                                <span className="font-bold text-red-500">− ₹{Math.round(loadingCost + packingCost + arrivalExpenseShare).toLocaleString()}</span>
+                                <span className="font-bold text-red-500">− ₹{Math.round(totalLotExpenses + totalArrivalExpenseShare).toLocaleString()}</span>
                             </div>
                         ) : null}
 
                         {/* Advance Paid */}
-                        {advance > 0 && (
+                        {totalAdvance > 0 && (
                             <div className="flex justify-between items-center text-xs border-t border-gray-100 pt-1">
                                 <span className="text-emerald-600 font-bold uppercase tracking-widest">Paid (Advance)</span>
                                 <span className="font-bold text-emerald-600">
-                                    − ₹{Math.round(advance).toLocaleString()}
+                                    − ₹{Math.round(totalAdvance).toLocaleString()}
                                 </span>
                             </div>
                         )}
 
                         {/* Other Payments */}
-                        {paidAmount > 0 && (
+                        {totalPaidAmount > 0 && (
                             <div className="flex justify-between items-center text-xs border-t border-gray-100 pt-1">
                                 <span className="text-emerald-600 font-bold uppercase tracking-widest">Other Payments</span>
                                 <span className="font-bold text-emerald-600">
-                                    − ₹{Math.round(paidAmount).toLocaleString()}
+                                    − ₹{Math.round(totalPaidAmount).toLocaleString()}
                                 </span>
                             </div>
                         )}

@@ -59,7 +59,7 @@ export default function PurchaseBillInvoicePage() {
                 const { data: relatedLots } = await supabase
                     .schema('mandi')
                     .from('lots')
-                    .select('id, arrival_id, arrival_type, initial_qty, supplier_rate, less_percent, farmer_charges, packing_cost, loading_cost, advance, commission_percent, sale_items(amount, qty, rate)')
+                    .select('*, item:commodities(name, default_unit), sale_items(amount, qty, rate)')
                     .eq('arrival_id', lotData.arrival_id)
 
                 setArrivalLots(relatedLots || [])
