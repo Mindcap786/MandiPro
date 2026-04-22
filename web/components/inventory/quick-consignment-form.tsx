@@ -71,7 +71,7 @@ import { toast } from 'sonner'
 import { cacheGet, cacheSet, cacheIsStale } from '@/lib/data-cache'
 import { ItemDialog } from '@/components/inventory/item-dialog'
 import { Switch } from '@/components/ui/switch'
-import { formatCommodityName } from '@/lib/utils/commodity-utils'
+import { formatCommodityName, getMainItemName, getAvailableSpecifications } from '@/lib/utils/commodity-utils'
 
 const formSchema = z.object({
     arrival_date: z.date(),
@@ -90,6 +90,7 @@ const formSchema = z.object({
         item_id: z.string().min(1, 'Required'),
         variety: z.string().optional(),
         grade: z.string().optional(),
+        custom_attributes: z.record(z.string(), z.string()).optional(),
         unit: z.string().min(1, 'Required'),
         qty: z.union([z.number(), z.literal('')]).transform(v => v === '' ? 0 : v),
         rate: z.union([z.number(), z.literal('')]).transform(v => v === '' ? 0 : v),
@@ -399,7 +400,8 @@ export function QuickPurchaseForm() {
                 less_units: Number(row.less_units),
                 commission_type: row.commission_type,
                 variety: row.variety || null,
-                grade: row.grade || null
+                grade: row.grade || null,
+                custom_attributes: row.custom_attributes || {}
             }))
 
             const { data, error } = await supabase.schema('mandi').rpc('record_quick_purchase', {
@@ -692,30 +694,54 @@ export function QuickPurchaseForm() {
                                             />
 
                                             <div className="grid grid-cols-2 gap-4">
-                                                <FormField
-                                                    control={form.control}
-                                                    name={`rows.${index}.variety`}
-                                                    render={({ field }) => (
-                                                        <FormItem>
-                                                            <FormLabel className="text-[9px] font-black uppercase text-slate-400">Variety</FormLabel>
-                                                            <FormControl>
-                                                                <Input {...field} placeholder="e.g. Red" className="h-10 bg-slate-50 border-none rounded-xl text-xs font-black shadow-sm" />
-                                                            </FormControl>
-                                                        </FormItem>
-                                                    )}
-                                                />
-                                                <FormField
-                                                    control={form.control}
-                                                    name={`rows.${index}.grade`}
-                                                    render={({ field }) => (
-                                                        <FormItem>
-                                                            <FormLabel className="text-[9px] font-black uppercase text-slate-400">Grade</FormLabel>
-                                                            <FormControl>
-                                                                <Input {...field} placeholder="e.g. A" className="h-10 bg-slate-50 border-none rounded-xl text-xs font-black shadow-sm" />
-                                                            </FormControl>
-                                                        </FormItem>
-                                                    )}
-                                                />
+                                                {(() => {
+                                                    const itemId = form.watch(`rows.${index}.item_id`);
+                                                    if (!itemId) return null;
+                                                    
+                                                    const itemData = items.find(i => i.id === itemId);
+                                                    const baseName = itemData ? getMainItemName(itemData.name) : '';
+                                                    const availableSpecs = baseName ? getAvailableSpecifications(items, baseName) : {};
+                                                    
+                                                    const specKeys = Array.from(new Set([
+                                                        'variety',
+                                                        'grade',
+                                                        ...Object.keys(availableSpecs)
+                                                    ]));
+
+                                                    return specKeys.map((key) => {
+                                                        const options = availableSpecs[key] || [];
+                                                        const isStandard = key === 'variety' || key === 'grade';
+                                                        const fieldName = isStandard ? `rows.${index}.${key}` : `rows.${index}.custom_attributes.${key}`;
+                                                        
+                                                        return (
+                                                            <div key={key} className="col-span-1">
+                                                                <FormField
+                                                                    control={form.control}
+                                                                    name={fieldName as any}
+                                                                    render={({ field }) => (
+                                                                        <FormItem>
+                                                                            <FormLabel className="text-[9px] font-black uppercase text-slate-400">
+                                                                                {key.charAt(0).toUpperCase() + key.slice(1).replace('_', ' ')}
+                                                                            </FormLabel>
+                                                                            <FormControl>
+                                                                                <SearchableSelect
+                                                                                    options={options.map(opt => ({ value: opt, label: opt }))}
+                                                                                    value={field.value || ""}
+                                                                                    onChange={(val) => {
+                                                                                        field.onChange(val);
+                                                                                    }}
+                                                                                    placeholder={`Select ${key}`}
+                                                                                    className="h-10 bg-slate-50 border-none rounded-xl text-xs font-black shadow-sm"
+                                                                                    allowCustom={true}
+                                                                                />
+                                                                            </FormControl>
+                                                                        </FormItem>
+                                                                    )}
+                                                                />
+                                                            </div>
+                                                        );
+                                                    });
+                                                })()}
                                             </div>
                                         </div>
 

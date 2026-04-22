@@ -84,3 +84,36 @@ export function getMainItemName(fullName: string | null | undefined): string {
     if (!fullName) return "";
     return fullName.split('(')[0].trim();
 }
+/**
+ * Extracts all unique specification keys and their associated values 
+ * for a base commodity name from a list of items.
+ * 
+ * @param items List of commodities from the master list
+ * @param baseName The base name of the item (e.g. "Mango")
+ * @returns Map of attribute keys to arrays of unique sorted values
+ */
+export function getAvailableSpecifications(items: any[], baseName: string): Record<string, string[]> {
+    const specs: Record<string, Set<string>> = {};
+    
+    items.forEach(item => {
+        // Compare with base name
+        if (getMainItemName(item.name) === baseName) {
+            const attrs = item.custom_attributes || {};
+            Object.entries(attrs).forEach(([key, value]) => {
+                const strVal = String(value || "").trim();
+                if (strVal) {
+                    if (!specs[key]) specs[key] = new Set();
+                    specs[key].add(strVal);
+                }
+            });
+        }
+    });
+
+    // Convert Sets to sorted Arrays
+    const result: Record<string, string[]> = {};
+    Object.entries(specs).forEach(([key, valueSet]) => {
+        result[key] = Array.from(valueSet).sort();
+    });
+
+    return result;
+}

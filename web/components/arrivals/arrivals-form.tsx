@@ -58,12 +58,13 @@ import { cacheGet, cacheSet, cacheIsStale } from "@/lib/data-cache";
 import { useArrivalsMasterData } from "@/hooks/mandi/useArrivalsMasterData";
 import { useArrivals } from "@/hooks/mandi/useArrivals";
 import { useFieldGovernance } from "@/hooks/useFieldGovernance";
-import { formatCommodityName } from "@/lib/utils/commodity-utils";
+import { formatCommodityName, getMainItemName, getAvailableSpecifications } from "@/lib/utils/commodity-utils";
 
 const itemSchema = z.object({
     item_id: z.string().optional(),
     variety: z.string().optional(),
     grade: z.string().optional(),
+    custom_attributes: z.record(z.string(), z.string()).optional(),
     qty: z.coerce.number().min(0, "Qty must be at least 0"),
     unit: z.string().optional(),
     unit_weight: z.coerce.number().min(0).default(0),
@@ -1217,84 +1218,97 @@ export default function ArrivalsEntryForm() {
                                         </div>
                                         <div className="grid grid-cols-12 gap-4 items-start">
 
-                                            {/* REDESIGNED GRID: 2 Rows, Line 1: Item, Qty, Rate | Line 2: Unit, Storage */}
-                                            <div className="col-span-12 grid grid-cols-12 gap-3 items-start p-2">
-                                                {/* ROW 1: Commodity, Quantity, Rate */}
-                                                <div className="col-span-12 grid grid-cols-12 gap-3">
-                                                    {isVisible('item_id') && (
-                                                        <div className="col-span-12 md:col-span-6 lg:col-span-6">
-                                                            <FormField
-                                                                control={form.control}
-                                                                name={`items.${index}.item_id`}
-                                                                render={({ field }) => (
-                                                                    <FormItem>
-                                                                        <div className="flex items-center justify-between mb-1">
-                                                                            <FormLabel className="text-[10px] font-bold text-slate-700 uppercase tracking-wide">Commodity</FormLabel>
-                                                                            <ItemDialog onSuccess={refetchMaster}>
-                                                                                <Button type="button" variant="link" className="h-auto p-0 text-blue-600 text-[9px] font-bold uppercase tracking-widest hover:text-blue-800 transition-colors">
-                                                                                    + ADD
-                                                                                </Button>
-                                                                            </ItemDialog>
-                                                                        </div>
-                                                                        <SearchableSelect
-                                                                            options={availableItems.map(i => ({ value: i.id, label: formatCommodityName(i.name, i.custom_attributes) }))}
-                                                                            value={field.value}
-                                                                            onChange={(val) => {
-                                                                                field.onChange(val);
-                                                                                const selectedItem = availableItems.find(i => i.id === val);
-                                                                                if (selectedItem?.default_unit) {
-                                                                                    form.setValue(`items.${index}.unit`, selectedItem.default_unit);
-                                                                                }
-                                                                                // Pre-fill variety/grade if available in commodity
-                                                                                if (selectedItem?.custom_attributes) {
-                                                                                    if (selectedItem.custom_attributes.variety) form.setValue(`items.${index}.variety`, selectedItem.custom_attributes.variety);
-                                                                                    if (selectedItem.custom_attributes.grade) form.setValue(`items.${index}.grade`, selectedItem.custom_attributes.grade);
-                                                                                }
-                                                                            }}
-                                                                            placeholder="Select Item"
-                                                                            className="bg-white border border-slate-300 text-slate-900 font-bold h-9 rounded-lg text-xs"
-                                                                        />
-                                                                        <FormMessage />
-                                                                    </FormItem>
-                                                                )}
-                                                            />
-                                                        </div>
-                                                    )}
+                                            <div className="col-span-12 grid grid-cols-12 gap-3">
+                                                {isVisible('item_id') && (
+                                                    <div className="col-span-12 md:col-span-6 lg:col-span-6">
+                                                        <FormField
+                                                            control={form.control}
+                                                            name={`items.${index}.item_id`}
+                                                            render={({ field }) => (
+                                                                <FormItem>
+                                                                    <div className="flex items-center justify-between mb-1">
+                                                                        <FormLabel className="text-[10px] font-bold text-slate-700 uppercase tracking-wide">Commodity</FormLabel>
+                                                                        <ItemDialog onSuccess={refetchMaster}>
+                                                                            <Button type="button" variant="link" className="h-auto p-0 text-blue-600 text-[9px] font-bold uppercase tracking-widest hover:text-blue-800 transition-colors">
+                                                                                + ADD
+                                                                            </Button>
+                                                                        </ItemDialog>
+                                                                    </div>
+                                                                    <SearchableSelect
+                                                                        options={availableItems.map(i => ({ value: i.id, label: formatCommodityName(i.name, i.custom_attributes) }))}
+                                                                        value={field.value}
+                                                                        onChange={(val) => {
+                                                                            field.onChange(val);
+                                                                            const selectedItem = availableItems.find(i => i.id === val);
+                                                                            if (selectedItem?.default_unit) {
+                                                                                form.setValue(`items.${index}.unit`, selectedItem.default_unit);
+                                                                            }
+                                                                            // Pre-fill variety/grade if available in commodity
+                                                                            if (selectedItem?.custom_attributes) {
+                                                                                if (selectedItem.custom_attributes.variety) form.setValue(`items.${index}.variety`, selectedItem.custom_attributes.variety);
+                                                                                if (selectedItem.custom_attributes.grade) form.setValue(`items.${index}.grade`, selectedItem.custom_attributes.grade);
+                                                                            }
+                                                                        }}
+                                                                        placeholder="Select Item"
+                                                                        className="bg-white border border-slate-300 text-slate-900 font-bold h-9 rounded-lg text-xs"
+                                                                    />
+                                                                    <FormMessage />
+                                                                </FormItem>
+                                                            )}
+                                                        />
+                                                    </div>
+                                                )}
 
-                                                    {isVisible('variety') && (
-                                                        <div className="col-span-6 md:col-span-3 lg:col-span-3">
-                                                            <FormField
-                                                                control={form.control}
-                                                                name={`items.${index}.variety`}
-                                                                render={({ field }) => (
-                                                                    <FormItem>
-                                                                        <FormLabel className="text-[9px] font-bold text-slate-700 uppercase tracking-wide mb-0.5 block">Variety</FormLabel>
-                                                                        <FormControl>
-                                                                            <Input {...field} placeholder="e.g. Red" className="bg-white border border-slate-300 h-9 text-xs text-slate-900 font-bold rounded-lg" />
-                                                                        </FormControl>
-                                                                    </FormItem>
-                                                                )}
-                                                            />
-                                                        </div>
-                                                    )}
+                                                {(() => {
+                                                    const itemId = form.watch(`items.${index}.item_id`);
+                                                    if (!itemId) return null;
+                                                    
+                                                    const itemData = availableItems.find(i => i.id === itemId);
+                                                    const baseName = itemData ? getMainItemName(itemData.name) : '';
+                                                    const availableSpecs = baseName ? getAvailableSpecifications(availableItems, baseName) : {};
+                                                    
+                                                    const specKeys = Array.from(new Set([
+                                                        ...(isVisible('variety') ? ['variety'] : []),
+                                                        ...(isVisible('grade') ? ['grade'] : []),
+                                                        ...Object.keys(availableSpecs)
+                                                    ]));
 
-                                                    {isVisible('grade') && (
-                                                        <div className="col-span-6 md:col-span-3 lg:col-span-3">
-                                                            <FormField
-                                                                control={form.control}
-                                                                name={`items.${index}.grade`}
-                                                                render={({ field }) => (
-                                                                    <FormItem>
-                                                                        <FormLabel className="text-[9px] font-bold text-slate-700 uppercase tracking-wide mb-0.5 block">Grade</FormLabel>
-                                                                        <FormControl>
-                                                                            <Input {...field} placeholder="e.g. A" className="bg-white border border-slate-300 h-9 text-xs text-slate-900 font-bold rounded-lg" />
-                                                                        </FormControl>
-                                                                    </FormItem>
-                                                                )}
-                                                            />
-                                                        </div>
-                                                    )}
-                                                </div>
+                                                    return specKeys.map((key) => {
+                                                        const options = availableSpecs[key] || [];
+                                                        const isStandard = key === 'variety' || key === 'grade';
+                                                        const fieldName = isStandard ? `items.${index}.${key}` : `items.${index}.custom_attributes.${key}`;
+                                                        
+                                                        return (
+                                                            <div key={key} className="col-span-6 md:col-span-3 lg:col-span-3">
+                                                                <FormField
+                                                                    control={form.control}
+                                                                    name={fieldName as any}
+                                                                    render={({ field }) => (
+                                                                        <FormItem>
+                                                                            <FormLabel className="text-[9px] font-bold text-slate-700 uppercase tracking-wide mb-0.5 block">
+                                                                                {key.charAt(0).toUpperCase() + key.slice(1).replace('_', ' ')}
+                                                                            </FormLabel>
+                                                                            <FormControl>
+                                                                                <div className="relative">
+                                                                                    <SearchableSelect
+                                                                                        options={options.map(opt => ({ value: opt, label: opt }))}
+                                                                                        value={field.value || ""}
+                                                                                        onChange={(val) => {
+                                                                                            field.onChange(val);
+                                                                                        }}
+                                                                                        placeholder={`Select ${key}`}
+                                                                                        className="bg-white border border-slate-300 h-9 text-xs text-slate-900 font-bold rounded-lg"
+                                                                                        allowCustom={true}
+                                                                                    />
+                                                                                </div>
+                                                                            </FormControl>
+                                                                        </FormItem>
+                                                                    )}
+                                                                />
+                                                            </div>
+                                                        );
+                                                    });
+                                                })()}
 
                                                 {/* ROW 2: Qty, Rate, Unit, Storage */}
                                                 <div className="col-span-12 grid grid-cols-12 gap-3 mt-2">
