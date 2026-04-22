@@ -49,7 +49,7 @@ export default function FinancialDashboard() {
 
     // 3. Selection & Filter States
     const [selectedParty, setSelectedParty] = useState<{ id: string, name: string, type?: string } | null>(null);
-    const [filterType, setFilterType] = useState<'all' | 'buyer' | 'supplier' | 'farmer' | 'staff'>('all');
+    const [filterType, setFilterType] = useState<'all' | 'buyer' | 'supplier' | 'farmer'>('all');
     const [subFilter, setSubFilter] = useState<'all' | 'receivable' | 'payable'>('all');
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -588,7 +588,7 @@ export default function FinancialDashboard() {
                     <div className="flex flex-col gap-4 bg-white p-4 rounded-3xl border border-slate-200 shadow-sm relative overflow-hidden">
                         <div className="flex flex-col md:flex-row justify-between items-center gap-4 relative z-10">
                             <div className="flex gap-2 p-1 bg-slate-100 rounded-xl w-fit border border-slate-200 shadow-inner">
-                                {['all', 'buyer', 'supplier', 'farmer', 'staff'].map((filter) => (
+                                {['all', 'buyer', 'supplier', 'farmer'].map((filter) => (
                                     <button
                                         key={filter}
                                         onClick={() => setFilterType(filter as any)}
