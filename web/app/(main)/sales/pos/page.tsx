@@ -1005,12 +1005,14 @@ export default function POSPage() {
                                         {buyers.find(b => b.id === selectedBuyerId)?.city || 'N/A'}
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-2 mt-1 pt-1 border-t border-indigo-100/50">
-                                    <span className="text-[9px] font-bold text-indigo-400 uppercase tracking-tight">GSTIN:</span>
-                                    <span className="text-[10px] font-black text-slate-700 font-mono tracking-wider">
-                                        {buyers.find(b => b.id === selectedBuyerId)?.gstin || 'NOT PROVIDED'}
-                                    </span>
-                                </div>
+                                {buyers.find(b => b.id === selectedBuyerId)?.gstin && (
+                                    <div className="flex items-center gap-2 mt-1 pt-1 border-t border-indigo-100/50">
+                                        <span className="text-[9px] font-bold text-indigo-400 uppercase tracking-tight">GSTIN:</span>
+                                        <span className="text-[10px] font-black text-slate-700 font-mono tracking-wider">
+                                            {buyers.find(b => b.id === selectedBuyerId)?.gstin}
+                                        </span>
+                                    </div>
+                                )}
                             </motion.div>
                         )}
                     </div>

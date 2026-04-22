@@ -48,6 +48,7 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Keep Select for payment_mode and lot_id
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEnterToTab } from "@/hooks/use-enter-to-tab";
+import { formatCommodityName } from "@/lib/utils/commodity-utils";
 import { QRCodeSVG } from "qrcode.react";
 import { confirmSaleTransactionWithFallback } from "@/lib/mandi/confirm-sale-transaction";
 import { calculateSaleItemTaxBreakdown, calculateSaleTotals } from "@/lib/sales-tax";
