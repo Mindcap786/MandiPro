@@ -54,9 +54,9 @@ export default function PurchaseBillInvoice({
     const netQty = grossQty - ((grossQty * toNumber(lot.less_percent) / 100) + toNumber(lot.less_units))
 
     // SOURCE OF TRUTH: Use settled values if available, else fallback to live calc
-    const netGoodsValue = isSettled ? toNumber(lot.settlement_goods_value) : (arrivalType !== 'direct' && Array.isArray(lot.sale_items) && lot.sale_items.length > 0
-        ? lot.sale_items.reduce((sum: number, item: any) => sum + toNumber(item?.amount), 0)
-        : (grossQty - ((grossQty * toNumber(lot.less_percent) / 100) + toNumber(lot.less_units))) * toNumber(lot.supplier_rate));
+    const netGoodsValue = isSettled 
+        ? toNumber(lot.settlement_goods_value) 
+        : netQty * toNumber(lot.supplier_rate);
 
     const commissionAmount = isSettled ? toNumber(lot.settlement_commission) : (netGoodsValue * toNumber(lot.commission_percent)) / 100;
     const lotExpenses = isSettled ? toNumber(lot.settlement_expenses) : (toNumber(lot.packing_cost) + toNumber(lot.loading_cost) + toNumber(lot.farmer_charges));
