@@ -71,9 +71,7 @@ export default function ItemsPage() {
         item.local_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.sku_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.barcode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.internal_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.variety?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.grade?.toLowerCase().includes(searchTerm.toLowerCase())
+        item.internal_id?.toLowerCase().includes(searchTerm.toLowerCase())
     )
 
     return (
@@ -145,8 +143,6 @@ export default function ItemsPage() {
                                                 </div>
                                                 <span className="text-black text-sm">
                                                     {item.name}
-                                                    {item.variety && <span className="text-slate-400 ml-1">- {item.variety}</span>}
-                                                    {item.grade && <span className="text-slate-400 ml-1">({item.grade})</span>}
                                                 </span>
                                                 {item.custom_attributes && Object.keys(item.custom_attributes).length > 0 && (
                                                     <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-50 border border-blue-100 text-[8px] font-black text-blue-600 uppercase">

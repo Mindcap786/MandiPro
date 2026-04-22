@@ -235,9 +235,9 @@ export function ItemDialog({ children, onSuccess, initialItem }: ItemDialogProps
     useEffect(() => {
         if (open) {
             const initialAttrs = initialItem?.custom_attributes || {};
-            // If no custom attributes, provide a default "Grade" one
+            // If no custom attributes, provide a default "Variety" one
             if (Object.keys(initialAttrs).length === 0) {
-                initialAttrs["Grade"] = "";
+                initialAttrs["Variety"] = "";
             }
             // Sanitize null DB values → empty strings so Zod doesn't reject them
             // z.string().optional() accepts undefined but NOT null
@@ -524,83 +524,7 @@ export function ItemDialog({ children, onSuccess, initialItem }: ItemDialogProps
                                 </div>
                             )}
 
-                            <div className="grid grid-cols-2 gap-4">
-                                {isVisible('local_name') && (
-                                    <div className="space-y-2">
-                                        <Label className="text-[10px] font-black uppercase tracking-widest text-gray-700">{getLabel('local_name', 'Local Name (Optional)')}</Label>
-                                        <Input
-                                            placeholder={getLabel('local_name', "e.g. सेब")}
-                                            required={isMandatory('local_name')}
-                                            className="w-full bg-white border-gray-300 text-gray-900 font-bold h-12 rounded-xl focus:border-blue-500 transition-all"
-                                            {...form.register("local_name")}
-                                        />
-                                    </div>
-                                )}
-                                {isVisible('default_unit') && (
-                                    <div className="space-y-2">
-                                        <Label className="text-[10px] font-black uppercase tracking-widest text-gray-700">{getLabel('default_unit', 'Unit (Required)')}</Label>
-                                        <Select
-                                            onValueChange={(val: any) => form.setValue("default_unit", val)}
-                                            value={form.watch("default_unit")}
-                                            required={isMandatory('default_unit')}
-                                        >
-                                            <SelectTrigger className="w-full bg-white border-gray-300 text-gray-900 font-bold h-12 rounded-xl focus:ring-blue-500/20">
-                                                <SelectValue placeholder="Select unit" />
-                                            </SelectTrigger>
-                                            <SelectContent className="bg-white border-gray-300 text-gray-900 rounded-xl shadow-xl">
-                                                {false ? (
-                                                    // Wholesaler full list
-                                                    <>
-                                                        <SelectItem value="Box">Box</SelectItem>
-                                                        <SelectItem value="Crate">Crate</SelectItem>
-                                                        <SelectItem value="Kg">Kilogram (Kg)</SelectItem>
-                                                        <SelectItem value="Quintal">Quintal (100Kg)</SelectItem>
-                                                        <SelectItem value="Bag">Bag (Gunny)</SelectItem>
-                                                        <SelectItem value="Pcs">Pieces (Pcs)</SelectItem>
-                                                        <SelectItem value="litres">Litres</SelectItem>
-                                                        <SelectItem value="tons">Tons</SelectItem>
-                                                        <SelectItem value="case">Case</SelectItem>
-                                                        <SelectItem value="bundle">Bundle</SelectItem>
-                                                        <SelectItem value="meters">Meters</SelectItem>
-                                                        <SelectItem value="feet">Feet</SelectItem>
-                                                        <SelectItem value="Carton">Carton</SelectItem>
-                                                    </>
-                                                ) : (
-                                                    // MandiGrow only — matches arrivals form units exactly
-                                                    <>
-                                                        <SelectItem value="Box">Box</SelectItem>
-                                                        <SelectItem value="Crate">Crate</SelectItem>
-                                                        <SelectItem value="Kgs">Kgs</SelectItem>
-                                                        <SelectItem value="Tons">Tons</SelectItem>
-                                                        <SelectItem value="Nug">Nug</SelectItem>
-                                                        <SelectItem value="Pieces">Pieces</SelectItem>
-                                                        <SelectItem value="Carton">Carton</SelectItem>
-                                                    </>
-                                                )}
-                                            </SelectContent>
 
-                                        </Select>
-                                    </div>
-                                )}
-                                {false && (
-                                    <div className="space-y-2">
-                                        <Label className="text-[10px] font-black uppercase tracking-widest text-gray-700">Tracking Type</Label>
-                                        <Select
-                                            onValueChange={(val: any) => form.setValue("tracking_type", val)}
-                                            value={form.watch("tracking_type")}
-                                        >
-                                            <SelectTrigger className="w-full bg-white border-gray-300 text-gray-900 font-bold h-12 rounded-xl focus:ring-blue-500/20">
-                                                <SelectValue placeholder="Select tracking..." />
-                                            </SelectTrigger>
-                                            <SelectContent className="bg-white border-gray-300 text-gray-900 rounded-xl shadow-xl">
-                                                <SelectItem value="none">None</SelectItem>
-                                                <SelectItem value="lot">Lot Tracking</SelectItem>
-                                                <SelectItem value="serial">Serial Number</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                )}
-                            </div>
 
 
                             {/* Item Metadata (Shared) */}
@@ -778,7 +702,7 @@ export function ItemDialog({ children, onSuccess, initialItem }: ItemDialogProps
                                     {Object.entries(form.watch("custom_attributes") || {}).map(([key, value], idx) => (
                                         <div key={idx} className="flex gap-2 items-start group">
                                             <Input
-                                                placeholder="e.g. Grade"
+                                                placeholder="e.g. Variety"
                                                 className="flex-1 bg-gray-50 border-gray-100 text-[11px] font-bold h-9 rounded-lg"
                                                 value={key as string}
                                                 onChange={(e) => {
