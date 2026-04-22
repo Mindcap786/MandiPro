@@ -370,7 +370,7 @@ export default function PurchaseBillInvoice({
 
                         {/* Amount in Words */}
                         <div className="text-right mt-3">
-                            <p className="text-[10px] font-black text-slate-900 italic uppercase leading-tight">
+                            <p className="text-xs font-black text-slate-900 italic uppercase leading-tight">
                                 Rupees {toWords(Math.round(finalPayable))} Only
                             </p>
                         </div>
