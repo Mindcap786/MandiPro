@@ -24,15 +24,18 @@ export default function BuyerInvoice({ sale, organization, onRefresh }: InvoiceT
     const items = sale.sale_items || [];
     const subtotal = sale.total_amount || items.reduce((sum: number, item: any) => sum + Number(item.amount || 0), 0);
     const totalGst = (Number(sale.cgst_amount || sale.cgst || 0) + Number(sale.sgst_amount || sale.sgst || 0) + Number(sale.igst_amount || sale.igst || 0))
-    const totalInvoiceAmount = (
-        subtotal +
-        Number(sale.market_fee || 0) +
-        Number(sale.nirashrit || 0) +
-        Number(sale.misc_fee || 0) +
-        Number(sale.loading_charges || 0) +
-        Number(sale.unloading_charges || 0) +
-        Number(sale.other_expenses || 0) +
-        totalGst
+    const totalInvoiceAmount = Number(
+        sale.total_amount_inc_tax ||
+        (
+            subtotal +
+            Number(sale.market_fee || 0) +
+            Number(sale.nirashrit || 0) +
+            Number(sale.misc_fee || 0) +
+            Number(sale.loading_charges || 0) +
+            Number(sale.unloading_charges || 0) +
+            Number(sale.other_expenses || 0) +
+            totalGst
+        )
     );
  
     const totalQty = items.reduce((sum: number, item: any) => sum + Number(item.qty || 0), 0)
@@ -40,16 +43,20 @@ export default function BuyerInvoice({ sale, organization, onRefresh }: InvoiceT
     const isCreditSale = sale.payment_mode === 'credit' || !sale.payment_mode;
 
     // ── Single source of truth for received amount ────────────────────────────
-    // IMPORTANT: get_invoice_balance RPC returns the field as `amount_paid`.
-    //            The direct mandi.sales DB column is `amount_received`.
-    //            Always chain both so we never show ₹0 when payment exists.
-    const amountReceived = Number(
-        sale.amount_received
-        ?? sale.payment_summary?.amount_received
-        ?? sale.payment_summary?.amount_paid // field name used by get_invoice_balance RPC
-        ?? 0
+    // IMPORTANT: We use Math.max to ensure we pick up the most up-to-date 
+    //            payment info from either the direct DB column OR the 
+    //            ledger-synced get_invoice_balance RPC summary.
+    const amountReceived = Math.max(
+        Number(sale.amount_received || 0),
+        Number(sale.paid_amount || 0),
+        Number(sale.payment_summary?.amount_received || 0),
+        Number(sale.payment_summary?.amount_paid || 0) // field name used by RPC
     );
-    const balanceDue = Math.max(0, totalInvoiceAmount - amountReceived);
+
+    // Add a small epsilon (0.5) to balance calculation to treat minor 
+    // rounding/decimal differences as "Paid Full" (Mandi transactions round to ₹1).
+    const rawBalance = totalInvoiceAmount - amountReceived;
+    const balanceDue = rawBalance < 0.5 ? 0 : rawBalance;
     // ─────────────────────────────────────────────────────────────────────────
 
     const fullAddress = [
@@ -151,8 +158,11 @@ export default function BuyerInvoice({ sale, organization, onRefresh }: InvoiceT
                         );
                     })()}
                     {(() => {
-                        const displayVehicleNo = sale.vehicle_number || items.find((i: any) => i.lot?.arrival)?.lot?.arrival?.vehicle_number;
-                        const displayBookNo = sale.book_no || items.find((i: any) => i.lot?.arrival)?.lot?.arrival?.reference_no || items.find((i: any) => i.lot?.arrival)?.lot?.arrival?.bill_number;
+                        const arrivalVehicleNo = items.map((i: any) => i.lot?.arrival?.vehicle_number).find(Boolean);
+                        const displayVehicleNo = sale.vehicle_number || arrivalVehicleNo;
+
+                        const arrivalBookNo = items.map((i: any) => i.lot?.arrival?.contact_bill_no || i.lot?.arrival?.bill_no || i.lot?.arrival?.reference_no).find(Boolean);
+                        const displayBookNo = sale.book_no || arrivalBookNo;
 
                         if (!displayVehicleNo && !displayBookNo) return null;
 
@@ -231,7 +241,9 @@ export default function BuyerInvoice({ sale, organization, onRefresh }: InvoiceT
                                         </p>
                                     </div>
                                 </td>
-                                <td className="py-0.5 text-center font-bold text-sm tracking-tighter">{item.qty || 0} <span className="text-[7px] text-gray-400 font-normal">{item.unit || 'Unit'}</span></td>
+                                <td className="py-0.5 text-center font-bold text-sm tracking-tighter">
+                                    {item.qty || 0} <span className="text-[10px] text-gray-400 font-black uppercase ml-0.5">{item.unit || 'Unit'}</span>
+                                </td>
                                 <td className="py-0.5 text-right font-bold text-sm tracking-tighter">₹{Number(item.rate || 0).toLocaleString()}</td>
                                 <td className="py-0.5 text-right font-black text-sm tracking-tighter">₹{Math.round(Number(item.amount || 0)).toLocaleString()}</td>
                                 <td className="py-1 pl-4 no-print text-right opacity-50 hover:opacity-100 transition-opacity">

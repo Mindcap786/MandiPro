@@ -144,6 +144,7 @@ export default function POSPage() {
     const [showErrors, setShowErrors] = useState(false)
     const [lastInvoiceId, setLastInvoiceId] = useState<string | null>(null)
     const [amountReceived, setAmountReceived] = useState<number>(0)
+    const amountReceivedManuallyEdited = useRef(false)
     const [shakingItemId, setShakingItemId] = useState<string | null>(null)
     const [shakingCartId, setShakingCartId] = useState<string | null>(null)
     const [maxInvoiceAmount, setMaxInvoiceAmount] = useState<number>(0)
@@ -749,6 +750,8 @@ export default function POSPage() {
     }, [search, items])
 
     useEffect(() => {
+        if (amountReceivedManuallyEdited.current) return;
+        
         if (paymentMode === 'Credit') {
             setAmountReceived(0)
         } else {
@@ -1076,7 +1079,10 @@ export default function POSPage() {
                                 <div className="flex flex-col items-end justify-between self-stretch min-w-[80px]">
                                     <div className="flex items-center bg-white rounded-xl border border-slate-200 h-7 p-0.5 shadow-sm">
                                         <button onClick={() => updateQty(c.item.unique_key, (c.qty - 1).toString())} className="p-1 px-1.5 text-slate-400 hover:text-black rounded-lg transition-colors"><Minus className="w-3 h-3" /></button>
-                                        <input type="number" value={c.qty} onChange={(e) => updateQty(c.item.unique_key, e.target.value)} className="w-6 text-center font-black text-xs text-black bg-transparent border-none focus:ring-0 p-0" />
+                                        <div className="flex flex-col items-center">
+                                            <input type="number" value={c.qty} onChange={(e) => updateQty(c.item.unique_key, e.target.value)} className="w-8 text-center font-black text-xs text-black bg-transparent border-none focus:ring-0 p-0" />
+                                            <span className="text-[7px] font-black uppercase text-slate-400 -mt-1">{c.item.unit}</span>
+                                        </div>
                                         <button onClick={() => updateQty(c.item.unique_key, (c.qty + 1).toString())} className="p-1 px-1.5 text-slate-400 hover:text-black rounded-lg transition-colors"><Plus className="w-3 h-3" /></button>
                                     </div>
                                     <div className="flex items-center gap-1.5 mt-auto">
@@ -1311,6 +1317,7 @@ export default function POSPage() {
                                     value={amountReceived === 0 ? '' : amountReceived} 
                                     onChange={e => {
                                         const val = parseFloat(e.target.value) || 0;
+                                        amountReceivedManuallyEdited.current = true;
                                         if (val > grandTotal) {
                                             setAmountReceived(grandTotal);
                                             toast.error("Amount Capped", {
@@ -1417,7 +1424,9 @@ export default function POSPage() {
                                                 <TableCell className="py-2">
                                                     <div className="text-xs font-bold text-slate-900 line-clamp-1">{c.item.name}</div>
                                                 </TableCell>
-                                                <TableCell className="text-center text-xs font-black text-slate-700">{c.qty} {c.item.unit}</TableCell>
+                                                <TableCell className="text-center text-xs font-black text-slate-700">
+                                                    {c.qty} <span className="text-[11px] text-slate-500 font-bold uppercase ml-0.5">{c.item.unit}</span>
+                                                </TableCell>
                                                 <TableCell className="text-right text-xs font-black text-slate-900">₹{(c.price * c.qty).toLocaleString()}</TableCell>
                                             </TableRow>
                                         ))}

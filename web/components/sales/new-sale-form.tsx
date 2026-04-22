@@ -6,7 +6,7 @@ import * as z from "zod";
 import { format } from "date-fns";
 import { 
     CalendarIcon, Plus, Trash2, Loader2, Search, User, 
-    Truck, ArrowLeft, AlertTriangle, Landmark, Zap, CheckCircle2 
+    Truck, ArrowLeft, AlertTriangle, Landmark, Zap, CheckCircle2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { 
@@ -907,14 +907,12 @@ function NewSaleForm() {
                                                             </div>
                                                         </div>
                                                         <div className="flex flex-wrap gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                                            <span className="rounded-md border border-slate-200 bg-white px-2 py-1 flex items-center gap-1.5 shadow-xs">
-                                                                <div className="w-1.5 h-1.5 rounded-full bg-slate-300" />
-                                                                GSTIN: <span className="text-slate-900">{buyers.find(b => b.id === field.value)?.gstin || 'NOT SET'}</span>
-                                                            </span>
-                                                            <span className="rounded-md border border-slate-200 bg-white px-2 py-1 flex items-center gap-1.5 shadow-xs">
-                                                                <div className="w-1.5 h-1.5 rounded-full bg-slate-300" />
-                                                                State: <span className="text-slate-900">{buyers.find(b => b.id === field.value)?.state_code || 'NA'}</span>
-                                                            </span>
+                                                            {buyers.find(b => b.id === field.value)?.gstin && (
+                                                                <span className="rounded-md border border-slate-200 bg-white px-2 py-1 flex items-center gap-1.5 shadow-xs">
+                                                                    <div className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                                                                    GSTIN: <span className="text-slate-900">{buyers.find(b => b.id === field.value)?.gstin}</span>
+                                                                </span>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 )}
@@ -1763,7 +1761,7 @@ function NewSaleForm() {
                                                                             setAmountPaid(val);
                                                                         }
                                                                     }}
-                                                                    className="pl-8 bg-white/10 border-white/20 h-10 text-lg font-black text-white focus:border-indigo-500 rounded-xl shadow-none"
+                                                                    className="pl-8 bg-white border-slate-200 h-10 text-lg font-black text-slate-900 focus:border-indigo-500 rounded-xl shadow-sm"
                                                                 />
                                                             </div>
                                                             {amountPaid < totals.grandTotal && amountPaid > 0 && (
@@ -1875,7 +1873,9 @@ function NewSaleForm() {
                                                                         Lot: {lots.find(l => l.id === item.lot_id)?.lot_code || 'N/A'}
                                                                     </div>
                                                                 </TableCell>
-                                                                <TableCell className="text-center font-black text-slate-700 text-xs">{item.qty} {item.unit || ''}</TableCell>
+                                                                <TableCell className="text-center font-black text-slate-700 text-xs">
+                                                                    {item.qty} <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tight ml-0.5">{item.unit || ''}</span>
+                                                                </TableCell>
                                                                 <TableCell className="text-center font-black text-slate-700 text-xs">₹{item.rate}</TableCell>
                                                                 <TableCell className="text-right font-black text-indigo-600 text-xs tracking-tight">₹{(Number(item.qty || 0) * Number(item.rate || 0)).toLocaleString()}</TableCell>
                                                             </TableRow>
