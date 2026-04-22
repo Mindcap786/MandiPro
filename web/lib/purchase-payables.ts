@@ -28,7 +28,7 @@ export function calculateLotSettlementAmount(lot: any) {
     const transportShare = toNumber(lot?.transport_share);
     const arrivalType = getArrivalType(lot);
 
-    const adjustedQty = qty - (qty * lessPercent) / 100;
+    const adjustedQty = qty - (qty * lessPercent) / 100 - toNumber(lot?.less_units);
     const baseAdjustedValue = adjustedQty * rate;
     const adjustedValue = baseAdjustedValue - otherCut;
 
@@ -69,7 +69,7 @@ export function calculateLotGrossValue(lot: any) {
     const transportShare = toNumber(lot?.transport_share);
     const arrivalType = getArrivalType(lot);
 
-    const adjustedQty = qty - (qty * lessPercent) / 100;
+    const adjustedQty = qty - (qty * lessPercent) / 100 - toNumber(lot?.less_units);
     const baseAdjustedValue = adjustedQty * rate;
     const adjustedValue = baseAdjustedValue - otherCut;
 

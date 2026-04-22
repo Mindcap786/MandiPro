@@ -52,31 +52,34 @@ export default function PurchaseBillInvoice({
     const grossQty = toNumber(lot.gross_quantity) || toNumber(lot.initial_qty)
     const lessPercent = toNumber(lot.less_percent)
     const lessUnits = toNumber(lot.less_units)
-    const netQty = toNumber(lot.initial_qty) // This is already net after less deduction in the lot record
+    const totalLessQty = (grossQty * lessPercent / 100) + lessUnits
+    const netQty = grossQty - totalLessQty
+    
     const supplierRate = toNumber(lot.supplier_rate)
+    const trueGrossValue = grossQty * supplierRate
+    const lessDeductionValue = totalLessQty * supplierRate
+    const netGoodsValue = trueGrossValue - lessDeductionValue
+
     const commissionPercent = toNumber(lot.commission_percent)
     const otherCut = toNumber(lot.farmer_charges)
     const packingCost = toNumber(lot.packing_cost)
     const loadingCost = toNumber(lot.loading_cost)
     const advance = toNumber(lot.advance)
-
-    // Calculate adjusted qty and amounts
-    const adjustedQty = netQty - (netQty * lessPercent) / 100
-    const grossAmount = adjustedQty * supplierRate
+    const paymentMode = lot.advance_payment_mode || arrival?.advance_payment_mode || 'credit'
 
     // Sales sum for commission lots (if sold)
     const salesSum = Array.isArray(lot.sale_items)
         ? lot.sale_items.reduce((sum: number, item: any) => sum + toNumber(item?.amount), 0)
         : 0
-    const effectiveGoodsValue = arrivalType !== 'direct' && salesSum > 0 ? salesSum : grossAmount
-
-    const commissionAmount = (effectiveGoodsValue * commissionPercent) / 100
+    
+    // For commission-based, the basis of commission is usually the sales revenue
+    const effectiveBasisValue = arrivalType !== 'direct' && salesSum > 0 ? salesSum : netGoodsValue
+    const commissionAmount = (effectiveBasisValue * commissionPercent) / 100
 
     // Arrival-level expenses (transport share for this lot)
     const arrivalExpenseTotal = calculateArrivalLevelExpenses(arrival)
     let arrivalExpenseShare = 0
     if (arrivalExpenseTotal > 0.01 && arrivalType !== 'direct') {
-        // Proportional share based on settlement value
         const allLots = arrivalLots.length > 0 ? arrivalLots : [lot]
         const totalSettlement = allLots.reduce((sum, l) => sum + Math.max(calculateLotSettlementAmount(l), 0), 0)
         const thisSettlement = Math.max(calculateLotSettlementAmount(lot), 0)
@@ -85,7 +88,7 @@ export default function PurchaseBillInvoice({
         }
     }
 
-    // Final payable uses the existing calculation engine
+    // Final payable
     const lotSettlement = calculateLotSettlementAmount(lot)
     const finalPayable = Math.max(0, lotSettlement - arrivalExpenseShare)
 
@@ -221,7 +224,7 @@ export default function PurchaseBillInvoice({
                         <tr className="border-b-2 border-black">
                             <th className="py-2 text-[10px] font-black uppercase tracking-[0.2em] text-black text-left">Item / Lot</th>
                             <th className="py-2 text-[10px] font-black uppercase tracking-[0.2em] text-black text-center">Gross Qty</th>
-                            {lessPercent > 0 && <th className="py-2 text-[10px] font-black uppercase tracking-[0.2em] text-black text-center">Less %</th>}
+                            <th className="py-2 text-[10px] font-black uppercase tracking-[0.2em] text-black text-center">Deduction</th>
                             <th className="py-2 text-[10px] font-black uppercase tracking-[0.2em] text-black text-center">Net Qty</th>
                             <th className="py-2 text-[10px] font-black uppercase tracking-[0.2em] text-black text-right">Rate</th>
                             <th className="py-2 text-[10px] font-black uppercase tracking-[0.2em] text-black text-right">Amount</th>
@@ -231,31 +234,28 @@ export default function PurchaseBillInvoice({
                         <tr>
                             <td className="py-2">
                                 <p className="font-black text-xs tracking-tight uppercase leading-none">{itemName}</p>
-                                <div className="flex flex-col gap-0 mt-0.5">
-                                    <p className="text-[8px] font-black text-orange-600 tracking-tighter uppercase tabular-nums">
-                                        {lotCode}
-                                    </p>
-                                </div>
+                                <p className="text-[8px] font-black text-orange-600 tracking-tighter uppercase tabular-nums mt-0.5">
+                                    {lotCode}
+                                </p>
                             </td>
                             <td className="py-2 text-center font-bold text-sm tracking-tighter">
                                 {grossQty} <span className="text-[7px] text-gray-400 font-normal">{unit}</span>
                             </td>
-                            {lessPercent > 0 && (
-                                <td className="py-2 text-center font-bold text-sm tracking-tighter">
-                                    {lessPercent}%
-                                    {lessUnits > 0 && (
-                                        <span className="block text-[7px] text-gray-400 font-normal">({lessUnits} units)</span>
-                                    )}
-                                </td>
-                            )}
+                            <td className="py-2 text-center font-bold text-sm tracking-tighter text-red-500">
+                                {totalLessQty > 0 ? (
+                                    <>
+                                        −{Math.round(totalLessQty * 100) / 100}
+                                    </>
+                                ) : '0'}
+                            </td>
                             <td className="py-2 text-center font-bold text-sm tracking-tighter">
-                                {Math.round(adjustedQty * 100) / 100} <span className="text-[7px] text-gray-400 font-normal">{unit}</span>
+                                {Math.round(netQty * 100) / 100} <span className="text-[7px] text-gray-400 font-normal">{unit}</span>
                             </td>
                             <td className="py-2 text-right font-bold text-sm tracking-tighter">
                                 ₹{supplierRate.toLocaleString()}
                             </td>
                             <td className="py-2 text-right font-black text-sm tracking-tighter">
-                                ₹{Math.round(grossAmount).toLocaleString()}
+                                ₹{Math.round(netGoodsValue).toLocaleString()}
                             </td>
                         </tr>
                     </tbody>
@@ -265,11 +265,38 @@ export default function PurchaseBillInvoice({
             {/* ───── Settlement Breakdown ───── */}
             <div className="mt-6 grid grid-cols-2 gap-8 items-start relative z-10">
 
-                {/* Left Side: Transport & Arrival Info */}
+                {/* Left Side: Transport & Payment Info */}
                 <div className="space-y-4">
+                    {/* Payment Details Card */}
+                    <div className="space-y-2 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 block border-b border-slate-200 pb-1">
+                            Payment & Settlement
+                        </span>
+                        <div className="grid grid-cols-[100px_1fr] gap-x-2 gap-y-1.5 text-[10px]">
+                            <span className="text-gray-400 font-bold uppercase">Mode of Pay</span>
+                            <span className="font-black text-indigo-700 uppercase tracking-wider">
+                                {paymentMode === 'credit' || paymentMode === 'udhaar' ? 'CREDIT (UDHAAR)' : paymentMode}
+                            </span>
+                            
+                            {advance > 0 && (
+                                <>
+                                    <span className="text-gray-400 font-bold uppercase">Paid Amount</span>
+                                    <span className="font-black text-emerald-700">₹{advance.toLocaleString()}</span>
+                                </>
+                            )}
+
+                            {arrival?.advance_bank_name && (
+                                <>
+                                    <span className="text-gray-400 font-bold uppercase">Bank Info</span>
+                                    <span className="font-black text-gray-800 uppercase">{arrival.advance_bank_name}</span>
+                                </>
+                            )}
+                        </div>
+                    </div>
+
                     {/* Transport Details Card */}
                     {(vehicleNo || arrival?.driver_name || arrival?.guarantor) && (
-                        <div className="space-y-2">
+                        <div className="space-y-2 px-3">
                             <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 block border-b border-gray-100 pb-1">
                                 Transport Details
                             </span>
@@ -286,49 +313,12 @@ export default function PurchaseBillInvoice({
                                         <span className="font-black text-gray-800">{arrival.driver_name}</span>
                                     </>
                                 )}
-                                {arrival?.driver_mobile && (
-                                    <>
-                                        <span className="text-gray-400 font-bold uppercase">Mobile</span>
-                                        <span className="font-black text-gray-800">{arrival.driver_mobile}</span>
-                                    </>
-                                )}
                                 {arrival?.guarantor && (
                                     <>
                                         <span className="text-gray-400 font-bold uppercase">Guarantor</span>
                                         <span className="font-black text-gray-800">{arrival.guarantor}</span>
                                     </>
                                 )}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Arrival Expenses Breakdown */}
-                    {arrivalExpenseTotal > 0.01 && (
-                        <div className="space-y-2">
-                            <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 block border-b border-gray-100 pb-1">
-                                Arrival Expenses (Shared)
-                            </span>
-                            <div className="grid grid-cols-[120px_1fr] gap-x-2 gap-y-0.5 text-[10px]">
-                                {toNumber(arrival?.hire_charges) > 0 && (
-                                    <>
-                                        <span className="text-gray-400 font-bold uppercase">Hire/Transport</span>
-                                        <span className="font-black text-gray-800">₹{toNumber(arrival.hire_charges).toLocaleString()}</span>
-                                    </>
-                                )}
-                                {toNumber(arrival?.hamali_expenses) > 0 && (
-                                    <>
-                                        <span className="text-gray-400 font-bold uppercase">Hamali/Loading</span>
-                                        <span className="font-black text-gray-800">₹{toNumber(arrival.hamali_expenses).toLocaleString()}</span>
-                                    </>
-                                )}
-                                {toNumber(arrival?.other_expenses) > 0 && (
-                                    <>
-                                        <span className="text-gray-400 font-bold uppercase">Other Expenses</span>
-                                        <span className="font-black text-gray-800">₹{toNumber(arrival.other_expenses).toLocaleString()}</span>
-                                    </>
-                                )}
-                                <span className="text-gray-600 font-bold uppercase border-t border-gray-100 pt-1">This Lot's Share</span>
-                                <span className="font-black text-gray-800 border-t border-gray-100 pt-1">₹{Math.round(arrivalExpenseShare).toLocaleString()}</span>
                             </div>
                         </div>
                     )}
@@ -340,18 +330,24 @@ export default function PurchaseBillInvoice({
                         {/* Gross Amount */}
                         <div className="flex justify-between items-center text-xs">
                             <span className="font-bold text-gray-500 uppercase">Gross Amount</span>
-                            <span className="font-bold">₹{Math.round(grossAmount).toLocaleString()}</span>
+                            <span className="font-bold">₹{Math.round(trueGrossValue).toLocaleString()}</span>
                         </div>
 
                         {/* Less Deduction */}
-                        {lessPercent > 0 && (
+                        {lessDeductionValue > 0.01 && (
                             <div className="flex justify-between items-center text-xs">
-                                <span className="text-gray-400 font-bold uppercase tracking-widest">Less ({lessPercent}%)</span>
+                                <span className="text-gray-400 font-bold uppercase tracking-widest">Less Deduction</span>
                                 <span className="font-bold text-red-500">
-                                    − ₹{Math.round((netQty * lessPercent / 100) * supplierRate).toLocaleString()}
+                                    − ₹{Math.round(lessDeductionValue).toLocaleString()}
                                 </span>
                             </div>
                         )}
+
+                        {/* Net Goods Value */}
+                        <div className="flex justify-between items-center text-xs border-t border-gray-100 pt-1 mb-2">
+                            <span className="font-black text-slate-800 uppercase">Net Goods Value</span>
+                            <span className="font-black text-slate-800">₹{Math.round(netGoodsValue).toLocaleString()}</span>
+                        </div>
 
                         {/* Other Charges */}
                         {otherCut > 0 && (
@@ -365,7 +361,7 @@ export default function PurchaseBillInvoice({
                         {commissionAmount > 0.01 && (
                             <div className="flex justify-between items-center text-xs border-t border-gray-100 pt-1">
                                 <span className="font-bold text-purple-600 uppercase">
-                                    Commission ({commissionPercent}%)
+                                    Commission
                                 </span>
                                 <span className="font-bold text-purple-600">
                                     − ₹{Math.round(commissionAmount).toLocaleString()}
@@ -373,19 +369,11 @@ export default function PurchaseBillInvoice({
                             </div>
                         )}
 
-                        {/* Loading Cost */}
-                        {loadingCost > 0 && (
+                        {/* Loading/Packing Cost */}
+                        {(loadingCost > 0 || packingCost > 0) && (
                             <div className="flex justify-between items-center text-xs">
-                                <span className="text-gray-400 font-bold uppercase tracking-widest">Loading Cost</span>
-                                <span className="font-bold text-red-500">− ₹{Math.round(loadingCost).toLocaleString()}</span>
-                            </div>
-                        )}
-
-                        {/* Packing Cost */}
-                        {packingCost > 0 && (
-                            <div className="flex justify-between items-center text-xs">
-                                <span className="text-gray-400 font-bold uppercase tracking-widest">Packing Cost</span>
-                                <span className="font-bold text-red-500">− ₹{Math.round(packingCost).toLocaleString()}</span>
+                                <span className="text-gray-400 font-bold uppercase tracking-widest">Loading/Packing</span>
+                                <span className="font-bold text-red-500">− ₹{Math.round(loadingCost + packingCost).toLocaleString()}</span>
                             </div>
                         )}
 
@@ -400,25 +388,17 @@ export default function PurchaseBillInvoice({
                         {/* Advance Paid */}
                         {advance > 0 && (
                             <div className="flex justify-between items-center text-xs border-t border-gray-100 pt-1">
-                                <span className="text-emerald-600 font-bold uppercase tracking-widest">Advance Paid</span>
+                                <span className="text-emerald-600 font-bold uppercase tracking-widest">Paid (Advance)</span>
                                 <span className="font-bold text-emerald-600">
                                     − ₹{Math.round(advance).toLocaleString()}
                                 </span>
                             </div>
                         )}
 
-                        {/* Sales Revenue (for commission lots that have been sold) */}
-                        {arrivalType !== 'direct' && salesSum > 0 && (
-                            <div className="flex justify-between items-center text-xs border-t border-dashed border-gray-100 pt-1.5">
-                                <span className="text-blue-500 font-bold uppercase tracking-widest text-[9px]">Sale Revenue (Basis)</span>
-                                <span className="font-bold text-blue-500 text-[10px]">₹{Math.round(salesSum).toLocaleString()}</span>
-                            </div>
-                        )}
-
                         {/* ── FINAL PAYABLE ── */}
                         <div className="flex justify-between items-center pt-2 border-t-2 border-black mt-2">
                             <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">
-                                Net Payable to Farmer
+                                Total Payable
                             </span>
                             <span className="text-2xl font-black tracking-tighter tabular-nums text-black">
                                 ₹{Math.round(finalPayable).toLocaleString()}
@@ -431,21 +411,6 @@ export default function PurchaseBillInvoice({
                                 Rupees {toWords(Math.round(finalPayable))} Only
                             </p>
                         </div>
-
-                        {/* Payment Status Badge */}
-                        {advance > 0 && (
-                            <div className={`mt-2 p-1.5 rounded flex justify-between items-center ${finalPayable > 0.01 ? "bg-amber-50" : "bg-emerald-50"
-                                }`}>
-                                <span className={`text-[10px] font-black uppercase tracking-widest ${finalPayable > 0.01 ? "text-amber-400" : "text-emerald-400"
-                                    }`}>
-                                    {finalPayable > 0.01 ? "Balance Pending" : "Fully Settled"}
-                                </span>
-                                <span className={`text-xl font-black tracking-tighter ${finalPayable > 0.01 ? "text-amber-600" : "text-emerald-600"
-                                    }`}>
-                                    ₹{Math.round(finalPayable).toLocaleString()}
-                                </span>
-                            </div>
-                        )}
                     </div>
                 </div>
             </div>
