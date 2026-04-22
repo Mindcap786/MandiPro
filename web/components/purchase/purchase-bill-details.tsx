@@ -29,7 +29,7 @@ import {
     Loader2, Save, X, Truck, Package, Calendar as CalendarIcon,
     ChevronDown, ChevronUp, Tag, Plus, Check, Info, Search,
     User, Phone, Hash, MapPin, IndianRupee, Scale, Calculator,
-    ShieldCheck, FileText, Landmark, Zap, Download, Eye, AlertCircle, ArrowRight
+    ShieldCheck, FileText, Landmark, Zap, Download, Eye, AlertCircle, ArrowRight, Trash2
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/hooks/use-toast";

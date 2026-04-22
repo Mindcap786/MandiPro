@@ -1225,24 +1225,36 @@ export default function ArrivalsEntryForm() {
                                             <div className="col-span-12 grid grid-cols-12 gap-3 items-start p-2">
                                                 {/* ROW 1: Commodity, Quantity, Rate */}
                                                 <div className="col-span-12 grid grid-cols-12 gap-3">
-                                                                                    + ADD
-                                                                                </Button>
+                                                    {isVisible('item_id') && (
+                                                        <div className="col-span-12 md:col-span-6 lg:col-span-3">
+                                                            <FormField
+                                                                control={form.control}
+                                                                name={`items.${index}.item_id`}
+                                                                render={({ field }) => (
+                                                                    <FormItem>
+                                                                        <div className="flex items-center justify-between mb-0.5">
+                                                                            <FormLabel className="text-[9px] font-bold text-slate-700 uppercase tracking-wide">Commodity</FormLabel>
+                                                                            <ItemDialog onSuccess={refetchMaster}>
+                                                                                <button type="button" className="text-[8px] font-black text-blue-600 hover:underline uppercase">+ New</button>
                                                                             </ItemDialog>
                                                                         </div>
                                                                         <SearchableSelect
-                                                                            options={availableItems.map(i => ({ value: i.id, label: formatCommodityName(i.name, i.custom_attributes) }))}
+                                                                            options={(availableItems || []).map(i => ({
+                                                                                label: formatCommodityName(i.name, i.custom_attributes),
+                                                                                value: i.id
+                                                                            }))}
                                                                             value={field.value}
                                                                             onChange={(val) => {
                                                                                 field.onChange(val);
-                                                                                const selectedItem = availableItems.find(i => i.id === val);
-                                                                                if (selectedItem?.default_unit) {
-                                                                                    form.setValue(`items.${index}.unit`, selectedItem.default_unit);
+                                                                                const item = availableItems?.find(i => i.id === val);
+                                                                                if (item?.default_unit) {
+                                                                                    form.setValue(`items.${index}.unit`, item.default_unit);
                                                                                 }
                                                                             }}
-                                                                            placeholder="Select Item"
-                                                                            className="bg-white border border-slate-300 text-slate-900 font-bold h-9 rounded-lg text-xs"
+                                                                            placeholder="Select Item..."
+                                                                            className="h-9 text-xs font-bold bg-white border-slate-300"
                                                                         />
-                                                                        <FormMessage />
+                                                                        <FormMessage className="text-[9px]" />
                                                                     </FormItem>
                                                                 )}
                                                             />
@@ -1250,21 +1262,17 @@ export default function ArrivalsEntryForm() {
                                                     )}
 
                                                     {isVisible('lot_code') && (
-                                                        <div className="col-span-12 md:col-span-4 lg:col-span-4">
+                                                        <div className="col-span-6 md:col-span-3 lg:col-span-2">
                                                             <FormField
                                                                 control={form.control}
                                                                 name={`items.${index}.lot_code`}
                                                                 render={({ field }) => (
                                                                     <FormItem>
-                                                                        <FormLabel className="text-[10px] font-bold text-slate-700 uppercase tracking-wide mb-1 block">Lot No (Custom)</FormLabel>
+                                                                        <FormLabel className="text-[9px] font-bold text-slate-700 uppercase tracking-wide mb-0.5 block">Lot Number</FormLabel>
                                                                         <FormControl>
-                                                                            <Input 
-                                                                                placeholder="AUTO" 
-                                                                                {...field} 
-                                                                                className="bg-white border border-slate-300 h-9 text-xs text-slate-900 font-bold rounded-lg px-3 shadow-sm uppercase font-mono" 
-                                                                            />
+                                                                            <Input {...field} placeholder="Auto" className="h-9 bg-white border-slate-300 text-xs font-bold text-slate-900 uppercase" />
                                                                         </FormControl>
-                                                                        <FormMessage />
+                                                                        <FormMessage className="text-[9px]" />
                                                                     </FormItem>
                                                                 )}
                                                             />
@@ -1272,16 +1280,16 @@ export default function ArrivalsEntryForm() {
                                                     )}
 
                                                     {isVisible('unit') && (
-                                                        <div className="col-span-12 md:col-span-4 lg:col-span-4">
+                                                        <div className="col-span-6 md:col-span-3 lg:col-span-2">
                                                             <FormField
                                                                 control={form.control}
                                                                 name={`items.${index}.unit`}
                                                                 render={({ field }) => (
                                                                     <FormItem>
-                                                                        <FormLabel className="text-[10px] font-bold text-slate-700 uppercase tracking-wide mb-1 block">Unit</FormLabel>
+                                                                        <FormLabel className="text-[9px] font-bold text-slate-700 uppercase tracking-wide mb-0.5 block">Unit</FormLabel>
                                                                         <Select onValueChange={field.onChange} value={field.value}>
                                                                             <FormControl>
-                                                                                <SelectTrigger className="bg-white border border-slate-300 h-9 text-xs text-slate-900 font-bold rounded-lg px-3 shadow-sm">
+                                                                                <SelectTrigger className="bg-white border border-slate-300 h-9 text-[10px] text-slate-900 font-bold rounded-lg px-2">
                                                                                     <SelectValue placeholder="Unit" />
                                                                                 </SelectTrigger>
                                                                             </FormControl>
@@ -1291,13 +1299,12 @@ export default function ArrivalsEntryForm() {
                                                                                 ))}
                                                                             </SelectContent>
                                                                         </Select>
-                                                                        <FormMessage />
+                                                                        <FormMessage className="text-[9px]" />
                                                                     </FormItem>
                                                                 )}
                                                             />
                                                         </div>
                                                     )}
-
                                                 </div>
 
                                                 {/* ROW 2: Qty, Rate, Unit, Storage */}
