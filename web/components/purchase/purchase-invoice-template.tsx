@@ -43,10 +43,10 @@ export default function PurchaseBillInvoice({
     const vehicleNo = arrival?.vehicle_number || ''
     const vehicleType = arrival?.vehicle_type || ''
     const arrivalDate = arrival?.arrival_date || lot.created_at
-    const arrivalType = getArrivalType(lot)
+    const arrivalType = arrival?.arrival_type || getArrivalType(lot)
     const arrivalTypeLabel = arrivalType === 'direct' ? 'Mandi Owned (Direct)' :
-        arrivalType === 'commission' || arrivalType === 'farmer' ? 'Farmer Commission' :
-            'Supplier Commission'
+        arrivalType === 'commission' || arrivalType === 'farmer' ? 'Farmer Arrival (Commission)' :
+            'Supplier Arrival (Commission)'
 
     // ── Financial calculations (reusing existing lib) ────────────
     const grossQty = toNumber(lot.gross_quantity) || toNumber(lot.initial_qty)
