@@ -2,18 +2,20 @@
 -- Date: 2026-04-22
 -- Author: MandiPro ERP Architect
 
--- 1. Schema Fixes
+-- 1. Schema Fixes (Missing Columns for Financial Integrity)
 ALTER TABLE mandi.arrivals 
 ADD COLUMN IF NOT EXISTS advance_bank_account_id UUID REFERENCES mandi.accounts(id),
 ADD COLUMN IF NOT EXISTS advance_cheque_no TEXT,
 ADD COLUMN IF NOT EXISTS advance_cheque_date DATE,
-ADD COLUMN IF NOT EXISTS advance_bank_name TEXT;
+ADD COLUMN IF NOT EXISTS advance_bank_name TEXT,
+ADD COLUMN IF NOT EXISTS advance_cheque_status BOOLEAN DEFAULT false;
 
 ALTER TABLE mandi.lots 
 ADD COLUMN IF NOT EXISTS advance_bank_account_id UUID REFERENCES mandi.accounts(id),
 ADD COLUMN IF NOT EXISTS advance_cheque_no TEXT,
 ADD COLUMN IF NOT EXISTS advance_cheque_date DATE,
-ADD COLUMN IF NOT EXISTS advance_bank_name TEXT;
+ADD COLUMN IF NOT EXISTS advance_bank_name TEXT,
+ADD COLUMN IF NOT EXISTS advance_cheque_status BOOLEAN DEFAULT false;
 
 -- 2. Hardened Sale Ledger Function
 CREATE OR REPLACE FUNCTION mandi.post_sale_ledger(p_sale_id uuid)
@@ -281,14 +283,16 @@ BEGIN
             organization_id, arrival_id, item_id, lot_code, initial_qty, current_qty, 
             unit, supplier_rate, commission_percent, less_percent, status, 
             storage_location, less_units, arrival_type, created_at, contact_id, 
-            packing_cost, loading_cost, farmer_charges, custom_attributes
+            packing_cost, loading_cost, farmer_charges, custom_attributes,
+            advance, advance_payment_mode, advance_bank_account_id, advance_cheque_no, advance_cheque_date, advance_bank_name, advance_cheque_status
         ) VALUES (
             p_organization_id, v_arrival_id, COALESCE(v_item.item_id, v_item.commodity_id), 
             COALESCE(v_item.lot_code, 'LOT-' || v_arrival_bill_no || '-' || substr(gen_random_uuid()::text, 1, 4)),
             v_item.qty, v_item.qty, v_item.unit, v_item.rate, v_item.commission, 
             v_item.weight_loss, 'active', v_item.storage_location, v_item.less_units, v_item.commission_type, NOW(), p_supplier_id,
             COALESCE(v_item.packing_cost, 0), COALESCE(v_item.loading_cost, 0), COALESCE(v_item.farmer_charges, 0),
-            COALESCE(v_item.custom_attributes, jsonb_build_object('variety', v_item.variety, 'grade', v_item.grade))
+            COALESCE(v_item.custom_attributes, jsonb_build_object('variety', v_item.variety, 'grade', v_item.grade)),
+            p_advance, p_advance_payment_mode, p_advance_bank_account_id, p_advance_cheque_no, p_advance_cheque_date, p_advance_bank_name, p_advance_cheque_status
         ) RETURNING id INTO v_lot_id;
     END LOOP;
 
@@ -296,32 +300,3 @@ BEGIN
     RETURN jsonb_build_object('success', true, 'arrival_id', v_arrival_id, 'bill_no', v_arrival_bill_no);
 END;
 $function$;
-
--- 6. Status Synchronization Triggers
-CREATE OR REPLACE FUNCTION mandi.update_sale_payment_status_from_ledger()
- RETURNS trigger
- LANGUAGE plpgsql
- SECURITY DEFINER
-AS $function$
-DECLARE
-    v_total_paid NUMERIC;
-    v_total_bill NUMERIC;
-    v_new_status TEXT;
-    v_ref_id UUID;
-BEGIN
-    v_ref_id := COALESCE(NEW.reference_id, OLD.reference_id);
-    IF NOT EXISTS (SELECT 1 FROM mandi.sales WHERE id = v_ref_id) THEN RETURN NULL; END IF;
-    SELECT COALESCE(SUM(credit), 0) INTO v_total_paid FROM mandi.ledger_entries WHERE reference_id = v_ref_id AND transaction_type IN ('sale_payment', 'receipt', 'payment');
-    SELECT COALESCE(SUM(debit), 0) INTO v_total_bill FROM mandi.ledger_entries WHERE reference_id = v_ref_id AND transaction_type = 'sale';
-    IF v_total_bill = 0 THEN v_new_status := 'pending';
-    ELSIF v_total_paid >= (v_total_bill - 0.1) THEN v_new_status := 'paid';
-    ELSIF v_total_paid > 0.1 THEN v_new_status := 'partial';
-    ELSE v_new_status := 'pending';
-    END IF;
-    UPDATE mandi.sales SET payment_status = v_new_status, amount_received = v_total_paid, balance_due = (v_total_bill - v_total_paid) WHERE id = v_ref_id;
-    RETURN NULL;
-END;
-$function$;
-
-DROP TRIGGER IF EXISTS sale_payment_status_auto_update ON mandi.ledger_entries;
-CREATE TRIGGER sale_payment_status_auto_update AFTER INSERT OR UPDATE OR DELETE ON mandi.ledger_entries FOR EACH ROW EXECUTE FUNCTION mandi.update_sale_payment_status_from_ledger();
