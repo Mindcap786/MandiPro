@@ -1224,7 +1224,7 @@ export default function ArrivalsEntryForm() {
                                                 {/* ROW 1: Commodity, Quantity, Rate */}
                                                 <div className="col-span-12 grid grid-cols-12 gap-3">
                                                     {isVisible('item_id') && (
-                                                        <div className="col-span-12 md:col-span-6 lg:col-span-6">
+                                                        <div className="col-span-12 md:col-span-8 lg:col-span-8">
                                                             <FormField
                                                                 control={form.control}
                                                                 name={`items.${index}.item_id`}
@@ -1258,12 +1258,39 @@ export default function ArrivalsEntryForm() {
                                                         </div>
                                                     )}
 
+                                                    {isVisible('unit') && (
+                                                        <div className="col-span-12 md:col-span-4 lg:col-span-4">
+                                                            <FormField
+                                                                control={form.control}
+                                                                name={`items.${index}.unit`}
+                                                                render={({ field }) => (
+                                                                    <FormItem>
+                                                                        <FormLabel className="text-[10px] font-bold text-slate-700 uppercase tracking-wide mb-1 block">Unit</FormLabel>
+                                                                        <Select onValueChange={field.onChange} value={field.value}>
+                                                                            <FormControl>
+                                                                                <SelectTrigger className="bg-white border border-slate-300 h-9 text-xs text-slate-900 font-bold rounded-lg px-3 shadow-sm">
+                                                                                    <SelectValue placeholder="Unit" />
+                                                                                </SelectTrigger>
+                                                                            </FormControl>
+                                                                            <SelectContent className="bg-white">
+                                                                                {units.map((u) => (
+                                                                                    <SelectItem key={u} value={u} className="font-bold text-xs">{u}</SelectItem>
+                                                                                ))}
+                                                                            </SelectContent>
+                                                                        </Select>
+                                                                        <FormMessage />
+                                                                    </FormItem>
+                                                                )}
+                                                            />
+                                                        </div>
+                                                    )}
+
                                                 </div>
 
                                                 {/* ROW 2: Qty, Rate, Unit, Storage */}
                                                 <div className="col-span-12 grid grid-cols-12 gap-3 mt-2">
                                                     {isVisible('qty') && (
-                                                        <div className="col-span-6 md:col-span-3 lg:col-span-3">
+                                                        <div className="col-span-6 md:col-span-4 lg:col-span-4">
                                                             <FormField
                                                                 control={form.control}
                                                                 name={`items.${index}.qty`}
@@ -1280,34 +1307,10 @@ export default function ArrivalsEntryForm() {
                                                         </div>
                                                     )}
 
-                                                    {isVisible('unit') && (
-                                                        <div className="col-span-6 md:col-span-3 lg:col-span-3">
-                                                            <FormField
-                                                                control={form.control}
-                                                                name={`items.${index}.unit`}
-                                                                render={({ field }) => (
-                                                                    <FormItem>
-                                                                        <FormLabel className="text-[9px] font-bold text-slate-700 uppercase tracking-wide mb-0.5 block">Unit</FormLabel>
-                                                                        <Select onValueChange={field.onChange} value={field.value}>
-                                                                            <FormControl>
-                                                                                <SelectTrigger className="bg-white border border-slate-300 h-9 text-xs text-slate-900 font-bold rounded-lg px-3">
-                                                                                    <SelectValue placeholder="Unit" />
-                                                                                </SelectTrigger>
-                                                                            </FormControl>
-                                                                            <SelectContent className="bg-white">
-                                                                                {units.map((u) => (
-                                                                                    <SelectItem key={u} value={u} className="font-bold text-xs">{u}</SelectItem>
-                                                                                ))}
-                                                                            </SelectContent>
-                                                                        </Select>
-                                                                    </FormItem>
-                                                                )}
-                                                            />
-                                                        </div>
-                                                    )}
+
 
                                                     {isVisible('supplier_rate') && (
-                                                        <div className="col-span-6 md:col-span-3 lg:col-span-3">
+                                                        <div className="col-span-6 md:col-span-4 lg:col-span-4">
                                                             <FormField
                                                                 control={form.control}
                                                                 name={`items.${index}.supplier_rate`}
@@ -1324,7 +1327,7 @@ export default function ArrivalsEntryForm() {
                                                     )}
 
                                                     {isVisible('storage_location') && (
-                                                        <div className="col-span-6 md:col-span-3 lg:col-span-3">
+                                                        <div className="col-span-6 md:col-span-4 lg:col-span-4">
                                                             <FormField
                                                                 control={form.control}
                                                                 name={`items.${index}.storage_location`}

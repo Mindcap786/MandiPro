@@ -648,46 +648,72 @@ export function QuickPurchaseForm() {
                                         </div>
 
                                         {/* Item */}
-                                        <div className="md:col-span-4 space-y-4">
-                                            <FormField
-                                                control={form.control}
-                                                name={`rows.${index}.item_id`}
-                                                render={({ field }) => (
-                                                    <FormItem>
-                                                        <div className="flex items-center justify-between mb-2">
-                                                            <FormLabel className="text-[9px] font-black uppercase text-slate-400">Commodity</FormLabel>
-                                                            <ItemDialog onSuccess={fetchMasterData}>
-                                                                <Button type="button" variant="link" className="h-auto p-0 text-blue-600 text-[9px] font-bold uppercase tracking-widest hover:text-blue-800 transition-colors">
-                                                                    + ADD
-                                                                </Button>
-                                                            </ItemDialog>
-                                                        </div>
-                                                        <SearchableSelect
-                                                            options={items.map(item => ({
-                                                                value: item.id,
-                                                                label: formatCommodityName(item.name, item.custom_attributes)
-                                                            }))}
-                                                            value={field.value}
-                                                            onChange={(val) => {
-                                                                field.onChange(val);
-                                                                const selectedItem = items.find(i => i.id === val);
-                                                                if (selectedItem?.default_unit) {
-                                                                    form.setValue(`rows.${index}.unit`, selectedItem.default_unit);
-                                                                }
-                                                            }}
-                                                            placeholder="Select Item"
-                                                            error={!!(form.formState.errors.rows as any)?.[index]?.item_id}
-                                                        />
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
+                                        {/* Row 1: Commodity and Unit */}
+                                        <div className="md:col-span-12 grid grid-cols-12 gap-6">
+                                            <div className="col-span-12 md:col-span-8">
+                                                <FormField
+                                                    control={form.control}
+                                                    name={`rows.${index}.item_id`}
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <div className="flex items-center justify-between mb-2">
+                                                                <FormLabel className="text-[9px] font-black uppercase text-slate-400">Commodity</FormLabel>
+                                                                <ItemDialog onSuccess={fetchMasterData}>
+                                                                    <Button type="button" variant="link" className="h-auto p-0 text-blue-600 text-[9px] font-bold uppercase tracking-widest hover:text-blue-800 transition-colors">
+                                                                        + ADD
+                                                                    </Button>
+                                                                </ItemDialog>
+                                                            </div>
+                                                            <SearchableSelect
+                                                                options={items.map(item => ({
+                                                                    value: item.id,
+                                                                    label: formatCommodityName(item.name, item.custom_attributes)
+                                                                }))}
+                                                                value={field.value}
+                                                                onChange={(val) => {
+                                                                    field.onChange(val);
+                                                                    const selectedItem = items.find(i => i.id === val);
+                                                                    if (selectedItem?.default_unit) {
+                                                                        form.setValue(`rows.${index}.unit`, selectedItem.default_unit);
+                                                                    }
+                                                                }}
+                                                                placeholder="Select Item"
+                                                                error={!!(form.formState.errors.rows as any)?.[index]?.item_id}
+                                                            />
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                            </div>
 
-
+                                            <div className="col-span-12 md:col-span-4">
+                                                <FormField
+                                                    control={form.control}
+                                                    name={`rows.${index}.unit`}
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel className="text-[9px] font-black uppercase text-slate-400 mb-2 block">Unit</FormLabel>
+                                                            <Select onValueChange={field.onChange} value={field.value}>
+                                                                <FormControl>
+                                                                    <SelectTrigger className="h-10 bg-slate-50 border-none rounded-xl text-sm font-black shadow-sm">
+                                                                        <SelectValue placeholder="Unit" />
+                                                                    </SelectTrigger>
+                                                                </FormControl>
+                                                                <SelectContent className="rounded-xl border-none shadow-xl">
+                                                                    {['Box', 'Crate', 'Kgs', 'Tons', 'Nug', 'Pieces', 'Carton'].map(u => (
+                                                                        <SelectItem key={u} value={u} className="font-bold text-xs">{u}</SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                            </div>
                                         </div>
 
                                         {/* Price / Qty / Unit Grid */}
-                                        <div className="md:col-span-8 grid grid-cols-1 md:grid-cols-4 gap-4">
+                                        {/* Row 2: Qty, Rate, Commission */}
+                                        <div className="md:col-span-12 grid grid-cols-1 md:grid-cols-3 gap-6">
                                             <FormField
                                                 control={form.control}
                                                 name={`rows.${index}.qty`}
@@ -705,27 +731,6 @@ export function QuickPurchaseForm() {
                                                                 )}
                                                             />
                                                         </FormControl>
-                                                    </FormItem>
-                                                )}
-                                            />
-                                            <FormField
-                                                control={form.control}
-                                                name={`rows.${index}.unit`}
-                                                render={({ field }) => (
-                                                    <FormItem>
-                                                        <FormLabel className="text-[9px] font-black uppercase text-slate-400 mb-2 block text-center">Unit</FormLabel>
-                                                        <Select onValueChange={field.onChange} value={field.value}>
-                                                            <FormControl>
-                                                                <SelectTrigger className="h-10 bg-slate-50 border-none rounded-xl text-sm font-black text-center justify-center">
-                                                                    <SelectValue placeholder="Unit" />
-                                                                </SelectTrigger>
-                                                            </FormControl>
-                                                            <SelectContent className="rounded-xl border-none shadow-xl">
-                                                                {['Box', 'Crate', 'Kgs', 'Tons', 'Nug', 'Pieces', 'Carton'].map(u => (
-                                                                    <SelectItem key={u} value={u} className="font-bold text-xs">{u}</SelectItem>
-                                                                ))}
-                                                            </SelectContent>
-                                                        </Select>
                                                     </FormItem>
                                                 )}
                                             />
