@@ -566,8 +566,6 @@ export function ItemDialog({ children, onSuccess, initialItem }: ItemDialogProps
                                         </div>
                                     </div>
                                 </div>
-
-                                </div>
                             </div>
 
                             {/* Wholesaler Specific Pricing */}
@@ -854,6 +852,6 @@ export function ItemDialog({ children, onSuccess, initialItem }: ItemDialogProps
                     </div>
                 </div>
             </DialogContent>
-        </Dialog >
+        </Dialog>
     )
 }
