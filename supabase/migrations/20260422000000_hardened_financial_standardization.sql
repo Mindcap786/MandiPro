@@ -88,7 +88,7 @@ BEGIN
 END;
 $function$;
 
--- 3. Hardened Arrival Ledger Function
+-- 3. Hardened Arrival Ledger Function (Refined for Amount Paid)
 CREATE OR REPLACE FUNCTION mandi.post_arrival_ledger(p_arrival_id uuid)
  RETURNS void
  LANGUAGE plpgsql
@@ -169,7 +169,7 @@ BEGIN
 END;
 $function$;
 
--- 4. Standardized RPC: create_mixed_arrival (Hardened Security Definer & Isolation Fix)
+-- 4. Standardized RPC: create_mixed_arrival (Hardened & Flexible)
 CREATE OR REPLACE FUNCTION mandi.create_mixed_arrival(p_arrival jsonb, p_created_by uuid)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -188,6 +188,8 @@ DECLARE
     v_contact_bill_no BIGINT;
     v_arrival_type TEXT;
     v_header_location TEXT;
+    v_index INTEGER := 0;
+    v_lot_code TEXT;
 BEGIN
     v_organization_id := (p_arrival->>'organization_id')::UUID;
     v_party_id := (p_arrival->>'party_id')::UUID;
@@ -228,12 +230,15 @@ BEGIN
     ) RETURNING id INTO v_arrival_id;
 
     FOR v_lot IN SELECT * FROM jsonb_array_elements(p_arrival->'items') LOOP
+        v_index := v_index + 1;
+        v_lot_code := COALESCE(v_lot.value->>'lot_code', v_bill_no || '-' || v_index);
+
         INSERT INTO mandi.lots (
-            organization_id, contact_id, arrival_id, item_id, initial_qty, current_qty, unit, unit_weight, sale_price,
+            organization_id, contact_id, arrival_id, item_id, lot_code, initial_qty, current_qty, unit, unit_weight, sale_price,
             supplier_rate, commission_percent, farmer_charges, packing_cost, loading_cost,
             less_percent, less_units, status, created_by, storage_location, barcode, custom_attributes
         ) VALUES (
-            v_organization_id, v_party_id, v_arrival_id, (v_lot.value->>'item_id')::UUID, (v_lot.value->>'qty')::NUMERIC, (v_lot.value->>'qty')::NUMERIC, 
+            v_organization_id, v_party_id, v_arrival_id, (v_lot.value->>'item_id')::UUID, v_lot_code, (v_lot.value->>'qty')::NUMERIC, (v_lot.value->>'qty')::NUMERIC, 
             v_lot.value->>'unit', COALESCE((v_lot.value->>'unit_weight')::NUMERIC, 0), COALESCE((v_lot.value->>'sale_price')::NUMERIC, 0),
             COALESCE((v_lot.value->>'supplier_rate')::NUMERIC, 0), COALESCE((v_lot.value->>'commission_percent')::NUMERIC, 0), 
             COALESCE((v_lot.value->>'farmer_charges')::NUMERIC, 0), COALESCE((v_lot.value->>'packing_cost')::NUMERIC, 0), COALESCE((v_lot.value->>'loading_cost')::NUMERIC, 0),
@@ -248,57 +253,7 @@ BEGIN
 END;
 $function$;
 
--- 5. Standardized RPC: record_quick_purchase
-CREATE OR REPLACE FUNCTION mandi.record_quick_purchase(p_organization_id uuid, p_supplier_id uuid, p_arrival_date date, p_arrival_type text, p_items jsonb, p_advance numeric DEFAULT 0, p_advance_payment_mode text DEFAULT 'cash'::text, p_advance_bank_account_id uuid DEFAULT NULL::uuid, p_advance_cheque_no text DEFAULT NULL::text, p_advance_cheque_date date DEFAULT NULL::date, p_advance_bank_name text DEFAULT NULL::text, p_advance_cheque_status boolean DEFAULT false, p_clear_instantly boolean DEFAULT false, p_created_by uuid DEFAULT NULL::uuid)
- RETURNS jsonb
- LANGUAGE plpgsql
- SECURITY DEFINER
-AS $function$
-DECLARE
-    v_arrival_id UUID;
-    v_arrival_bill_no BIGINT;
-    v_item RECORD;
-    v_lot_id UUID;
-BEGIN
-    INSERT INTO mandi.arrivals (
-        organization_id, party_id, arrival_date, arrival_type, status, created_at,
-        advance_amount, advance_payment_mode, advance_bank_account_id, 
-        advance_cheque_no, advance_cheque_date, advance_bank_name, advance_cheque_status
-    ) VALUES (
-        p_organization_id, p_supplier_id, p_arrival_date, p_arrival_type, 'completed', NOW(),
-        p_advance, p_advance_payment_mode, p_advance_bank_account_id,
-        p_advance_cheque_no, p_advance_cheque_date, p_advance_bank_name, p_advance_cheque_status
-    ) RETURNING id, bill_no INTO v_arrival_id, v_arrival_bill_no;
-
-    FOR v_item IN SELECT * FROM jsonb_to_recordset(p_items) AS x(
-        item_id uuid, commodity_id uuid, qty numeric, unit text, rate numeric, 
-        commission numeric, commission_type text, weight_loss numeric, less_units numeric, 
-        storage_location text, lot_code text, variety text, grade text, custom_attributes jsonb,
-        packing_cost numeric, loading_cost numeric, farmer_charges numeric
-    ) LOOP
-        INSERT INTO mandi.lots (
-            organization_id, contact_id, arrival_id, item_id, lot_code, initial_qty, current_qty, 
-            unit, supplier_rate, commission_percent, less_percent, status, 
-            storage_location, less_units, arrival_type, created_at,
-            packing_cost, loading_cost, farmer_charges, custom_attributes,
-            advance, advance_payment_mode, advance_bank_account_id, advance_cheque_no, advance_cheque_date, advance_bank_name, advance_cheque_status
-        ) VALUES (
-            p_organization_id, p_supplier_id, v_arrival_id, COALESCE(v_item.item_id, v_item.commodity_id), 
-            COALESCE(v_item.lot_code, 'LOT-' || v_arrival_bill_no || '-' || substr(gen_random_uuid()::text, 1, 4)),
-            v_item.qty, v_item.qty, v_item.unit, v_item.rate, v_item.commission, 
-            v_item.weight_loss, 'active', v_item.storage_location, v_item.less_units, v_item.commission_type, NOW(),
-            COALESCE(v_item.packing_cost, 0), COALESCE(v_item.loading_cost, 0), COALESCE(v_item.farmer_charges, 0),
-            COALESCE(v_item.custom_attributes, jsonb_build_object('variety', v_item.variety, 'grade', v_item.grade)),
-            p_advance, p_advance_payment_mode, p_advance_bank_account_id, p_advance_cheque_no, p_advance_cheque_date, p_advance_bank_name, p_advance_cheque_status
-        ) RETURNING id INTO v_lot_id;
-    END LOOP;
-
-    PERFORM mandi.post_arrival_ledger(v_arrival_id);
-    RETURN jsonb_build_object('success', true, 'arrival_id', v_arrival_id, 'bill_no', v_arrival_bill_no);
-END;
-$function$;
-
--- 6. Status Synchronization Triggers
+-- 5. Status Synchronization Triggers
 CREATE OR REPLACE FUNCTION mandi.update_sale_payment_status_from_ledger()
  RETURNS trigger
  LANGUAGE plpgsql
