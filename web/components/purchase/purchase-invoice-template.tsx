@@ -70,9 +70,7 @@ export default function PurchaseBillInvoice({
         : 0
     const effectiveGoodsValue = arrivalType !== 'direct' && salesSum > 0 ? salesSum : grossAmount
 
-    const commissionAmount = arrivalType !== 'direct'
-        ? (effectiveGoodsValue * commissionPercent) / 100
-        : 0
+    const commissionAmount = (effectiveGoodsValue * commissionPercent) / 100
 
     // Arrival-level expenses (transport share for this lot)
     const arrivalExpenseTotal = calculateArrivalLevelExpenses(arrival)
@@ -223,7 +221,7 @@ export default function PurchaseBillInvoice({
                         <tr className="border-b-2 border-black">
                             <th className="py-2 text-[10px] font-black uppercase tracking-[0.2em] text-black text-left">Item / Lot</th>
                             <th className="py-2 text-[10px] font-black uppercase tracking-[0.2em] text-black text-center">Gross Qty</th>
-                            <th className="py-2 text-[10px] font-black uppercase tracking-[0.2em] text-black text-center">Less %</th>
+                            {lessPercent > 0 && <th className="py-2 text-[10px] font-black uppercase tracking-[0.2em] text-black text-center">Less %</th>}
                             <th className="py-2 text-[10px] font-black uppercase tracking-[0.2em] text-black text-center">Net Qty</th>
                             <th className="py-2 text-[10px] font-black uppercase tracking-[0.2em] text-black text-right">Rate</th>
                             <th className="py-2 text-[10px] font-black uppercase tracking-[0.2em] text-black text-right">Amount</th>
@@ -242,12 +240,14 @@ export default function PurchaseBillInvoice({
                             <td className="py-2 text-center font-bold text-sm tracking-tighter">
                                 {grossQty} <span className="text-[7px] text-gray-400 font-normal">{unit}</span>
                             </td>
-                            <td className="py-2 text-center font-bold text-sm tracking-tighter">
-                                {lessPercent > 0 ? `${lessPercent}%` : '—'}
-                                {lessUnits > 0 && (
-                                    <span className="block text-[7px] text-gray-400 font-normal">({lessUnits} units)</span>
-                                )}
-                            </td>
+                            {lessPercent > 0 && (
+                                <td className="py-2 text-center font-bold text-sm tracking-tighter">
+                                    {lessPercent}%
+                                    {lessUnits > 0 && (
+                                        <span className="block text-[7px] text-gray-400 font-normal">({lessUnits} units)</span>
+                                    )}
+                                </td>
+                            )}
                             <td className="py-2 text-center font-bold text-sm tracking-tighter">
                                 {Math.round(adjustedQty * 100) / 100} <span className="text-[7px] text-gray-400 font-normal">{unit}</span>
                             </td>
