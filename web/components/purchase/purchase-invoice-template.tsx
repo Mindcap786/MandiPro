@@ -183,12 +183,6 @@ export default function PurchaseBillInvoice({
                             </span>
                         )}
                     </div>
-                    {referenceNo && referenceNo !== 'N/A' && (
-                        <div className="flex justify-end gap-2">
-                            <span className="text-gray-400 font-bold uppercase">Book Ref No:</span>
-                            <span className="font-black">{referenceNo}</span>
-                        </div>
-                    )}
                     <div className="flex justify-end gap-2">
                         <span className="text-gray-400 font-bold uppercase">Date:</span>
                         <span className="font-black">{formattedDate}</span>
@@ -197,12 +191,6 @@ export default function PurchaseBillInvoice({
                         <div className="flex justify-end gap-2 items-center">
                             <span className="text-gray-400 font-bold uppercase">Lot No:</span>
                             <span className="font-black text-white bg-slate-900 px-2 py-0.5 rounded text-[13px] tracking-widest">{lotCode}</span>
-                        </div>
-                    )}
-                    {vehicleNo && (
-                        <div className="flex justify-end gap-2">
-                            <span className="text-gray-400 font-bold uppercase">Vehicle No:</span>
-                            <span className="font-black uppercase tracking-wider">{vehicleNo}{vehicleType ? ` (${vehicleType})` : ''}</span>
                         </div>
                     )}
                 </div>

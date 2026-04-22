@@ -159,29 +159,6 @@ export default function BuyerInvoice({ sale, organization, onRefresh }: InvoiceT
                             </div>
                         );
                     })()}
-                    {(() => {
-                        const displayVehicleNo = sale.vehicle_number;
-                        const displayBookNo = sale.book_no;
-
-                        if (!displayVehicleNo && !displayBookNo) return null;
-
-                        return (
-                            <>
-                                {displayVehicleNo && (
-                                    <div className="flex justify-end gap-2">
-                                        <span className="text-gray-400 font-bold uppercase">Vehicle No:</span>
-                                        <span className="font-black uppercase">{displayVehicleNo}</span>
-                                    </div>
-                                )}
-                                {displayBookNo && (
-                                    <div className="flex justify-end gap-2">
-                                        <span className="text-gray-400 font-bold uppercase">Book Ref No:</span>
-                                        <span className="font-black uppercase">{displayBookNo}</span>
-                                    </div>
-                                )}
-                            </>
-                        );
-                    })()}
                     <div className="flex justify-end gap-2">
                         <span className="text-gray-400 font-bold uppercase">Date:</span>
                         <span className="font-black">

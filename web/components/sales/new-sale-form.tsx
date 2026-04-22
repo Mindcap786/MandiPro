@@ -823,72 +823,7 @@ function NewSaleForm() {
                             </div>
                         </div>
 
-                        {/* Logistical Metadata (Vehicle / Book Ref) - Restored */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8 border-b border-slate-100 pb-8">
-                            <div className="space-y-4">
-                                <div className="flex items-center gap-2 text-slate-500 font-black text-[10px] uppercase tracking-[0.2em] mb-2">
-                                    <div className="w-4 h-[1.5px] bg-slate-300" />
-                                    Vehicle Number
-                                </div>
-                                <FormField
-                                    control={form.control}
-                                    name="vehicle_number"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormControl>
-                                                <Input 
-                                                    {...field} 
-                                                    placeholder="MH 12 AB 1234"
-                                                    className="bg-transparent border-t-0 border-l-0 border-r-0 border-b-2 border-slate-300 rounded-none h-9 text-lg font-black text-slate-900 focus:border-indigo-600 transition-all shadow-none px-0 uppercase"
-                                                />
-                                            </FormControl>
-                                        </FormItem>
-                                    )}
-                                />
-                            </div>
-                            <div className="space-y-4">
-                                <div className="flex items-center gap-2 text-slate-500 font-black text-[10px] uppercase tracking-[0.2em] mb-2">
-                                    <div className="w-4 h-[1.5px] bg-slate-300" />
-                                    Book Reference
-                                </div>
-                                <FormField
-                                    control={form.control}
-                                    name="book_no"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormControl>
-                                                <Input 
-                                                    {...field} 
-                                                    placeholder="B-1234"
-                                                    className="bg-transparent border-t-0 border-l-0 border-r-0 border-b-2 border-slate-300 rounded-none h-9 text-lg font-black text-slate-900 focus:border-indigo-600 transition-all shadow-none px-0 uppercase"
-                                                />
-                                            </FormControl>
-                                        </FormItem>
-                                    )}
-                                />
-                            </div>
-                            <div className="space-y-4">
-                                <div className="flex items-center gap-2 text-slate-500 font-black text-[10px] uppercase tracking-[0.2em] mb-2">
-                                    <div className="w-4 h-[1.5px] bg-slate-300" />
-                                    Lot Number
-                                </div>
-                                <FormField
-                                    control={form.control}
-                                    name="lot_no"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormControl>
-                                                <Input 
-                                                    {...field} 
-                                                    placeholder="LOT-2024"
-                                                    className="bg-transparent border-t-0 border-l-0 border-r-0 border-b-2 border-slate-300 rounded-none h-9 text-lg font-black text-slate-900 focus:border-indigo-600 transition-all shadow-none px-0 uppercase"
-                                                />
-                                            </FormControl>
-                                        </FormItem>
-                                    )}
-                                />
-                            </div>
-                        </div>
+
 
                         {/* Party Details */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
