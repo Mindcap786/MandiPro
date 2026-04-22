@@ -88,10 +88,12 @@ export default function PurchaseBillInvoice({
         }
     }
 
+    const paidAmount = toNumber(lot?.paid_amount);
+
     // Final payable calculation — must match calculateLotSettlementAmount in lib
     // but we use local variables for clarity in the UI
     const lotExpenses = packingCost + loadingCost + arrivalExpenseShare
-    const finalPayable = Math.max(0, netGoodsValue - commissionAmount - otherCut - lotExpenses - advance)
+    const finalPayable = Math.max(0, netGoodsValue - commissionAmount - otherCut - lotExpenses - advance - paidAmount)
 
     // Organization address
     const fullAddress = [
@@ -392,6 +394,16 @@ export default function PurchaseBillInvoice({
                                 <span className="text-emerald-600 font-bold uppercase tracking-widest">Paid (Advance)</span>
                                 <span className="font-bold text-emerald-600">
                                     − ₹{Math.round(advance).toLocaleString()}
+                                </span>
+                            </div>
+                        )}
+
+                        {/* Other Payments */}
+                        {paidAmount > 0 && (
+                            <div className="flex justify-between items-center text-xs border-t border-gray-100 pt-1">
+                                <span className="text-emerald-600 font-bold uppercase tracking-widest">Other Payments</span>
+                                <span className="font-bold text-emerald-600">
+                                    − ₹{Math.round(paidAmount).toLocaleString()}
                                 </span>
                             </div>
                         )}

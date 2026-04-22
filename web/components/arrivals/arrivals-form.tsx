@@ -74,6 +74,7 @@ const itemSchema = z.object({
     farmer_charges: z.coerce.number().min(0).default(0),
     sale_price: z.coerce.number().min(0).default(0),
     barcode: z.string().optional(),
+    lot_code: z.string().optional(),
     storage_location: z.string().optional(),
 });
 

@@ -91,8 +91,8 @@ export function WastageDialog({ isOpen, onClose, lot, onSuccess }: WastageDialog
         }
     }
 
-    const estimatedLossValue = Number(quantity) * (Number(lot.supplier_rate) || 0)
-    const showFinancialImpact = lot.arrival_type === 'direct' && Number(quantity) > 0
+    const estimatedLossValue = Number(quantity) * (Number(lot?.supplier_rate) || 0)
+    const showFinancialImpact = (lot?.arrival_type === 'direct') && Number(quantity) > 0
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>

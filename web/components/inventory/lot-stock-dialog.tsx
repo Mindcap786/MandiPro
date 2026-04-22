@@ -340,8 +340,8 @@ export function LotStockDialog({ itemId, itemName, itemDetails, isOpen, onClose,
     }
 
     const filteredLots = lots.filter(lot =>
-        (lot.farmer_name?.toLowerCase().includes(searchTerm.toLowerCase()) || '') ||
-        (lot.farmer_city?.toLowerCase().includes(searchTerm.toLowerCase()) || '') ||
+        (lot.farmer_name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+        (lot.farmer_city?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
         ((lot.storage_location || 'Mandi').toLowerCase().includes(searchTerm.toLowerCase()))
     )
 

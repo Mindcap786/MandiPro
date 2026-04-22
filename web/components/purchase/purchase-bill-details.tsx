@@ -40,6 +40,7 @@ import { cn } from "@/lib/utils";
 import { cacheDelete, cacheClearPrefix } from "@/lib/data-cache";
 import { calculateArrivalLevelExpenses, calculateLotSettlementAmount } from "@/lib/purchase-payables";
 import { formatCommodityName } from "@/lib/utils/commodity-utils";
+import { WastageDialog } from "@/components/inventory/wastage-dialog";
 
 interface PurchaseBillDetailsSheetProps {
     lotId: string | null;
@@ -119,6 +120,8 @@ export function PurchaseBillDetailsSheet({ lotId, isOpen, isLocked, onClose, onU
             'arrivals_supplier';
 
     const { isVisible, isMandatory, getLabel } = useFieldGovernance(moduleKey);
+
+    const [showWastage, setShowWastage] = useState(false);
 
     useEffect(() => {
         if (isOpen && lotId) {
@@ -1241,34 +1244,62 @@ export function PurchaseBillDetailsSheet({ lotId, isOpen, isLocked, onClose, onU
                 </div>
 
                 <SheetFooter className="p-8 bg-white border-t border-slate-200 backdrop-blur-xl shrink-0">
-                    <div className="flex gap-4 w-full">
-                        <Button
-                            variant="ghost"
-                            onClick={onClose}
-                            className="flex-1 h-14 rounded-2xl text-slate-500 font-bold border border-slate-200 hover:bg-slate-50 hover:text-slate-900"
-                        >
-                            <X className="w-4 h-4 mr-2" /> CANCEL
-                        </Button>
+                    <div className="flex flex-col gap-4 w-full">
                         {!isSoldOut && (
                             <Button
-                                onClick={handleSave}
-                                disabled={saving}
-                                className="flex-[2] h-14 rounded-2xl bg-blue-600 text-white font-black uppercase tracking-widest hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all disabled:opacity-50"
+                                type="button"
+                                variant="outline"
+                                onClick={() => setShowWastage(true)}
+                                className="w-full h-12 rounded-2xl text-[10px] font-black uppercase tracking-widest text-orange-600 border-orange-200 hover:bg-orange-50 hover:text-orange-700 transition-all"
                             >
-                                {saving ? <Loader2 className="w-5 h-5 animate-spin mr-3" /> : <><Save className="w-5 h-5 mr-3" /> COMMIT CHANGES</>}
+                                <Trash2 className="w-4 h-4 mr-2" /> Report Loss to {formData.arrival_type === 'direct' ? 'Mandi' : 'Supplier'}
                             </Button>
                         )}
-                        {isSoldOut && (
+                        <div className="flex gap-4 w-full">
                             <Button
-                                disabled
-                                className="flex-[2] h-14 rounded-2xl bg-red-50 text-red-500 font-black uppercase tracking-widest border border-red-200 cursor-not-allowed"
+                                variant="ghost"
+                                onClick={onClose}
+                                className="flex-1 h-14 rounded-2xl text-slate-500 font-bold border border-slate-200 hover:bg-slate-50 hover:text-slate-900"
                             >
-                                <ShieldCheck className="w-5 h-5 mr-3" /> SETTLED & LOCKED
+                                <X className="w-4 h-4 mr-2" /> CANCEL
                             </Button>
-                        )}
+                            {!isSoldOut && (
+                                <Button
+                                    onClick={handleSave}
+                                    disabled={saving}
+                                    className="flex-[2] h-14 rounded-2xl bg-blue-600 text-white font-black uppercase tracking-widest hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all disabled:opacity-50"
+                                >
+                                    {saving ? <Loader2 className="w-5 h-5 animate-spin mr-3" /> : <><Save className="w-5 h-5 mr-3" /> COMMIT CHANGES</>}
+                                </Button>
+                            )}
+                            {isSoldOut && (
+                                <Button
+                                    disabled
+                                    className="flex-[2] h-14 rounded-2xl bg-red-50 text-red-500 font-black uppercase tracking-widest border border-red-200 cursor-not-allowed"
+                                >
+                                    <ShieldCheck className="w-5 h-5 mr-3" /> SETTLED & LOCKED
+                                </Button>
+                            )}
+                        </div>
                     </div>
                 </SheetFooter>
             </SheetContent>
+
+            <WastageDialog
+                isOpen={showWastage}
+                onClose={() => setShowWastage(false)}
+                lot={{
+                    ...lotData,
+                    ...formData,
+                    id: lotId,
+                    current_qty: lotData?.current_qty, // Use actual current stock from DB
+                    arrival_type: formData.arrival_type // Ensure dialog knows current type
+                }}
+                onSuccess={() => {
+                    onUpdate();
+                    onClose();
+                }}
+            />
         </Sheet>
     );
 }
