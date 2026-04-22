@@ -87,6 +87,8 @@ const formSchema = z.object({
     bank_name: z.string().optional(),
     bank_account_id: z.string().optional(),
     cheque_status: z.boolean().default(false),
+    vehicle_number: z.string().optional(),
+    book_no: z.string().optional(),
 }).superRefine((data, ctx) => {
     // Validate that the sum of quantities for a single lot doesn't exceed its available stock
     const lotTotals: Record<string, number> = {};
@@ -165,6 +167,8 @@ function NewSaleForm() {
             cheque_date: new Date(),
             bank_account_id: "",
             cheque_status: false,
+            vehicle_number: "",
+            book_no: "",
         }
     });
 
@@ -685,8 +689,8 @@ function NewSaleForm() {
                 placeOfSupply: totals.isIgst ? (buyerInfo?.state_code || null) : (orgStateCode || null),
                 buyerGstin: buyerInfo?.gstin || null,
                 isIgst: totals.isIgst,
-                vehicleNumber: null,
-                bookNo: null
+                vehicleNumber: values.vehicle_number || null,
+                bookNo: values.book_no || null
             });
 
             if (error) throw error;
@@ -813,6 +817,52 @@ function NewSaleForm() {
                                     )}
                                 </div>
 
+                            </div>
+                        </div>
+
+                        {/* Logistical Metadata (Vehicle / Book Ref) - Restored */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8 border-b border-slate-100 pb-8">
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-2 text-slate-500 font-black text-[10px] uppercase tracking-[0.2em] mb-2">
+                                    <div className="w-4 h-[1.5px] bg-slate-300" />
+                                    Vehicle Number
+                                </div>
+                                <FormField
+                                    control={form.control}
+                                    name="vehicle_number"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormControl>
+                                                <Input 
+                                                    {...field} 
+                                                    placeholder="MH 12 AB 1234"
+                                                    className="bg-transparent border-t-0 border-l-0 border-r-0 border-b-2 border-slate-300 rounded-none h-9 text-lg font-black text-slate-900 focus:border-indigo-600 transition-all shadow-none px-0 uppercase"
+                                                />
+                                            </FormControl>
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-2 text-slate-500 font-black text-[10px] uppercase tracking-[0.2em] mb-2">
+                                    <div className="w-4 h-[1.5px] bg-slate-300" />
+                                    Book Reference
+                                </div>
+                                <FormField
+                                    control={form.control}
+                                    name="book_no"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormControl>
+                                                <Input 
+                                                    {...field} 
+                                                    placeholder="B-1234"
+                                                    className="bg-transparent border-t-0 border-l-0 border-r-0 border-b-2 border-slate-300 rounded-none h-9 text-lg font-black text-slate-900 focus:border-indigo-600 transition-all shadow-none px-0 uppercase"
+                                                />
+                                            </FormControl>
+                                        </FormItem>
+                                    )}
+                                />
                             </div>
                         </div>
 
