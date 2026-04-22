@@ -1289,10 +1289,10 @@ export function PurchaseBillDetailsSheet({ lotId, isOpen, isLocked, onClose, onU
                 isOpen={showWastage}
                 onClose={() => setShowWastage(false)}
                 lot={{
-                    ...lotData,
+                    ...data,
                     ...formData,
                     id: lotId,
-                    current_qty: lotData?.current_qty, // Use actual current stock from DB
+                    current_qty: data?.current_qty, // Use actual current stock from DB
                     arrival_type: formData.arrival_type // Ensure dialog knows current type
                 }}
                 onSuccess={() => {
