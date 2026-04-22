@@ -46,6 +46,7 @@ import inventoryData from "../../inventory_data.json"
 import { getIntelligentVisual } from "@/lib/utils/commodity-mapping"
 import * as LucideIcons from "lucide-react"
 import { useFieldGovernance } from "@/hooks/useFieldGovernance"
+import { getCommodityIdentity } from "@/lib/utils/commodity-utils"
 
 const itemSchema = z.object({
     name: z.string().min(2, "Name is required"),
@@ -312,6 +313,34 @@ export function ItemDialog({ children, onSuccess, initialItem }: ItemDialogProps
 
         try {
         const dbSchema = 'mandi'
+        
+        // ── DUPLICATE CHECK ──────────────────────────────────────────────────
+        const currentIdentity = getCommodityIdentity(data.name, data.custom_attributes);
+        const { data: existingMatches, error: matchError } = await supabase
+            .schema(dbSchema)
+            .from("commodities")
+            .select("id, name, custom_attributes")
+            .eq("organization_id", profile.organization_id)
+            .ilike("name", data.name.trim());
+
+        if (!matchError && existingMatches) {
+            const duplicate = existingMatches.find(item => {
+                // If editing, skip the current item
+                if (initialItem?.id && item.id === initialItem.id) return false;
+                return getCommodityIdentity(item.name, item.custom_attributes) === currentIdentity;
+            });
+
+            if (duplicate) {
+                toast({
+                    title: "Duplicate Item",
+                    description: `An item with this name and specifications already exists.`,
+                    variant: "destructive"
+                });
+                return;
+            }
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
         // Empty/whitespace internal_id → null so the DB trigger auto-generates a code.
         // (Sending "" would collide across rows on legacy indexes; null is safe.)
         const normalizedInternalId = data.internal_id?.trim() ? data.internal_id.trim() : null

@@ -41,3 +41,24 @@ export function formatCommodityName(name: string | null | undefined, customAttri
 
     return name;
 }
+
+/**
+ * Generates a normalized identity string for a commodity to detect duplicates.
+ * Normalizes name and all custom attributes (case-insensitive, trimmed).
+ */
+export function getCommodityIdentity(name: string | null | undefined, customAttributes?: any): string {
+    if (!name) return "";
+    const cleanName = name.trim().toLowerCase();
+    
+    if (!customAttributes || typeof customAttributes !== 'object') {
+        return cleanName;
+    }
+
+    // Sort keys to ensure consistent identity regardless of insertion order
+    const sortedSpecs = Object.entries(customAttributes)
+        .filter(([_, v]) => String(v || "").trim() !== "")
+        .map(([k, v]) => `${k.toLowerCase().trim()}:${String(v).toLowerCase().trim()}`)
+        .sort();
+
+    return `${cleanName}|${sortedSpecs.join("|")}`;
+}
