@@ -88,8 +88,6 @@ const formSchema = z.object({
     notes: z.string().optional(),
     rows: z.array(z.object({
         item_id: z.string().min(1, 'Required'),
-        variety: z.string().optional(),
-        grade: z.string().optional(),
         unit: z.string().min(1, 'Required'),
         qty: z.union([z.number(), z.literal('')]).transform(v => v === '' ? 0 : v),
         rate: z.union([z.number(), z.literal('')]).transform(v => v === '' ? 0 : v),
@@ -389,18 +387,22 @@ export function QuickPurchaseForm() {
         setIsConfirming(true)
         try {
             // Explicitly map items to ensure types and field names match RPC expectation precisely
-            const rpcItems = values.rows.map(row => ({
-                item_id: row.item_id,
-                qty: Number(row.qty),
-                unit: row.unit,
-                rate: Number(row.rate),
-                commission: Number(row.commission),
-                weight_loss: Number(row.weight_loss),
-                less_units: Number(row.less_units),
-                commission_type: row.commission_type,
-                variety: row.variety || null,
-                grade: row.grade || null
-            }))
+            const rpcItems = values.rows.map(row => {
+                const commodity = items.find(i => i.id === row.item_id);
+                return {
+                    ...row,
+                    qty: Number(row.qty),
+                    rate: Number(row.rate),
+                    commission: Number(row.commission),
+                    weight_loss: Number(row.weight_loss),
+                    less_units: Number(row.less_units),
+                    custom_attributes: {
+                        ...commodity?.custom_attributes,
+                        variety: commodity?.custom_attributes?.variety,
+                        grade: commodity?.custom_attributes?.grade
+                    }
+                };
+            })
 
             const { data, error } = await supabase.schema('mandi').rpc('record_quick_purchase', {
                 p_organization_id: profile.organization_id,
@@ -629,13 +631,7 @@ export function QuickPurchaseForm() {
                                                             const baseName = item?.name || "Pick Item";
                                                             const baseAttributes = item?.custom_attributes || {};
                                                             
-                                                            const displayAttributes = {
-                                                                ...baseAttributes,
-                                                                variety: row.variety || baseAttributes.variety,
-                                                                grade: row.grade || baseAttributes.grade
-                                                            };
-
-                                                            return formatCommodityName(baseName, displayAttributes);
+                                                            return formatCommodityName(baseName, baseAttributes);
                                                         })()}
                                                     </div>
                                                 </div>
@@ -678,10 +674,6 @@ export function QuickPurchaseForm() {
                                                                 if (selectedItem?.default_unit) {
                                                                     form.setValue(`rows.${index}.unit`, selectedItem.default_unit);
                                                                 }
-                                                                if (selectedItem?.custom_attributes) {
-                                                                    if (selectedItem.custom_attributes.variety) form.setValue(`rows.${index}.variety`, selectedItem.custom_attributes.variety);
-                                                                    if (selectedItem.custom_attributes.grade) form.setValue(`rows.${index}.grade`, selectedItem.custom_attributes.grade);
-                                                                }
                                                             }}
                                                             placeholder="Select Item"
                                                             error={!!(form.formState.errors.rows as any)?.[index]?.item_id}
@@ -691,32 +683,7 @@ export function QuickPurchaseForm() {
                                                 )}
                                             />
 
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <FormField
-                                                    control={form.control}
-                                                    name={`rows.${index}.variety`}
-                                                    render={({ field }) => (
-                                                        <FormItem>
-                                                            <FormLabel className="text-[9px] font-black uppercase text-slate-400">Variety</FormLabel>
-                                                            <FormControl>
-                                                                <Input {...field} placeholder="e.g. Red" className="h-10 bg-slate-50 border-none rounded-xl text-xs font-black shadow-sm" />
-                                                            </FormControl>
-                                                        </FormItem>
-                                                    )}
-                                                />
-                                                <FormField
-                                                    control={form.control}
-                                                    name={`rows.${index}.grade`}
-                                                    render={({ field }) => (
-                                                        <FormItem>
-                                                            <FormLabel className="text-[9px] font-black uppercase text-slate-400">Grade</FormLabel>
-                                                            <FormControl>
-                                                                <Input {...field} placeholder="e.g. A" className="h-10 bg-slate-50 border-none rounded-xl text-xs font-black shadow-sm" />
-                                                            </FormControl>
-                                                        </FormItem>
-                                                    )}
-                                                />
-                                            </div>
+
                                         </div>
 
                                         {/* Price / Qty / Unit Grid */}

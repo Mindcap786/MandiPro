@@ -62,8 +62,6 @@ import { formatCommodityName } from "@/lib/utils/commodity-utils";
 
 const itemSchema = z.object({
     item_id: z.string().optional(),
-    variety: z.string().optional(),
-    grade: z.string().optional(),
     qty: z.coerce.number().min(0, "Qty must be at least 0"),
     unit: z.string().optional(),
     unit_weight: z.coerce.number().min(0).default(0),
@@ -682,7 +680,18 @@ export default function ArrivalsEntryForm() {
                 contact_bill_no: isManualBillNo.current ? (values.bill_no || null) : null,
                 // bill_no = global audit counter; always let the server consume it
                 bill_no: null,
-                items: values.items
+                items: values.items.map(item => {
+                    const commodity = availableItems?.find(i => i.id === item.item_id);
+                    return {
+                        ...item,
+                        custom_attributes: {
+                            ...commodity?.custom_attributes,
+                            // Ensure variety and grade are present if they exist in the commodity
+                            variety: commodity?.custom_attributes?.variety,
+                            grade: commodity?.custom_attributes?.grade
+                        }
+                    };
+                })
             };
 
             const result = await createArrival(payload);
@@ -693,7 +702,7 @@ export default function ArrivalsEntryForm() {
                  const createdLotsForQr = result.lot_codes.map((code: string, idx: number) => {
                      const item = values.items[idx];
                      const itemData = availableItems?.find(i => i.id === item.item_id);
-                     const itemName = itemData ? formatCommodityName(itemData.name, { ...itemData.custom_attributes, variety: item.variety, grade: item.grade }) : 'Unknown Item';
+                     const itemName = itemData ? formatCommodityName(itemData.name, itemData.custom_attributes) : 'Unknown Item';
                      const partyName = contacts?.find(c => c.id === values.contact_id)?.name || 'Unknown Party';
                      return {
                         qrNumber: `MANDI_LOT:{"orgId":"${profile.organization_id}","lotCode":"${code}","type":"${values.arrival_type}"}`,
@@ -1202,14 +1211,7 @@ export default function ArrivalsEntryForm() {
                                                             const baseName = itemData?.name || "Pick Item";
                                                             const baseAttributes = itemData?.custom_attributes || {};
                                                             
-                                                            // Merge existing attributes with typed variety/grade for dynamic display
-                                                            const displayAttributes = {
-                                                                ...baseAttributes,
-                                                                variety: item.variety || baseAttributes.variety,
-                                                                grade: item.grade || baseAttributes.grade
-                                                            };
-
-                                                            return formatCommodityName(baseName, displayAttributes);
+                                                            return formatCommodityName(baseName, baseAttributes);
                                                         })()}
                                                     </span>
                                                 </div>
@@ -1245,11 +1247,6 @@ export default function ArrivalsEntryForm() {
                                                                                 if (selectedItem?.default_unit) {
                                                                                     form.setValue(`items.${index}.unit`, selectedItem.default_unit);
                                                                                 }
-                                                                                // Pre-fill variety/grade if available in commodity
-                                                                                if (selectedItem?.custom_attributes) {
-                                                                                    if (selectedItem.custom_attributes.variety) form.setValue(`items.${index}.variety`, selectedItem.custom_attributes.variety);
-                                                                                    if (selectedItem.custom_attributes.grade) form.setValue(`items.${index}.grade`, selectedItem.custom_attributes.grade);
-                                                                                }
                                                                             }}
                                                                             placeholder="Select Item"
                                                                             className="bg-white border border-slate-300 text-slate-900 font-bold h-9 rounded-lg text-xs"
@@ -1261,39 +1258,6 @@ export default function ArrivalsEntryForm() {
                                                         </div>
                                                     )}
 
-                                                    {isVisible('variety') && (
-                                                        <div className="col-span-6 md:col-span-3 lg:col-span-3">
-                                                            <FormField
-                                                                control={form.control}
-                                                                name={`items.${index}.variety`}
-                                                                render={({ field }) => (
-                                                                    <FormItem>
-                                                                        <FormLabel className="text-[9px] font-bold text-slate-700 uppercase tracking-wide mb-0.5 block">Variety</FormLabel>
-                                                                        <FormControl>
-                                                                            <Input {...field} placeholder="e.g. Red" className="bg-white border border-slate-300 h-9 text-xs text-slate-900 font-bold rounded-lg" />
-                                                                        </FormControl>
-                                                                    </FormItem>
-                                                                )}
-                                                            />
-                                                        </div>
-                                                    )}
-
-                                                    {isVisible('grade') && (
-                                                        <div className="col-span-6 md:col-span-3 lg:col-span-3">
-                                                            <FormField
-                                                                control={form.control}
-                                                                name={`items.${index}.grade`}
-                                                                render={({ field }) => (
-                                                                    <FormItem>
-                                                                        <FormLabel className="text-[9px] font-bold text-slate-700 uppercase tracking-wide mb-0.5 block">Grade</FormLabel>
-                                                                        <FormControl>
-                                                                            <Input {...field} placeholder="e.g. A" className="bg-white border border-slate-300 h-9 text-xs text-slate-900 font-bold rounded-lg" />
-                                                                        </FormControl>
-                                                                    </FormItem>
-                                                                )}
-                                                            />
-                                                        </div>
-                                                    )}
                                                 </div>
 
                                                 {/* ROW 2: Qty, Rate, Unit, Storage */}
