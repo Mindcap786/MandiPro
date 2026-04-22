@@ -98,6 +98,7 @@ export function useCachedParties(orgId: string | undefined, type?: string) {
     const key = type ? `contacts_${type}` : 'contacts_all';
     return useCachedList<any>(key, orgId, async () => {
         let q = supabase
+            .schema('mandi')
             .from('contacts')
             .select('*')
             .eq('organization_id', orgId)
@@ -108,9 +109,10 @@ export function useCachedParties(orgId: string | undefined, type?: string) {
 }
 
 export function useCachedItems(orgId: string | undefined) {
-    return useCachedList<any>('items_all', orgId, async () =>
+    return useCachedList<any>('commodities_all', orgId, async () =>
         await supabase
-            .from('items')
+            .schema('mandi')
+            .from('commodities')
             .select('*')
             .eq('organization_id', orgId)
             .order('name')

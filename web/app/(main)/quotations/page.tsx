@@ -93,7 +93,7 @@ export default function QuotationsPage() {
 
     const fetchItems = async () => {
         const { data } = await supabase
-            .from('items')
+            .from('commodities')
             .select('id, name, default_unit, hsn_code, gst_rate, purchase_price')
             .eq('organization_id', profile!.organization_id)
             .order('name')

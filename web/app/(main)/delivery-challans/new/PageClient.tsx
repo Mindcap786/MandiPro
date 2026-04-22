@@ -85,7 +85,7 @@ export default function DeliveryChallansNewPageClient() {
         if (contactData) setParties(contactData);
 
         const { data: itemData } = await supabase
-            .from('items')
+            .from('commodities')
             .select('id, name')
             .eq('organization_id', profile?.organization_id);
         if (itemData) setItems(itemData);

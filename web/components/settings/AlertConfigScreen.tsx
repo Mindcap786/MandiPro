@@ -63,7 +63,7 @@ export function AlertConfigScreen() {
     const fetchItems = async () => {
         const { data } = await supabase
             .schema('mandi')
-            .from('items')
+            .from('commodities')
             .select('id, name')
             .eq('organization_id', orgId)
             .eq('is_active', true)

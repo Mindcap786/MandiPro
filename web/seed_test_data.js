@@ -53,7 +53,7 @@ async function main() {
     }
 
     // 2. Create Items
-    const { data: existingItems } = await supabase.from('items').select('id, name').eq('organization_id', orgId);
+    const { data: existingItems } = await supabase.from('commodities').select('id, name').eq('organization_id', orgId);
     const existingItemNames = (existingItems || []).map(i => i.name);
 
     const itemsToCreate = [
@@ -64,7 +64,7 @@ async function main() {
 
     let items = [...(existingItems || [])];
     if (itemsToCreate.length > 0) {
-        const { data: newItems } = await supabase.from('items').insert(itemsToCreate).select();
+        const { data: newItems } = await supabase.from('commodities').insert(itemsToCreate).select();
         items.push(...(newItems || []));
         console.log(`Created ${itemsToCreate.length} items.`);
     }

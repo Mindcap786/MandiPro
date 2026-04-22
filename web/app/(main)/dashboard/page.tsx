@@ -91,16 +91,22 @@ export default function Dashboard() {
                 const sevenDaysAgo = new Date();
                 sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
+                // CRITICAL HARDENING: Add timeout to the whole aggregate fetch
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s total timeout
+
                 const [salesRes, unpaidRes, activityRes, trendRes, stockRes, finRes] = await Promise.all([
-                    supabase.schema(schema).from('sales').select('total_amount').eq('organization_id', orgId),
-                    supabase.schema(schema).from('sales').select('total_amount').eq('organization_id', orgId).eq('payment_status', 'pending'),
-                    supabase.schema(schema).from('stock_ledger').select('id, transaction_type, qty_change, created_at, lots(lot_code, item:commodities(name), contact:contacts(name))').eq('organization_id', orgId).order('created_at', { ascending: false }).limit(10),
-                    supabase.schema(schema).from('sales').select('sale_date, total_amount').eq('organization_id', orgId).gte('sale_date', sevenDaysAgo.toISOString().split('T')[0]).order('sale_date', { ascending: true }),
+                    (supabase.schema(schema).from('sales').select('total_amount').eq('organization_id', orgId) as any).abortSignal(controller.signal),
+                    (supabase.schema(schema).from('sales').select('total_amount').eq('organization_id', orgId).eq('payment_status', 'pending') as any).abortSignal(controller.signal),
+                    (supabase.schema(schema).from('stock_ledger').select('id, transaction_type, qty_change, created_at, lots(lot_code, item:commodities(name), contact:contacts(name))').eq('organization_id', orgId).order('created_at', { ascending: false }).limit(10) as any).abortSignal(controller.signal),
+                    (supabase.schema(schema).from('sales').select('sale_date, total_amount').eq('organization_id', orgId).gte('sale_date', sevenDaysAgo.toISOString().split('T')[0]).order('sale_date', { ascending: true }) as any).abortSignal(controller.signal),
                     // Active lots count → real Stock value
-                    supabase.schema(schema).from('lots').select('id', { count: 'exact', head: true }).eq('organization_id', orgId).eq('status', 'active'),
+                    (supabase.schema(schema).from('lots').select('id', { count: 'exact', head: true }).eq('organization_id', orgId).eq('status', 'active') as any).abortSignal(controller.signal),
                     // Financial summary → real Payable (farmer + supplier)
-                    (supabase.schema(schema).rpc('get_financial_summary', { p_org_id: orgId }) as any),
+                    (supabase.schema(schema).rpc('get_financial_summary', { p_org_id: orgId }) as any).abortSignal(controller.signal),
                 ]);
+
+                clearTimeout(timeoutId);
 
                 // Suppress errors by using optional chaining and default values
                 const revenue = salesRes.data?.reduce((sum: number, s: any) => sum + (Number(s.total_amount) || 0), 0) || 0;
@@ -138,6 +144,9 @@ export default function Dashboard() {
 
             } catch (err: any) {
                 console.error("Dashboard Error:", err)
+                if (err.name === 'AbortError') {
+                    console.warn("Dashboard fetch timed out after 10s. Showing stale/cached data.");
+                }
             } finally {
                 setLoading(false)
             }

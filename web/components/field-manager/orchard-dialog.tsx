@@ -87,7 +87,7 @@ export function OrchardDialog({ children, onSuccess }: OrchardDialogProps) {
         setFarmers(contacts || []);
 
         const { data: itemsData } = await supabase
-            .from('items')
+            .from('commodities')
             .select('id, name')
             .eq('organization_id', profile!.organization_id);
         setItems(itemsData || []);

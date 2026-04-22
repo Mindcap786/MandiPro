@@ -230,6 +230,11 @@ export default function PurchaseBillInvoice({
                                         <p className="font-black text-xs tracking-tight uppercase leading-none">
                                             {formatCommodityName(l.item?.name || lot.item?.name, l.custom_attributes || l.item?.custom_attributes || lot.custom_attributes)}
                                         </p>
+                                        {l.lot_code && (
+                                            <p className="text-[10px] font-bold text-slate-500 mt-1 uppercase tracking-wider">
+                                                Lot: {l.lot_code}
+                                            </p>
+                                        )}
                                     </td>
                                     <td className="py-2 text-center font-bold text-sm tracking-tighter">
                                         {Math.round(lNetQty * 100) / 100} <span className="text-[11px] text-gray-500 font-bold ml-0.5 uppercase tracking-tight">{l.unit || unit}</span>

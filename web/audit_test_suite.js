@@ -10,37 +10,52 @@ async function runAudit() {
     console.log("🛑 STARTING PRODUCTION READINESS AUDIT 🛑");
     console.log("==========================================");
 
+    const core = 'core';
+    const mandi = 'mandi';
+
     // 1. SETUP
     console.log("\n[SETUP] Creating Test Environment...");
     const orgName = `Audit Corp ${Date.now()}`;
 
     // Create Org
-    const { data: org, error: orgError } = await supabase.from('organizations')
-        .insert({ name: orgName })
+    const { data: org, error: orgError } = await supabase.schema(core).from('organizations')
+        .insert({ 
+            name: orgName,
+            tenant_type: 'mandi',
+            status: 'active',
+            subscription_tier: 'basic',
+            is_active: true
+        })
         .select().single();
 
     if (orgError) { console.error("Setup Failed: Org", orgError); return; }
     console.log(`✅ Org Created: ${org.name} (${org.id})`);
 
     // Create Item
-    const { data: item } = await supabase.from('items')
+    const { data: item, error: itemError } = await supabase.schema(mandi).from('commodities')
         .insert({ name: 'Audit Apple', organization_id: org.id, default_unit: 'box' })
         .select().single();
+    
+    if (itemError) { console.error("Setup Failed: Item", itemError); return; }
     console.log(`✅ Item Created: ${item.name}`);
 
     // Create Buyer
-    const { data: buyer } = await supabase.from('contacts')
-        .insert({ name: 'Audit Buyer', type: 'buyer', organization_id: org.id })
+    const { data: buyer, error: buyerError } = await supabase.schema(mandi).from('contacts')
+        .insert({ name: 'Audit Buyer', type: 'buyer', contact_type: 'buyer', organization_id: org.id })
         .select().single();
+    
+    if (buyerError) { console.error("Setup Failed: Buyer", buyerError); return; }
     console.log(`✅ Buyer Created: ${buyer.name}`);
 
     // Create Contact (Supplier)
-    const { data: supplier } = await supabase.from('contacts')
-        .insert({ name: 'Audit Supplier', type: 'supplier', organization_id: org.id })
+    const { data: supplier, error: supplierError } = await supabase.schema(mandi).from('contacts')
+        .insert({ name: 'Audit Supplier', type: 'supplier', contact_type: 'supplier', organization_id: org.id })
         .select().single();
+    
+    if (supplierError) { console.error("Setup Failed: Supplier", supplierError); return; }
 
     // Create Initial Stock (Lot)
-    const { data: lot } = await supabase.from('lots')
+    const { data: lot, error: lotError } = await supabase.schema(mandi).from('lots')
         .insert({
             lot_code: 'LOT-100',
             item_id: item.id,
@@ -51,6 +66,8 @@ async function runAudit() {
             unit: 'box'
         })
         .select().single();
+    
+    if (lotError) { console.error("Setup Failed: Lot", lotError); return; }
     console.log(`✅ Stock Added: LOT-100 (100 boxes)`);
 
     // 2. TEST GROUP B: SALES & STOCK DEDUCTION
@@ -66,7 +83,7 @@ async function runAudit() {
         p_total_amount: 1000,
         p_market_fee: 10,
         p_nirashrit: 5,
-        p_idempotency_key: '550e8400-e29b-41d4-a716-446655440000', // FIXED UUID for Idempotency Test
+        p_idempotency_key: `audit-key-${Date.now()}`, // UNIQUE UUID for Idempotency Test
         p_items: [{
             item_id: item.id,
             lot_id: lot.id,
@@ -83,7 +100,7 @@ async function runAudit() {
         console.error("❌ Test B1 Failed:", sale1Error);
     } else {
         // Assert Stock
-        const { data: lotAfter1 } = await supabase.from('lots').select('current_qty').eq('id', lot.id).single();
+        const { data: lotAfter1 } = await supabase.schema(mandi).from('lots').select('current_qty').eq('id', lot.id).single();
         if (lotAfter1.current_qty === 90) {
             console.log("✅ Test B1 Passed: Stock deducted to 90");
         } else {
@@ -96,13 +113,12 @@ async function runAudit() {
     console.log("🔹 Test C1: Replaying EXACT same payload (Simulating Network Retry)");
 
     // We execute the exact same payload again.
-    // Ideally, a robust system checks a transaction ID or prevents duplicates.
     const { error: sale2Error } = await supabase.rpc('confirm_sale_transaction', sale1Payload);
 
     if (sale2Error) {
         console.log("✅ Test C1 Passed: System rejected duplicate (or threw error)");
     } else {
-        const { data: lotAfter2 } = await supabase.from('lots').select('current_qty').eq('id', lot.id).single();
+        const { data: lotAfter2 } = await supabase.schema(mandi).from('lots').select('current_qty').eq('id', lot.id).single();
         if (lotAfter2.current_qty === 80) {
             console.error("❌ Test C1 Failed: CRITICAL - Duplicate Transaction Accepted! Stock deducted to 80.");
             console.error("   Risk: Mobile sync retries will double-charge buyers.");
@@ -115,13 +131,13 @@ async function runAudit() {
     console.log("\n[TEST GROUP F] Over-Selling Protection");
     console.log("🔹 Test F1: Seeking 1000 units (avail ~80-90)");
 
-    const sale3Payload = { ...sale1Payload, p_items: [{ ...sale1Payload.p_items[0], qty: 1000 }] };
+    const sale3Payload = { ...sale1Payload, p_idempotency_key: `audit-key-oversell-${Date.now()}`, p_items: [{ ...sale1Payload.p_items[0], qty: 1000 }] };
     const { error: sale3Error } = await supabase.rpc('confirm_sale_transaction', sale3Payload);
 
     if (sale3Error) {
         console.log("✅ Test F1 Passed: System rejected over-sell.");
     } else {
-        const { data: lotAfter3 } = await supabase.from('lots').select('current_qty').eq('id', lot.id).single();
+        const { data: lotAfter3 } = await supabase.schema(mandi).from('lots').select('current_qty').eq('id', lot.id).single();
         if (lotAfter3.current_qty < 0) {
             console.error(`❌ Test F1 Failed: NEGATIVE STOCK! ${lotAfter3.current_qty}`);
         } else {
@@ -131,7 +147,7 @@ async function runAudit() {
 
     // 5. TEST GROUP E: LEDGER INTEGRITY
     console.log("\n[TEST GROUP E] Ledger Validation");
-    const { data: ledger } = await supabase.from('ledger_entries')
+    const { data: ledger } = await supabase.schema(mandi).from('ledger_entries')
         .select('*')
         .eq('organization_id', org.id);
 
@@ -141,20 +157,19 @@ async function runAudit() {
     const totalDebit = buyerDebits.reduce((sum, l) => sum + l.debit, 0);
 
     console.log(`Total Buyer Debit: ${totalDebit}`);
-    // If we had double transaction in C1, debit might be 2015 (1000 amt + 15 tax = 1015 * 2?)
-    // Let's print details
 
     // 6. TEST GROUP G: RACE CONDITION
     console.log("\n[TEST GROUP G] Concurrency / Race Condition");
     console.log("🔹 Test G1: 5 parallel requests for 20 units each (Total 100). Remaining Stock ~80.");
 
     // Reset stock to 80 just to be sure
-    await supabase.from('lots').update({ current_qty: 80 }).eq('id', lot.id);
+    await supabase.schema(mandi).from('lots').update({ current_qty: 80 }).eq('id', lot.id);
 
     const promises = [];
     for (let i = 0; i < 5; i++) {
         promises.push(supabase.rpc('confirm_sale_transaction', {
             ...sale1Payload,
+            p_idempotency_key: `audit-key-race-${i}-${Date.now()}`,
             p_items: [{ ...sale1Payload.p_items[0], qty: 20 }]
         }));
     }
@@ -165,7 +180,7 @@ async function runAudit() {
 
     console.log(`并行 Results: ${successCount} Owners, ${failCount} Rejected`);
 
-    const { data: lotFinal } = await supabase.from('lots').select('current_qty').eq('id', lot.id).single();
+    const { data: lotFinal } = await supabase.schema(mandi).from('lots').select('current_qty').eq('id', lot.id).single();
     console.log(`Final Stock: ${lotFinal.current_qty}`);
 
     if (lotFinal.current_qty < 0) {

@@ -15,7 +15,7 @@ async function diagnose() {
     console.log('Org Found:', org);
 
     // 2. Check Items
-    const { data: items } = await supabase.from('items').select('id, name').eq('organization_id', org.id);
+    const { data: items } = await supabase.from('commodities').select('id, name').eq('organization_id', org.id);
     console.log('Items Count:', items?.length || 0);
     console.log('Items:', items);
 

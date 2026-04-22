@@ -53,17 +53,26 @@ export function StockAlertsProvider({ children }: { children: ReactNode }) {
         if (!orgId) return;
         setIsLoading(true);
         try {
-            const { data, error } = await supabase
+            // CRITICAL HARDENING: Add timeout to prevent hanging the main layout
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+
+            const { data, error } = await (supabase
                 .from('stock_alerts')
                 .select('*')
                 .eq('organization_id', orgId)
                 .order('created_at', { ascending: false })
-                .limit(100);
+                .limit(100) as any).abortSignal(controller.signal);
+
+            clearTimeout(timeoutId);
 
             if (error) throw error;
             setAlerts(data as StockAlert[]);
         } catch (err: any) {
             console.error("Error fetching stock alerts:", err);
+            if (err.name === 'AbortError') {
+                console.warn("Stock alerts fetch timed out after 5s.");
+            }
         } finally {
             setIsLoading(false);
         }

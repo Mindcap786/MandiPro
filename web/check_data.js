@@ -10,7 +10,7 @@ async function check() {
     console.log(profiles || pError);
 
     console.log("--- Items ---");
-    const { data: items, error: iError } = await supabase.from('items').select('*');
+    const { data: items, error: iError } = await supabase.from('commodities').select('*');
     console.log(items || iError);
 
     console.log("--- Organizations ---");

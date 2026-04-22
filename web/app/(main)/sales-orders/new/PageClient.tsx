@@ -76,7 +76,7 @@ export default function SalesOrdersNewPageClient() {
 
         // Items
         const { data: itemData } = await supabase
-            .from('items')
+            .from('commodities')
             .select('id, name')
             .eq('organization_id', profile?.organization_id);
         if (itemData) setItems(itemData);

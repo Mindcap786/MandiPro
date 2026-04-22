@@ -29,14 +29,14 @@ export default function PriceListsPage() {
     useEffect(() => {
         if (profile?.organization_id) {
             fetchLists()
-            supabase.schema('mandi').from('items').select('id,name,sale_price').eq('organization_id', profile.organization_id).order('name').then(({ data }) => setItems(data || []))
+            supabase.schema('mandi').from('commodities').select('id,name,sale_price').eq('organization_id', profile.organization_id).order('name').then(({ data }) => setItems(data || []))
         }
     }, [profile?.organization_id])
 
     const fetchLists = async () => {
         setLoading(true)
         const { data } = await supabase.schema('mandi').from('price_lists')
-            .select('*, items:price_list_items(id, item_id, unit_price, min_quantity, item:items(id,name))')
+            .select('*, items:price_list_items(id, item_id, unit_price, min_quantity, item:commodities(id,name))')
             .eq('organization_id', profile!.organization_id).order('name')
         setLists((data as any) || [])
         setLoading(false)

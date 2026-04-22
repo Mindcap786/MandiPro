@@ -219,7 +219,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const initAuth = async () => {
             try {
                 // 2. Refresh session FIRST so we know which user is actually logged in
-                const { data: { session: initialSession }, error: sessionError } = await supabase.auth.getSession();
+                const getSessionWithTimeout = Promise.race([
+                    supabase.auth.getSession(),
+                    new Promise((_, reject) =>
+                        setTimeout(() => reject(new Error('getSession timeout after 5s')), 5000)
+                    )
+                ]);
+                const { data: { session: initialSession }, error: sessionError } = await (getSessionWithTimeout as any);
 
                 // 1. Immediate cache hydration — only use if the cached profile belongs to the CURRENT user.
                 //    Without this check, a previous user's profile (different org_id) contaminates the state
