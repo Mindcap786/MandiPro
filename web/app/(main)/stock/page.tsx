@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { useAuth } from "@/components/auth/auth-provider"
 import { supabase } from "@/lib/supabaseClient"
 import { useLanguage } from "@/components/i18n/language-provider"
