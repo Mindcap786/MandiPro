@@ -1225,17 +1225,6 @@ export default function ArrivalsEntryForm() {
                                             <div className="col-span-12 grid grid-cols-12 gap-3 items-start p-2">
                                                 {/* ROW 1: Commodity, Quantity, Rate */}
                                                 <div className="col-span-12 grid grid-cols-12 gap-3">
-                                                    {isVisible('item_id') && (
-                                                        <div className="col-span-12 md:col-span-8 lg:col-span-8">
-                                                            <FormField
-                                                                control={form.control}
-                                                                name={`items.${index}.item_id`}
-                                                                render={({ field }) => (
-                                                                    <FormItem>
-                                                                        <div className="flex items-center justify-between mb-1">
-                                                                            <FormLabel className="text-[10px] font-bold text-slate-700 uppercase tracking-wide">Commodity</FormLabel>
-                                                                            <ItemDialog onSuccess={refetchMaster}>
-                                                                                <Button type="button" variant="link" className="h-auto p-0 text-blue-600 text-[9px] font-bold uppercase tracking-widest hover:text-blue-800 transition-colors">
                                                                                     + ADD
                                                                                 </Button>
                                                                             </ItemDialog>

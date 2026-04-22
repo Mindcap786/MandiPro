@@ -226,8 +226,6 @@ export default function PurchaseBillInvoice({
                     <thead>
                         <tr className="border-b-2 border-black">
                             <th className="py-2 text-[10px] font-black uppercase tracking-[0.2em] text-black text-left">Item / Lot</th>
-                            <th className="py-2 text-[10px] font-black uppercase tracking-[0.2em] text-black text-center">Gross Qty</th>
-                            <th className="py-2 text-[10px] font-black uppercase tracking-[0.2em] text-black text-center">Deduction</th>
                             <th className="py-2 text-[10px] font-black uppercase tracking-[0.2em] text-black text-center">Net Qty</th>
                             <th className="py-2 text-[10px] font-black uppercase tracking-[0.2em] text-black text-right">Rate</th>
                             <th className="py-2 text-[10px] font-black uppercase tracking-[0.2em] text-black text-right">Amount</th>
@@ -240,16 +238,6 @@ export default function PurchaseBillInvoice({
                                 <p className="text-[10px] font-black text-white bg-orange-600 px-1.5 py-0.5 rounded inline-block tracking-widest uppercase tabular-nums mt-1.5">
                                     {lotCode}
                                 </p>
-                            </td>
-                            <td className="py-2 text-center font-bold text-sm tracking-tighter">
-                                {grossQty} <span className="text-[7px] text-gray-400 font-normal">{unit}</span>
-                            </td>
-                            <td className="py-2 text-center font-bold text-sm tracking-tighter text-red-500">
-                                {totalLessQty > 0 ? (
-                                    <>
-                                        −{Math.round(totalLessQty * 100) / 100}
-                                    </>
-                                ) : '0'}
                             </td>
                             <td className="py-2 text-center font-bold text-sm tracking-tighter">
                                 {Math.round(netQty * 100) / 100} <span className="text-[7px] text-gray-400 font-normal">{unit}</span>
@@ -330,35 +318,11 @@ export default function PurchaseBillInvoice({
                 {/* Right Side: Totals & Settlement */}
                 <div className="space-y-6">
                     <div className="space-y-1.5 border-t-2 border-black pt-4">
-                        {/* Gross Amount */}
-                        <div className="flex justify-between items-center text-xs">
-                            <span className="font-bold text-gray-500 uppercase">Gross Amount</span>
-                            <span className="font-bold">₹{Math.round(trueGrossValue).toLocaleString()}</span>
-                        </div>
-
-                        {/* Less Deduction */}
-                        {lessDeductionValue > 0.01 && (
-                            <div className="flex justify-between items-center text-xs">
-                                <span className="text-gray-400 font-bold uppercase tracking-widest">Less Deduction</span>
-                                <span className="font-bold text-red-500">
-                                    − ₹{Math.round(lessDeductionValue).toLocaleString()}
-                                </span>
-                            </div>
-                        )}
-
                         {/* Net Goods Value */}
-                        <div className="flex justify-between items-center text-xs border-t border-gray-100 pt-1 mb-2">
+                        <div className="flex justify-between items-center text-xs mb-2">
                             <span className="font-black text-slate-800 uppercase">Net Goods Value</span>
                             <span className="font-black text-slate-800">₹{Math.round(netGoodsValue).toLocaleString()}</span>
                         </div>
-
-                        {/* Other Charges */}
-                        {otherCut > 0 && (
-                            <div className="flex justify-between items-center text-xs">
-                                <span className="text-gray-400 font-bold uppercase tracking-widest">Other Charges</span>
-                                <span className="font-bold text-red-500">− ₹{Math.round(otherCut).toLocaleString()}</span>
-                            </div>
-                        )}
 
                         {/* Commission — only for commission types */}
                         {commissionAmount > 0.01 && (
@@ -372,21 +336,21 @@ export default function PurchaseBillInvoice({
                             </div>
                         )}
 
-                        {/* Loading/Packing Cost */}
-                        {(loadingCost > 0 || packingCost > 0) && (
+                        {/* Other Charges */}
+                        {otherCut > 0 && (
                             <div className="flex justify-between items-center text-xs">
-                                <span className="text-gray-400 font-bold uppercase tracking-widest">Loading/Packing</span>
-                                <span className="font-bold text-red-500">− ₹{Math.round(loadingCost + packingCost).toLocaleString()}</span>
+                                <span className="text-gray-400 font-bold uppercase tracking-widest">Other Charges</span>
+                                <span className="font-bold text-red-500">− ₹{Math.round(otherCut).toLocaleString()}</span>
                             </div>
                         )}
 
-                        {/* Transport Share */}
-                        {arrivalExpenseShare > 0.01 && (
-                            <div className="flex justify-between items-center text-xs">
-                                <span className="text-gray-400 font-bold uppercase tracking-widest">Transport Share</span>
-                                <span className="font-bold text-red-500">− ₹{Math.round(arrivalExpenseShare).toLocaleString()}</span>
+                        {/* Loading/Packing Cost */}
+                        {(loadingCost > 0 || packingCost > 0) || arrivalExpenseShare > 0.01 ? (
+                            <div className="flex justify-between items-center text-xs border-t border-gray-100 pt-1">
+                                <span className="text-gray-400 font-bold uppercase tracking-widest">Expenses / Transport</span>
+                                <span className="font-bold text-red-500">− ₹{Math.round(loadingCost + packingCost + arrivalExpenseShare).toLocaleString()}</span>
                             </div>
-                        )}
+                        ) : null}
 
                         {/* Advance Paid */}
                         {advance > 0 && (
