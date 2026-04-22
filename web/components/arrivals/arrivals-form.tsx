@@ -923,7 +923,7 @@ export default function ArrivalsEntryForm() {
                                 </div>
 
                                 <div className="md:col-span-4 space-y-1.5">
-                                    <Label className="text-[10px] font-bold text-slate-700 uppercase tracking-wide ml-1">{getLabel('lot_prefix', 'Lot Prefix')}</Label>
+                                    <Label className="text-[10px] font-bold text-slate-700 uppercase tracking-wide ml-1">{getLabel('lot_prefix', 'Lot Number')}</Label>
                                     {isVisible('lot_prefix') && (
                                         <FormField
                                             control={form.control}
@@ -1221,157 +1221,131 @@ export default function ArrivalsEntryForm() {
                                         </div>
                                         <div className="grid grid-cols-12 gap-4 items-start">
 
-                                            {/* REDESIGNED GRID: 2 Rows, Line 1: Item, Qty, Rate | Line 2: Unit, Storage */}
-                                            <div className="col-span-12 grid grid-cols-12 gap-3 items-start p-2">
-                                                {/* ROW 1: Commodity, Quantity, Rate */}
-                                                <div className="col-span-12 grid grid-cols-12 gap-3">
-                                                    {isVisible('item_id') && (
-                                                        <div className="col-span-12 md:col-span-6 lg:col-span-3">
-                                                            <FormField
-                                                                control={form.control}
-                                                                name={`items.${index}.item_id`}
-                                                                render={({ field }) => (
-                                                                    <FormItem>
-                                                                        <div className="flex items-center justify-between mb-0.5">
-                                                                            <FormLabel className="text-[9px] font-bold text-slate-700 uppercase tracking-wide">Commodity</FormLabel>
-                                                                            <ItemDialog onSuccess={refetchMaster}>
-                                                                                <button type="button" className="text-[8px] font-black text-blue-600 hover:underline uppercase">+ New</button>
-                                                                            </ItemDialog>
-                                                                        </div>
-                                                                        <SearchableSelect
-                                                                            options={(availableItems || []).map(i => ({
-                                                                                label: formatCommodityName(i.name, i.custom_attributes),
-                                                                                value: i.id
-                                                                            }))}
-                                                                            value={field.value}
-                                                                            onChange={(val) => {
-                                                                                field.onChange(val);
-                                                                                const item = availableItems?.find(i => i.id === val);
-                                                                                if (item?.default_unit) {
-                                                                                    form.setValue(`items.${index}.unit`, item.default_unit);
-                                                                                }
-                                                                            }}
-                                                                            placeholder="Select Item..."
-                                                                            className="h-9 text-xs font-bold bg-white border-slate-300"
-                                                                        />
-                                                                        <FormMessage className="text-[9px]" />
-                                                                    </FormItem>
-                                                                )}
-                                                            />
-                                                        </div>
-                                                    )}
+                                            {/* REDESIGNED GRID: Single high-density row for main fields */}
+                                            <div className="col-span-12 grid grid-cols-12 gap-3 items-end p-2">
+                                                {isVisible('item_id') && (
+                                                    <div className="col-span-12 md:col-span-4">
+                                                        <FormField
+                                                            control={form.control}
+                                                            name={`items.${index}.item_id`}
+                                                            render={({ field }) => (
+                                                                <FormItem>
+                                                                    <div className="flex items-center justify-between mb-0.5">
+                                                                        <FormLabel className="text-[9px] font-bold text-slate-700 uppercase tracking-wide">Commodity</FormLabel>
+                                                                        <ItemDialog onSuccess={refetchMaster}>
+                                                                            <button type="button" className="text-[8px] font-black text-blue-600 hover:underline uppercase">+ New</button>
+                                                                        </ItemDialog>
+                                                                    </div>
+                                                                    <SearchableSelect
+                                                                        options={(availableItems || []).map(i => ({
+                                                                            label: formatCommodityName(i.name, i.custom_attributes),
+                                                                            value: i.id
+                                                                        }))}
+                                                                        value={field.value}
+                                                                        onChange={(val) => {
+                                                                            field.onChange(val);
+                                                                            const item = availableItems?.find(i => i.id === val);
+                                                                            if (item?.default_unit) {
+                                                                                form.setValue(`items.${index}.unit`, item.default_unit);
+                                                                            }
+                                                                        }}
+                                                                        placeholder="Select Item..."
+                                                                        className="h-9 text-xs font-bold bg-white border-slate-300"
+                                                                    />
+                                                                    <FormMessage className="text-[9px]" />
+                                                                </FormItem>
+                                                            )}
+                                                        />
+                                                    </div>
+                                                )}
 
-                                                    {isVisible('lot_code') && (
-                                                        <div className="col-span-6 md:col-span-3 lg:col-span-2">
-                                                            <FormField
-                                                                control={form.control}
-                                                                name={`items.${index}.lot_code`}
-                                                                render={({ field }) => (
-                                                                    <FormItem>
-                                                                        <FormLabel className="text-[9px] font-bold text-slate-700 uppercase tracking-wide mb-0.5 block">Lot Number</FormLabel>
+                                                {isVisible('unit') && (
+                                                    <div className="col-span-6 md:col-span-2">
+                                                        <FormField
+                                                            control={form.control}
+                                                            name={`items.${index}.unit`}
+                                                            render={({ field }) => (
+                                                                <FormItem>
+                                                                    <FormLabel className="text-[9px] font-bold text-slate-700 uppercase tracking-wide mb-0.5 block">Unit</FormLabel>
+                                                                    <Select onValueChange={field.onChange} value={field.value}>
                                                                         <FormControl>
-                                                                            <Input {...field} placeholder="Auto" className="h-9 bg-white border-slate-300 text-xs font-bold text-slate-900 uppercase" />
+                                                                            <SelectTrigger className="bg-white border border-slate-300 h-9 text-[10px] text-slate-900 font-bold rounded-lg px-2">
+                                                                                <SelectValue placeholder="Unit" />
+                                                                            </SelectTrigger>
                                                                         </FormControl>
-                                                                        <FormMessage className="text-[9px]" />
-                                                                    </FormItem>
-                                                                )}
-                                                            />
-                                                        </div>
-                                                    )}
+                                                                        <SelectContent className="bg-white">
+                                                                            {units.map((u) => (
+                                                                                <SelectItem key={u} value={u} className="font-bold text-xs">{u}</SelectItem>
+                                                                            ))}
+                                                                        </SelectContent>
+                                                                    </Select>
+                                                                    <FormMessage className="text-[9px]" />
+                                                                </FormItem>
+                                                            )}
+                                                        />
+                                                    </div>
+                                                )}
 
-                                                    {isVisible('unit') && (
-                                                        <div className="col-span-6 md:col-span-3 lg:col-span-2">
-                                                            <FormField
-                                                                control={form.control}
-                                                                name={`items.${index}.unit`}
-                                                                render={({ field }) => (
-                                                                    <FormItem>
-                                                                        <FormLabel className="text-[9px] font-bold text-slate-700 uppercase tracking-wide mb-0.5 block">Unit</FormLabel>
-                                                                        <Select onValueChange={field.onChange} value={field.value}>
-                                                                            <FormControl>
-                                                                                <SelectTrigger className="bg-white border border-slate-300 h-9 text-[10px] text-slate-900 font-bold rounded-lg px-2">
-                                                                                    <SelectValue placeholder="Unit" />
-                                                                                </SelectTrigger>
-                                                                            </FormControl>
-                                                                            <SelectContent className="bg-white">
-                                                                                {units.map((u) => (
-                                                                                    <SelectItem key={u} value={u} className="font-bold text-xs">{u}</SelectItem>
-                                                                                ))}
-                                                                            </SelectContent>
-                                                                        </Select>
-                                                                        <FormMessage className="text-[9px]" />
-                                                                    </FormItem>
-                                                                )}
-                                                            />
-                                                        </div>
-                                                    )}
-                                                </div>
+                                                {isVisible('qty') && (
+                                                    <div className="col-span-6 md:col-span-2">
+                                                        <FormField
+                                                            control={form.control}
+                                                            name={`items.${index}.qty`}
+                                                            render={({ field }) => (
+                                                                <FormItem>
+                                                                    <FormLabel className="text-[9px] font-bold text-slate-700 uppercase tracking-wide mb-0.5 block">Quantity</FormLabel>
+                                                                    <FormControl>
+                                                                        <Input type="number" {...field} className="bg-white border border-slate-300 h-9 text-xs text-slate-900 font-bold rounded-lg text-center" />
+                                                                    </FormControl>
+                                                                    <FormMessage className="text-[9px]" />
+                                                                </FormItem>
+                                                            )}
+                                                        />
+                                                    </div>
+                                                )}
 
-                                                {/* ROW 2: Qty, Rate, Unit, Storage */}
-                                                <div className="col-span-12 grid grid-cols-12 gap-3 mt-2">
-                                                    {isVisible('qty') && (
-                                                        <div className="col-span-6 md:col-span-4 lg:col-span-4">
-                                                            <FormField
-                                                                control={form.control}
-                                                                name={`items.${index}.qty`}
-                                                                render={({ field }) => (
-                                                                    <FormItem>
-                                                                        <FormLabel className="text-[9px] font-bold text-slate-700 uppercase tracking-wide mb-0.5 block">Quantity</FormLabel>
+                                                {isVisible('supplier_rate') && (
+                                                    <div className="col-span-6 md:col-span-2">
+                                                        <FormField
+                                                            control={form.control}
+                                                            name={`items.${index}.supplier_rate`}
+                                                            render={({ field }) => (
+                                                                <FormItem>
+                                                                    <FormLabel className="text-[9px] font-bold text-slate-700 uppercase tracking-wide mb-0.5 block">Rate</FormLabel>
+                                                                    <FormControl>
+                                                                        <Input type="number" {...field} className="h-9 bg-white border border-slate-300 text-slate-900 font-bold text-center rounded-lg text-xs" />
+                                                                    </FormControl>
+                                                                </FormItem>
+                                                            )}
+                                                        />
+                                                    </div>
+                                                )}
+
+                                                {isVisible('storage_location') && (
+                                                    <div className="col-span-6 md:col-span-2">
+                                                        <FormField
+                                                            control={form.control}
+                                                            name={`items.${index}.storage_location`}
+                                                            render={({ field }) => (
+                                                                <FormItem>
+                                                                    <FormLabel className="text-[9px] font-bold text-blue-700 uppercase tracking-wide mb-0.5 block">Storage</FormLabel>
+                                                                    <Select onValueChange={field.onChange} value={field.value}>
                                                                         <FormControl>
-                                                                            <Input type="number" {...field} className="bg-white border border-slate-300 h-9 text-xs text-slate-900 font-bold rounded-lg text-center" />
+                                                                            <SelectTrigger className="bg-blue-50 border border-blue-200 h-9 text-xs text-blue-900 font-bold rounded-lg px-2">
+                                                                                <SelectValue placeholder="Storage" />
+                                                                            </SelectTrigger>
                                                                         </FormControl>
-                                                                        <FormMessage />
-                                                                    </FormItem>
-                                                                )}
-                                                            />
-                                                        </div>
-                                                    )}
-
-
-
-                                                    {isVisible('supplier_rate') && (
-                                                        <div className="col-span-6 md:col-span-4 lg:col-span-4">
-                                                            <FormField
-                                                                control={form.control}
-                                                                name={`items.${index}.supplier_rate`}
-                                                                render={({ field }) => (
-                                                                    <FormItem>
-                                                                        <FormLabel className="text-[9px] font-bold text-slate-700 uppercase tracking-wide mb-0.5 block">Rate</FormLabel>
-                                                                        <FormControl>
-                                                                            <Input type="number" {...field} className="h-9 bg-white border border-slate-300 text-slate-900 font-bold text-center rounded-lg text-xs" />
-                                                                        </FormControl>
-                                                                    </FormItem>
-                                                                )}
-                                                            />
-                                                        </div>
-                                                    )}
-
-                                                    {isVisible('storage_location') && (
-                                                        <div className="col-span-6 md:col-span-4 lg:col-span-4">
-                                                            <FormField
-                                                                control={form.control}
-                                                                name={`items.${index}.storage_location`}
-                                                                render={({ field }) => (
-                                                                    <FormItem>
-                                                                        <FormLabel className="text-[9px] font-bold text-blue-700 uppercase tracking-wide mb-0.5 block">Storage</FormLabel>
-                                                                        <Select onValueChange={field.onChange} value={field.value}>
-                                                                            <FormControl>
-                                                                                <SelectTrigger className="bg-blue-50 border border-blue-200 h-9 text-xs text-blue-900 font-bold rounded-lg px-3">
-                                                                                    <SelectValue placeholder="Select" />
-                                                                                </SelectTrigger>
-                                                                            </FormControl>
-                                                                            <SelectContent className="bg-white">
-                                                                                {storageLocations?.map((loc: any) => (
-                                                                                    <SelectItem key={loc.id} value={loc.name} className="font-bold text-xs">{loc.name}</SelectItem>
-                                                                                ))}
-                                                                            </SelectContent>
-                                                                        </Select>
-                                                                    </FormItem>
-                                                                )}
-                                                            />
-                                                        </div>
-                                                    )}
-                                                </div>
+                                                                        <SelectContent className="bg-white">
+                                                                            {storageLocations?.map((loc: any) => (
+                                                                                <SelectItem key={loc.id} value={loc.name} className="font-bold text-xs">{loc.name}</SelectItem>
+                                                                            ))}
+                                                                        </SelectContent>
+                                                                    </Select>
+                                                                </FormItem>
+                                                            )}
+                                                        />
+                                                    </div>
+                                                )}
                                             </div>
 
 
