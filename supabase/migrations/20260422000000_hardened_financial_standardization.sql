@@ -2,7 +2,7 @@
 -- Date: 2026-04-22
 -- Author: MandiPro ERP Architect
 
--- 1. Schema Fixes (Missing Columns for Financial Integrity)
+-- 1. Schema Fixes
 ALTER TABLE mandi.arrivals 
 ADD COLUMN IF NOT EXISTS advance_bank_account_id UUID REFERENCES mandi.accounts(id),
 ADD COLUMN IF NOT EXISTS advance_cheque_no TEXT,
@@ -86,7 +86,7 @@ BEGIN
 END;
 $function$;
 
--- 3. Hardened Arrival Ledger Function
+-- 3. Hardened Arrival Ledger Function (Refined for Amount Paid)
 CREATE OR REPLACE FUNCTION mandi.post_arrival_ledger(p_arrival_id uuid)
  RETURNS void
  LANGUAGE plpgsql
@@ -99,18 +99,20 @@ DECLARE
     v_bill_no BIGINT;
     v_voucher_id UUID;
     v_total_payable NUMERIC := 0;
-    v_total_advance NUMERIC := 0;
+    v_total_paid NUMERIC := 0;
     v_ap_acc_id UUID;
     v_purchase_acc_id UUID;
-    v_cash_acc_id UUID;
+    v_liquid_acc_id UUID;
     v_narration TEXT;
     v_item_summary TEXT;
     v_header_expenses NUMERIC := 0;
+    v_payment_mode TEXT;
+    v_bank_acc_id_header UUID;
 BEGIN
     SELECT 
-        organization_id, party_id, arrival_date, bill_no, advance_amount,
+        organization_id, party_id, arrival_date, bill_no, advance_amount, advance_payment_mode, advance_bank_account_id,
         COALESCE(transport_amount,0) + COALESCE(loading_amount,0) + COALESCE(packing_amount,0) + COALESCE(hamali_expenses,0) + COALESCE(other_expenses,0)
-    INTO v_org_id, v_party_id, v_arrival_date, v_bill_no, v_total_advance, v_header_expenses
+    INTO v_org_id, v_party_id, v_arrival_date, v_bill_no, v_total_paid, v_payment_mode, v_bank_acc_id_header, v_header_expenses
     FROM mandi.arrivals WHERE id = p_arrival_id;
 
     SELECT SUM(
@@ -127,12 +129,11 @@ BEGIN
     DELETE FROM mandi.ledger_entries WHERE reference_id = p_arrival_id AND transaction_type IN ('arrival', 'arrival_advance');
     DELETE FROM mandi.vouchers WHERE reference_id = p_arrival_id AND type = 'arrival';
 
-    IF COALESCE(v_total_payable,0) = 0 AND COALESCE(v_total_advance,0) = 0 THEN RETURN; END IF;
+    IF COALESCE(v_total_payable,0) = 0 AND COALESCE(v_total_paid,0) = 0 THEN RETURN; END IF;
 
     SELECT id INTO v_ap_acc_id FROM mandi.accounts WHERE organization_id = v_org_id AND (name ILIKE '%Payable%' OR code = '2100') LIMIT 1;
     SELECT id INTO v_purchase_acc_id FROM mandi.accounts WHERE organization_id = v_org_id AND (name ILIKE '%Purchase%' OR code = '5001') LIMIT 1;
-    SELECT id INTO v_cash_acc_id FROM mandi.accounts WHERE organization_id = v_org_id AND (name ILIKE '%Cash%' OR account_sub_type = 'cash') LIMIT 1;
-
+    
     SELECT string_agg(COALESCE(c.name, 'Item') || ' (' || initial_qty || ' ' || COALESCE(unit, '') || ')', ', ')
     INTO v_item_summary FROM mandi.lots l JOIN mandi.commodities c ON c.id = l.item_id WHERE l.arrival_id = p_arrival_id;
 
@@ -149,16 +150,24 @@ BEGIN
         VALUES (v_org_id, v_voucher_id, v_party_id, v_ap_acc_id, 0, v_total_payable, v_arrival_date, v_narration, v_narration, 'arrival', p_arrival_id);
     END IF;
 
-    IF v_total_advance > 0 THEN
-        INSERT INTO mandi.ledger_entries (organization_id, voucher_id, contact_id, account_id, debit, credit, entry_date, description, narration, transaction_type, reference_id)
-        VALUES (v_org_id, v_voucher_id, v_party_id, v_ap_acc_id, v_total_advance, 0, v_arrival_date, 'Advance Payment (At Gate)', v_narration, 'arrival_advance', p_arrival_id);
-        INSERT INTO mandi.ledger_entries (organization_id, voucher_id, account_id, debit, credit, entry_date, description, narration, transaction_type, reference_id)
-        VALUES (v_org_id, v_voucher_id, v_cash_acc_id, 0, v_total_advance, v_arrival_date, 'Advance Payment (At Gate)', v_narration, 'arrival_advance', p_arrival_id);
+    IF v_total_paid > 0 THEN
+        IF v_payment_mode = 'cash' THEN
+            SELECT id INTO v_liquid_acc_id FROM mandi.accounts WHERE organization_id = v_org_id AND (name ILIKE '%Cash%' OR account_sub_type = 'cash') LIMIT 1;
+        ELSE
+            v_liquid_acc_id := COALESCE(v_bank_acc_id_header, (SELECT id FROM mandi.accounts WHERE organization_id = v_org_id AND (name ILIKE '%Bank%' OR account_sub_type = 'bank') LIMIT 1));
+        END IF;
+
+        IF v_liquid_acc_id IS NOT NULL THEN
+            INSERT INTO mandi.ledger_entries (organization_id, voucher_id, contact_id, account_id, debit, credit, entry_date, description, narration, transaction_type, reference_id)
+            VALUES (v_org_id, v_voucher_id, v_party_id, v_ap_acc_id, v_total_paid, 0, v_arrival_date, 'Purchase Payment', v_narration, 'arrival_advance', p_arrival_id);
+            INSERT INTO mandi.ledger_entries (organization_id, voucher_id, account_id, debit, credit, entry_date, description, narration, transaction_type, reference_id)
+            VALUES (v_org_id, v_voucher_id, v_liquid_acc_id, 0, v_total_paid, v_arrival_date, 'Purchase Payment', v_narration, 'arrival_advance', p_arrival_id);
+        END IF;
     END IF;
 END;
 $function$;
 
--- 4. Standardized RPC: create_mixed_arrival (Saving all deductions)
+-- 4. Standardized RPC: create_mixed_arrival
 CREATE OR REPLACE FUNCTION mandi.create_mixed_arrival(p_arrival jsonb, p_created_by uuid)
  RETURNS jsonb
  LANGUAGE plpgsql
