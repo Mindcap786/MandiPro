@@ -109,7 +109,7 @@ export function useArrivalsMasterData(organizationId: string | undefined): Arriv
 
     // 2. Background / foreground fetch from Supabase
     try {
-      const [contactsRes, commoditiesRes, storageRes, bankRes, settingsRes] = await Promise.allSettled([
+      const [contactsRes, commoditiesRes, storageRes, bankRes, settingsRes, unitsRes] = await Promise.allSettled([
         supabase.schema(SCHEMA).from("contacts").select("id, name, type:contact_type, city")
           .eq("organization_id", currentOrgId).in("contact_type", ["farmer", "supplier"]).order("name"),
         supabase.schema(SCHEMA).from("commodities").select("id, name, local_name, sku_code, default_unit, custom_attributes")
@@ -140,7 +140,7 @@ export function useArrivalsMasterData(organizationId: string | undefined): Arriv
       setNirashritPercent(Number(newSettings?.nirashrit_percent || 0))
       setMiscFeePercent(Number(newSettings?.misc_fee_percent || 0))
 
-      const dbUnits = (unitsRes.status === 'fulfilled' ? (unitsRes.value.data || []) : []).map((u: any) => u.name)
+      const dbUnits = (unitsRes.status === 'fulfilled' ? (unitsRes.value as any).data || [] : []).map((u: any) => u.name)
       const newUnits = Array.from(new Set([...STANDARD_UNITS, ...dbUnits, "Kg"]))
       setUnits(newUnits)
 
