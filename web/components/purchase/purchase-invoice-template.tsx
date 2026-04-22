@@ -63,6 +63,13 @@ export default function PurchaseBillInvoice({
     
     const advance = toNumber(lot.advance)
     const paidAmount = toNumber(lot?.paid_amount);
+
+    // Missing UI variables
+    const loadingCost = toNumber(lot.loading_cost);
+    const packingCost = toNumber(lot.packing_cost);
+    const otherCut = toNumber(lot.other_charges || 0);
+    const arrivalExpenseShare = toNumber(lot.farmer_charges || 0);
+
     const finalPayable = Math.max(0, netGoodsValue - commissionAmount - lotExpenses - advance - paidAmount)
 
     // Organization address
