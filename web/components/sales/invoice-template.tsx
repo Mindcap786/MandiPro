@@ -144,11 +144,13 @@ export default function BuyerInvoice({ sale, organization, onRefresh }: InvoiceT
                     </div>
                     {(() => {
                         const masterLot = sale.lot_no;
-                        const itemLots = items.map((i: any) => i.lot?.lot_code).filter(Boolean);
+                        const itemLots = items
+                            .map((i: any) => i.lot?.lot_code)
+                            .filter((code: any) => code && code !== 'N/A');
                         const uniqueLots = Array.from(new Set(itemLots));
-                        const displayLot = masterLot || uniqueLots.join(', ');
+                        const displayLot = (masterLot && masterLot !== 'N/A') ? masterLot : uniqueLots.join(', ');
 
-                        if (!displayLot) return null;
+                        if (!displayLot || displayLot === '') return null;
 
                         return (
                             <div className="flex justify-end gap-2">
@@ -232,11 +234,13 @@ export default function BuyerInvoice({ sale, organization, onRefresh }: InvoiceT
                                     <p className="font-black text-xs tracking-tight uppercase leading-none">
                                         {formatCommodityName(item.lot?.item?.name || item.item_name || 'Item', item.lot?.item?.custom_attributes)}
                                     </p>
-                                    <div className="flex flex-col gap-0 mt-0">
-                                        <p className="text-[8px] font-black text-orange-600 tracking-tighter uppercase tabular-nums">
-                                            {item.lot?.lot_code || 'N/A'}
-                                        </p>
-                                    </div>
+                                    {item.lot?.lot_code && item.lot.lot_code !== 'N/A' && (
+                                        <div className="flex flex-col gap-0 mt-0">
+                                            <p className="text-[8px] font-black text-orange-600 tracking-tighter uppercase tabular-nums">
+                                                {item.lot.lot_code}
+                                            </p>
+                                        </div>
+                                    )}
                                 </td>
                                 <td className="py-0.5 text-center font-bold text-sm tracking-tighter">
                                     {item.qty || 0} <span className="text-[10px] text-gray-400 font-black uppercase ml-0.5">{item.unit || 'Unit'}</span>

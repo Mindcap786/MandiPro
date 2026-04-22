@@ -89,6 +89,7 @@ const formSchema = z.object({
     cheque_status: z.boolean().default(false),
     vehicle_number: z.string().optional(),
     book_no: z.string().optional(),
+    lot_no: z.string().optional(),
 }).superRefine((data, ctx) => {
     // Validate that the sum of quantities for a single lot doesn't exceed its available stock
     const lotTotals: Record<string, number> = {};
@@ -169,6 +170,7 @@ function NewSaleForm() {
             cheque_status: false,
             vehicle_number: "",
             book_no: "",
+            lot_no: "",
         }
     });
 
@@ -690,7 +692,8 @@ function NewSaleForm() {
                 buyerGstin: buyerInfo?.gstin || null,
                 isIgst: totals.isIgst,
                 vehicleNumber: values.vehicle_number || null,
-                bookNo: values.book_no || null
+                bookNo: values.book_no || null,
+                lotNo: values.lot_no || null
             });
 
             if (error) throw error;
@@ -857,6 +860,27 @@ function NewSaleForm() {
                                                 <Input 
                                                     {...field} 
                                                     placeholder="B-1234"
+                                                    className="bg-transparent border-t-0 border-l-0 border-r-0 border-b-2 border-slate-300 rounded-none h-9 text-lg font-black text-slate-900 focus:border-indigo-600 transition-all shadow-none px-0 uppercase"
+                                                />
+                                            </FormControl>
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-2 text-slate-500 font-black text-[10px] uppercase tracking-[0.2em] mb-2">
+                                    <div className="w-4 h-[1.5px] bg-slate-300" />
+                                    Lot Number
+                                </div>
+                                <FormField
+                                    control={form.control}
+                                    name="lot_no"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormControl>
+                                                <Input 
+                                                    {...field} 
+                                                    placeholder="LOT-2024"
                                                     className="bg-transparent border-t-0 border-l-0 border-r-0 border-b-2 border-slate-300 rounded-none h-9 text-lg font-black text-slate-900 focus:border-indigo-600 transition-all shadow-none px-0 uppercase"
                                                 />
                                             </FormControl>

@@ -39,8 +39,8 @@ export default function PurchaseBillInvoice({
     const lotCode = arrival?.lot_prefix || lot.lot_code || 'N/A'
     const unit = lot.unit || 'Unit'
 
-    const billNo = arrival?.reference_no || arrival?.contact_bill_no || arrival?.bill_no || lot.lot_code || 'N/A'
-    const referenceNo = arrival?.reference_no ? '' : (arrival?.contact_bill_no || '')
+    const billNo = arrival?.bill_no || lot.lot_code || 'N/A'
+    const referenceNo = arrival?.reference_no || arrival?.contact_bill_no || ''
     const vehicleNo = arrival?.vehicle_number || ''
     const vehicleType = arrival?.vehicle_type || ''
     const arrivalDate = arrival?.arrival_date || lot.created_at
@@ -183,7 +183,7 @@ export default function PurchaseBillInvoice({
                             </span>
                         )}
                     </div>
-                    {referenceNo && (
+                    {referenceNo && referenceNo !== 'N/A' && (
                         <div className="flex justify-end gap-2">
                             <span className="text-gray-400 font-bold uppercase">Book Ref No:</span>
                             <span className="font-black">{referenceNo}</span>
@@ -193,10 +193,12 @@ export default function PurchaseBillInvoice({
                         <span className="text-gray-400 font-bold uppercase">Date:</span>
                         <span className="font-black">{formattedDate}</span>
                     </div>
-                    <div className="flex justify-end gap-2 items-center">
-                        <span className="text-gray-400 font-bold uppercase">Lot No:</span>
-                        <span className="font-black text-white bg-slate-900 px-2 py-0.5 rounded text-[13px] tracking-widest">{lotCode}</span>
-                    </div>
+                    {lotCode && lotCode !== 'N/A' && (
+                        <div className="flex justify-end gap-2 items-center">
+                            <span className="text-gray-400 font-bold uppercase">Lot No:</span>
+                            <span className="font-black text-white bg-slate-900 px-2 py-0.5 rounded text-[13px] tracking-widest">{lotCode}</span>
+                        </div>
+                    )}
                     {vehicleNo && (
                         <div className="flex justify-end gap-2">
                             <span className="text-gray-400 font-bold uppercase">Vehicle No:</span>
@@ -221,9 +223,11 @@ export default function PurchaseBillInvoice({
                         <tr>
                             <td className="py-2">
                                 <p className="font-black text-xs tracking-tight uppercase leading-none">{itemName}</p>
-                                <p className="text-[10px] font-black text-white bg-orange-600 px-1.5 py-0.5 rounded inline-block tracking-widest uppercase tabular-nums mt-1.5">
-                                    {lotCode}
-                                </p>
+                                {lotCode && lotCode !== 'N/A' && (
+                                    <p className="text-[10px] font-black text-white bg-orange-600 px-1.5 py-0.5 rounded inline-block tracking-widest uppercase tabular-nums mt-1.5">
+                                        {lotCode}
+                                    </p>
+                                )}
                             </td>
                             <td className="py-2 text-center font-bold text-sm tracking-tighter">
                                 {Math.round(netQty * 100) / 100} <span className="text-[11px] text-gray-500 font-bold ml-0.5 uppercase tracking-tight">{unit}</span>

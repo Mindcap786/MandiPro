@@ -32,6 +32,7 @@ type ConfirmSaleTransactionParams = {
     isIgst?: boolean;
     vehicleNumber?: string | null;
     bookNo?: string | null;
+    lotNo?: string | null;
 };
 
 type ConfirmSaleTransactionResult = {
@@ -84,6 +85,7 @@ export async function confirmSaleTransactionWithFallback(
         p_is_igst: params.isIgst || false,
         p_vehicle_number: params.vehicleNumber,
         p_book_no: params.bookNo,
+        p_lot_no: params.lotNo,
     };
 
     // 15-second timeout guard — prevents infinite spinners if DB hangs
