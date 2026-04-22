@@ -87,8 +87,6 @@ const formSchema = z.object({
     bank_name: z.string().optional(),
     bank_account_id: z.string().optional(),
     cheque_status: z.boolean().default(false),
-    vehicle_number: z.string().optional(),
-    book_no: z.string().optional(),
 }).superRefine((data, ctx) => {
     // Validate that the sum of quantities for a single lot doesn't exceed its available stock
     const lotTotals: Record<string, number> = {};
@@ -167,8 +165,6 @@ function NewSaleForm() {
             cheque_date: new Date(),
             bank_account_id: "",
             cheque_status: false,
-            vehicle_number: "",
-            book_no: ""
         }
     });
 
@@ -689,8 +685,8 @@ function NewSaleForm() {
                 placeOfSupply: totals.isIgst ? (buyerInfo?.state_code || null) : (orgStateCode || null),
                 buyerGstin: buyerInfo?.gstin || null,
                 isIgst: totals.isIgst,
-                vehicleNumber: values.vehicle_number || null,
-                bookNo: values.book_no || null
+                vehicleNumber: null,
+                bookNo: null
             });
 
             if (error) throw error;
@@ -817,43 +813,6 @@ function NewSaleForm() {
                                     )}
                                 </div>
 
-                                <div className="bg-slate-50 border border-slate-100 p-3 md:p-3.5 rounded-xl flex flex-col justify-center items-start flex-1 min-w-[100px] shadow-sm">
-                                    <div className="text-[9px] font-black uppercase text-slate-500 tracking-widest mb-1 w-full text-left truncate">Vehicle No</div>
-                                    <FormField
-                                        control={form.control}
-                                        name="vehicle_number"
-                                        render={({ field }) => (
-                                            <FormItem className="w-full">
-                                                <FormControl>
-                                                    <Input 
-                                                        {...field} 
-                                                        placeholder="UP-80-..." 
-                                                        className="h-8 bg-transparent border-none p-0 font-black text-slate-900 text-sm shadow-none focus-visible:ring-0 placeholder:text-slate-300" 
-                                                    />
-                                                </FormControl>
-                                            </FormItem>
-                                        )}
-                                    />
-                                </div>
-
-                                <div className="bg-slate-50 border border-slate-100 p-3 md:p-3.5 rounded-xl flex flex-col justify-center items-start flex-1 min-w-[100px] shadow-sm">
-                                    <div className="text-[9px] font-black uppercase text-slate-500 tracking-widest mb-1 w-full text-left truncate">Book Ref</div>
-                                    <FormField
-                                        control={form.control}
-                                        name="book_no"
-                                        render={({ field }) => (
-                                            <FormItem className="w-full">
-                                                <FormControl>
-                                                    <Input 
-                                                        {...field} 
-                                                        placeholder="B-001" 
-                                                        className="h-8 bg-transparent border-none p-0 font-black text-slate-900 text-sm shadow-none focus-visible:ring-0 placeholder:text-slate-300" 
-                                                    />
-                                                </FormControl>
-                                            </FormItem>
-                                        )}
-                                    />
-                                </div>
                             </div>
                         </div>
 
