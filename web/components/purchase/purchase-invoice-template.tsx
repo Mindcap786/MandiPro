@@ -11,6 +11,7 @@ import {
     calculateArrivalLevelExpenses,
     getArrivalType,
 } from "@/lib/purchase-payables"
+import { Check } from "lucide-react"
 
 interface PurchaseInvoiceTemplateProps {
     lot: any
@@ -47,6 +48,8 @@ export default function PurchaseBillInvoice({
     const arrivalTypeLabel = arrivalType === 'direct' ? 'Mandi Owned (Direct)' :
         arrivalType === 'commission' || arrivalType === 'farmer' ? 'Farmer Arrival (Commission)' :
             'Supplier Arrival (Commission)'
+
+    const paymentMode = arrival?.payment_mode || lot.payment_mode || 'udhaar'
 
     // ── Financial calculations (reusing existing lib) ────────────
     const isSettled = !!lot.settlement_at;
