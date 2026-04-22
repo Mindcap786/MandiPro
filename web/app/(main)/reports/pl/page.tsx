@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils";
 import { LotPnLSheet } from "@/components/reports/lot-pnl-sheet";
 import { format, subDays, startOfDay, endOfDay, isSameDay, startOfYear, endOfYear, subYears, startOfMonth, endOfMonth, subMonths, isValid } from "date-fns";
+import { getMainItemName } from "@/lib/utils/commodity-utils";
 
 const PAGE_SIZE = 15;
 const MAX_FREE_PAGES = 3;
@@ -37,7 +38,7 @@ export default function ProfitLossPage() {
         const fruits = new Set<string>();
         rawSalesData.forEach((si: any) => {
             const name = si.lot?.commodity?.name;
-            if (name) fruits.add(name);
+            if (name) fruits.add(getMainItemName(name));
         });
         return Array.from(fruits).sort();
     }, [rawSalesData]);
@@ -99,7 +100,7 @@ export default function ProfitLossPage() {
                     id: lot.id,
                     lot_code: lot.lot_code || '—',
                     date: sale.sale_date,
-                    item: lot.commodity?.name || 'Unknown Item',
+                    item: getMainItemName(lot.commodity?.name || 'Unknown Item'),
                     arrival_type: String(lot.arrival_type || 'Direct Purchase').trim(),
                     qty: 0,
                     revenue: 0,

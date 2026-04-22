@@ -9,19 +9,21 @@ import {
     Snowflake, Warehouse, RefreshCw, Printer,
     LayoutGrid, LayoutList, StretchHorizontal,
     AlertTriangle, Clock, Grape, Banana, Cherry,
-    Citrus, Apple as AppleIcon, Leaf, Carrot, Sprout, Plus,
+    Citrus, Apple as AppleIcon, Leaf, Carrot, Sprout, Plus, Apple,
 } from "lucide-react"
 import Link from "next/link"
 import { getIntelligentVisual } from "@/lib/utils/commodity-mapping"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { LotStockDialog } from "@/components/inventory/lot-stock-dialog"
 import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from "framer-motion"
 import { cacheGet, cacheSet, cacheIsStale } from "@/lib/data-cache"
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout"
 import { isNativePlatform } from "@/lib/capacitor-utils"
 import { cn } from "@/lib/utils"
+import { getMainItemName } from "@/lib/utils/commodity-utils"
 
 // Native components
 import { NativeCard } from "@/components/mobile/NativeCard"
@@ -87,7 +89,7 @@ function NativeStockCard({ item, onOpen }: { item: any; onOpen: () => void }) {
             {/* Info */}
             <div className="p-3">
                 <p className="text-sm font-bold text-[#1A1A2E] truncate mb-1" title={item.item_name}>
-                    {item.item_name}
+                    {getMainItemName(item.item_name)}
                 </p>
                 <div className="flex items-center gap-1 mb-2">
                     {item.storage_location === 'Cold Storage'
@@ -155,7 +157,7 @@ function NativeStockListRow({ item, onOpen }: { item: any; onOpen: () => void })
 
             {/* Name + location */}
             <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-[#1A1A2E] truncate">{item.item_name}</p>
+                <p className="text-sm font-semibold text-[#1A1A2E] truncate">{getMainItemName(item.item_name)}</p>
                 <p className="text-xs text-[#9CA3AF] truncate">{item.storage_location || 'Mandi'}</p>
             </div>
 
@@ -204,7 +206,7 @@ function AssetCard({ item, onOpen }: { item: any; onOpen: () => void }) {
             <div className="absolute inset-x-0 top-0 p-6 z-20 space-y-4" style={{ transform: "translateZ(20px)" }}>
                 <div className="flex justify-between items-start">
                     <div className="flex-1 min-w-0 pr-4">
-                        <h3 className="text-3xl font-[1000] text-black uppercase tracking-tight leading-[0.9] truncate">{item.item_name}</h3>
+                        <h3 className="text-3xl font-[1000] text-black uppercase tracking-tight leading-[0.9] truncate">{getMainItemName(item.item_name)}</h3>
                         <div className="flex flex-wrap gap-2 mt-3">
                             <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-lg bg-slate-100 border border-slate-200 text-slate-600">
                                 {item.arrival_type === 'commission' ? t('stock.farmer_comm') : item.arrival_type === 'commission_supplier' ? t('stock.supplier_comm') : (item.arrival_type === 'direct' ? 'DIRECT PURCHASE' : item.arrival_type)}
@@ -276,6 +278,7 @@ export default function StockPage() {
     const [locationFilter, setLocationFilter] = useState('All')
     const [arrivalFilter, setArrivalFilter] = useState('All')
     const [selectedItem, setSelectedItem] = useState<any | null>(null)
+    const [selectedFruit, setSelectedFruit] = useState("all")
     const [viewMode, setViewMode] = useState<'gallery' | 'compact' | 'list'>('gallery')
     const [auditPrinting, setAuditPrinting] = useState(false)
     const isFetching = useRef(false)
@@ -448,10 +451,19 @@ export default function StockPage() {
         return new Set(matchingStocks.map(item => item.item_id)).size
     }
 
+    const availableFruits = useMemo(() => {
+        const fruits = new Set<string>();
+        stocks.forEach(s => {
+            if (s.item_name) fruits.add(getMainItemName(s.item_name));
+        });
+        return Array.from(fruits).sort();
+    }, [stocks]);
+
     const filteredStock = stocks.filter(item => {
         const matchesSearch = item.item_name?.toLowerCase().includes(searchTerm.toLowerCase())
         const loc = item.storage_location || 'Mandi'
-        return matchesSearch && (locationFilter === 'All' || loc === locationFilter) && (arrivalFilter === 'All' || item.arrival_type === arrivalFilter)
+        const matchesFruit = selectedFruit === 'all' || getMainItemName(item.item_name).toLowerCase() === selectedFruit.toLowerCase()
+        return matchesSearch && matchesFruit && (locationFilter === 'All' || loc === locationFilter) && (arrivalFilter === 'All' || item.arrival_type === arrivalFilter)
     })
 
     // Aggregation stays client-side because users filter by source/location dynamically,
@@ -500,29 +512,51 @@ export default function StockPage() {
         return (
             <div className="bg-[#EFEFEF] min-h-dvh pb-4">
                 {/* Search bar + actions */}
-                <div className="px-4 pt-3 flex gap-2">
-                    <div className="flex-1 relative">
-                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9CA3AF]" />
-                        <input
-                            value={searchTerm}
-                            onChange={e => setSearchTerm(e.target.value)}
-                            placeholder={t('stock.search_placeholder') || 'Search commodities…'}
-                            className="w-full h-11 pl-10 pr-4 rounded-xl bg-white border border-[#E5E7EB] text-sm text-[#1A1A2E] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#1A6B3C]"
-                        />
+                <div className="px-4 pt-3 flex flex-col gap-2">
+                    <div className="flex gap-2">
+                        <div className="flex-1 relative">
+                            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9CA3AF]" />
+                            <input
+                                value={searchTerm}
+                                onChange={e => setSearchTerm(e.target.value)}
+                                placeholder={t('stock.search_placeholder') || 'Search commodities…'}
+                                className="w-full h-11 pl-10 pr-4 rounded-xl bg-white border border-[#E5E7EB] text-sm text-[#1A1A2E] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#1A6B3C]"
+                            />
+                        </div>
+                        <button
+                            onClick={handleAuditPrint}
+                            disabled={auditPrinting}
+                            className="w-11 h-11 rounded-xl bg-[#1A1A2E] flex items-center justify-center active:scale-95 transition-transform"
+                        >
+                            {auditPrinting ? <Loader2 className="w-4 h-4 text-white animate-spin" /> : <Printer className="w-4 h-4 text-white" />}
+                        </button>
+                        <button
+                            onClick={() => fetchData(true)}
+                            className="w-11 h-11 rounded-xl bg-white border border-[#E5E7EB] flex items-center justify-center active:scale-95 transition-transform"
+                        >
+                            <RefreshCw className={cn("w-4 h-4 text-[#6B7280]", loading && "animate-spin")} />
+                        </button>
                     </div>
-                    <button
-                        onClick={handleAuditPrint}
-                        disabled={auditPrinting}
-                        className="w-11 h-11 rounded-xl bg-[#1A1A2E] flex items-center justify-center active:scale-95 transition-transform"
-                    >
-                        {auditPrinting ? <Loader2 className="w-4 h-4 text-white animate-spin" /> : <Printer className="w-4 h-4 text-white" />}
-                    </button>
-                    <button
-                        onClick={() => fetchData(true)}
-                        className="w-11 h-11 rounded-xl bg-white border border-[#E5E7EB] flex items-center justify-center active:scale-95 transition-transform"
-                    >
-                        <RefreshCw className={cn("w-4 h-4 text-[#6B7280]", loading && "animate-spin")} />
-                    </button>
+
+                    {/* Fruit filter mobile */}
+                    <div className="w-full">
+                        <Select value={selectedFruit} onValueChange={setSelectedFruit}>
+                            <SelectTrigger className="h-11 w-full bg-white border-[#E5E7EB] rounded-xl text-xs font-bold text-[#1A1A2E] focus:ring-0">
+                                <div className="flex items-center gap-2">
+                                    <AppleIcon className="h-3.5 w-3.5 text-[#1A6B3C]" />
+                                    <SelectValue placeholder="All Fruits" />
+                                </div>
+                            </SelectTrigger>
+                            <SelectContent className="rounded-xl border-slate-200">
+                                <SelectItem value="all" className="text-xs font-bold">All Fruits</SelectItem>
+                                {availableFruits.map((fruit: string) => (
+                                    <SelectItem key={fruit} value={fruit.toLowerCase()} className="text-xs font-bold">
+                                        {fruit}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
 
                 {/* Total holding + view toggle */}
@@ -646,11 +680,29 @@ export default function StockPage() {
                 </div>
 
                 <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-start">
-                    <div className="xl:col-span-4 relative">
+                    <div className="xl:col-span-3 relative">
                         <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                         <Input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder={t('stock.search_placeholder')} className="h-14 pl-14 bg-white border-slate-200 rounded-2xl text-lg font-black text-black placeholder:text-slate-400 transition-all focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 shadow-sm" />
                     </div>
-                    <div className="xl:col-span-8 overflow-x-auto pb-2 scrollbar-none flex justify-start xl:justify-end">
+                    <div className="xl:col-span-3">
+                        <Select value={selectedFruit} onValueChange={setSelectedFruit}>
+                            <SelectTrigger className="h-14 w-full bg-white border-slate-200 rounded-2xl text-xs font-black uppercase tracking-widest text-black hover:bg-slate-50 transition-all shadow-sm focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 px-6">
+                                <div className="flex items-center gap-3">
+                                    <Apple className="h-5 w-5 text-blue-600" />
+                                    <SelectValue placeholder="All Fruits" />
+                                </div>
+                            </SelectTrigger>
+                            <SelectContent className="rounded-2xl border-slate-200 shadow-2xl p-2 bg-white max-h-[300px]">
+                                <SelectItem value="all" className="rounded-xl px-4 py-3 font-black text-xs cursor-pointer hover:bg-slate-50 text-slate-700 data-[state=checked]:bg-slate-50 data-[state=checked]:text-black transition-colors uppercase tracking-widest">All Fruits</SelectItem>
+                                {availableFruits.map((fruit: string) => (
+                                    <SelectItem key={fruit} value={fruit.toLowerCase()} className="rounded-xl px-4 py-3 font-black text-xs cursor-pointer hover:bg-slate-50 text-slate-700 data-[state=checked]:bg-slate-50 data-[state=checked]:text-black transition-colors uppercase tracking-widest">
+                                        {fruit}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="xl:col-span-6 overflow-x-auto pb-2 scrollbar-none flex justify-start xl:justify-end">
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <button className="min-w-[200px] h-14 px-6 flex items-center justify-between gap-4 bg-white border border-slate-200 rounded-2xl text-xs font-black uppercase tracking-widest text-black hover:bg-slate-50 transition-all shadow-sm focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500">

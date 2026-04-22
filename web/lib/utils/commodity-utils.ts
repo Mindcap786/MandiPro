@@ -75,3 +75,12 @@ export function getCommodityIdentity(name: string | null | undefined, customAttr
 
     return `${cleanName}|${sortedSpecs.join("|")}`;
 }
+/**
+ * Strips metadata from a commodity name.
+ * Example: "Mango(Kesar, A Grade)" -> "Mango"
+ * Also handles cases without parentheses.
+ */
+export function getMainItemName(fullName: string | null | undefined): string {
+    if (!fullName) return "";
+    return fullName.split('(')[0].trim();
+}

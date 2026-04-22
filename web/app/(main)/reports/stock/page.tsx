@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { cn } from "@/lib/utils";
+import { getMainItemName } from "@/lib/utils/commodity-utils";
 
 export default function StockValuationPage() {
     const { profile } = useAuth();
@@ -149,7 +150,7 @@ export default function StockValuationPage() {
                     <div className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm flex flex-col justify-between h-44">
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Item Diversity</p>
                         <p className="text-4xl font-[1000] tracking-tighter mt-4 text-slate-900">
-                            {new Set(filteredStocks.map(s => s.item.name)).size} <span className="text-sm text-slate-400">SKUs</span>
+                            {new Set(filteredStocks.map(s => getMainItemName(s.item.name))).size} <span className="text-sm text-slate-400">SKUs</span>
                         </p>
                         <p className="text-[10px] font-bold text-slate-400 mt-4 uppercase">Across {filteredStocks.length} Stock Lots</p>
                     </div>
@@ -233,7 +234,7 @@ export default function StockValuationPage() {
                                                             <Package className="w-6 h-6" />
                                                         </div>
                                                         <div>
-                                                            <p className="text-md font-black text-slate-900 leading-none">{s.item.name}</p>
+                                                            <p className="text-md font-black text-slate-900 leading-none">{getMainItemName(s.item.name)}</p>
                                                             <p className="text-[10px] font-bold text-slate-400 uppercase mt-2">{s.item.sku_code || "NO-SKU"}</p>
                                                         </div>
                                                     </div>
