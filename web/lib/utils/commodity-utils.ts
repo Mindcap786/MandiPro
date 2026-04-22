@@ -14,29 +14,42 @@ export function formatCommodityName(name: string | null | undefined, customAttri
     if (!name) return "";
     if (!customAttributes || typeof customAttributes !== 'object') return name;
 
-    // Normalize keys to find Variety and Grade (case-insensitive)
+    const specs: string[] = [];
     let variety: string | null = null;
     let grade: string | null = null;
+    const others: string[] = [];
 
     Object.entries(customAttributes).forEach(([key, value]) => {
-        const lowerKey = key.toLowerCase();
         const strValue = String(value || "").trim();
-        
         if (!strValue) return;
 
+        const lowerKey = key.toLowerCase().trim();
         if (lowerKey === 'variety') {
             variety = strValue;
         } else if (lowerKey === 'grade') {
             grade = strValue;
+        } else {
+            // Include other custom specifications
+            others.push(`${key}: ${strValue}`);
         }
     });
 
+    // Special formatting for variety and grade if they exist
     if (variety && grade) {
-        return `${name}(${variety}-${grade})`;
+        specs.push(`${variety}-${grade}`);
     } else if (variety) {
-        return `${name}(${variety})`;
+        specs.push(variety);
     } else if (grade) {
-        return `${name}(${grade})`;
+        specs.push(grade);
+    }
+
+    // Append other specifications
+    if (others.length > 0) {
+        specs.push(...others);
+    }
+
+    if (specs.length > 0) {
+        return `${name}(${specs.join(", ")})`;
     }
 
     return name;
