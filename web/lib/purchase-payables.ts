@@ -32,16 +32,15 @@ export function calculateLotSettlementAmount(lot: any) {
     const baseAdjustedValue = adjustedQty * rate;
     const adjustedValue = baseAdjustedValue - otherCut;
 
-    if (arrivalType === "direct") {
-        return adjustedValue - advance;
-    }
-
     const salesSum = Array.isArray(lot?.sale_items)
         ? lot.sale_items.reduce((sum: number, item: any) => sum + toNumber(item?.amount), 0)
         : 0;
-    const effectiveGoodsValue = salesSum > 0 ? salesSum : baseAdjustedValue;
-    const commissionAmount =
-        (effectiveGoodsValue * toNumber(lot?.commission_percent)) / 100;
+    
+    // For commission-based lots (farmer/supplier), use sales revenue as basis if sold.
+    // For direct lots (mandi owned), always use purchase value.
+    const effectiveGoodsValue = (arrivalType !== 'direct' && salesSum > 0) ? salesSum : baseAdjustedValue;
+    
+    const commissionAmount = (effectiveGoodsValue * toNumber(lot?.commission_percent)) / 100;
     const lotExpenses = packingCost + loadingCost + transportShare;
 
     return effectiveGoodsValue - commissionAmount - otherCut - lotExpenses - advance;
@@ -73,16 +72,15 @@ export function calculateLotGrossValue(lot: any) {
     const baseAdjustedValue = adjustedQty * rate;
     const adjustedValue = baseAdjustedValue - otherCut;
 
-    if (arrivalType === "direct") {
-        return adjustedValue;
-    }
-
     const salesSum = Array.isArray(lot?.sale_items)
         ? lot.sale_items.reduce((sum: number, item: any) => sum + toNumber(item?.amount), 0)
         : 0;
-    const effectiveGoodsValue = salesSum > 0 ? salesSum : baseAdjustedValue;
-    const commissionAmount =
-        (effectiveGoodsValue * toNumber(lot?.commission_percent)) / 100;
+    
+    // For commission-based lots (farmer/supplier), use sales revenue as basis if sold.
+    // For direct lots (mandi owned), always use purchase value.
+    const effectiveGoodsValue = (arrivalType !== 'direct' && salesSum > 0) ? salesSum : baseAdjustedValue;
+    
+    const commissionAmount = (effectiveGoodsValue * toNumber(lot?.commission_percent)) / 100;
     const lotExpenses = packingCost + loadingCost + transportShare;
 
     return effectiveGoodsValue - commissionAmount - otherCut - lotExpenses;

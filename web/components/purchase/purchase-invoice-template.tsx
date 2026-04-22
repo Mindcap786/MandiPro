@@ -88,9 +88,10 @@ export default function PurchaseBillInvoice({
         }
     }
 
-    // Final payable
-    const lotSettlement = calculateLotSettlementAmount(lot)
-    const finalPayable = Math.max(0, lotSettlement - arrivalExpenseShare)
+    // Final payable calculation — must match calculateLotSettlementAmount in lib
+    // but we use local variables for clarity in the UI
+    const lotExpenses = packingCost + loadingCost + arrivalExpenseShare
+    const finalPayable = Math.max(0, netGoodsValue - commissionAmount - otherCut - lotExpenses - advance)
 
     // Organization address
     const fullAddress = [
@@ -204,9 +205,9 @@ export default function PurchaseBillInvoice({
                         <span className="text-gray-400 font-bold uppercase">Date:</span>
                         <span className="font-black">{formattedDate}</span>
                     </div>
-                    <div className="flex justify-end gap-2">
+                    <div className="flex justify-end gap-2 items-center">
                         <span className="text-gray-400 font-bold uppercase">Lot No:</span>
-                        <span className="font-black text-purple-700">{lotCode}</span>
+                        <span className="font-black text-white bg-slate-900 px-2 py-0.5 rounded text-[13px] tracking-widest">{lotCode}</span>
                     </div>
                     {vehicleNo && (
                         <div className="flex justify-end gap-2">
@@ -234,7 +235,7 @@ export default function PurchaseBillInvoice({
                         <tr>
                             <td className="py-2">
                                 <p className="font-black text-xs tracking-tight uppercase leading-none">{itemName}</p>
-                                <p className="text-[8px] font-black text-orange-600 tracking-tighter uppercase tabular-nums mt-0.5">
+                                <p className="text-[10px] font-black text-white bg-orange-600 px-1.5 py-0.5 rounded inline-block tracking-widest uppercase tabular-nums mt-1.5">
                                     {lotCode}
                                 </p>
                             </td>
@@ -396,18 +397,18 @@ export default function PurchaseBillInvoice({
                         )}
 
                         {/* ── FINAL PAYABLE ── */}
-                        <div className="flex justify-between items-center pt-2 border-t-2 border-black mt-2">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">
+                        <div className="flex justify-between items-center pt-3 border-t-[3px] border-black mt-4 bg-slate-50 px-2 py-2 rounded-lg">
+                            <span className="text-[11px] font-black uppercase tracking-widest text-slate-600">
                                 Total Payable
                             </span>
-                            <span className="text-2xl font-black tracking-tighter tabular-nums text-black">
+                            <span className="text-3xl font-black tracking-tighter tabular-nums text-black">
                                 ₹{Math.round(finalPayable).toLocaleString()}
                             </span>
                         </div>
 
                         {/* Amount in Words */}
-                        <div className="text-right mt-2">
-                            <p className="text-[9px] font-bold text-gray-400 italic uppercase leading-none">
+                        <div className="text-right mt-3">
+                            <p className="text-[10px] font-black text-slate-900 italic uppercase leading-tight">
                                 Rupees {toWords(Math.round(finalPayable))} Only
                             </p>
                         </div>

@@ -1181,6 +1181,7 @@ export default function ArrivalsEntryForm() {
                                         farmer_charges: 0,
                                         sale_price: 0,
                                         barcode: "",
+                                        lot_code: "",
                                         storage_location: form.getValues('storage_location') || ""
                                     })}
                                     className="bg-purple-50 border border-purple-200 text-purple-700 hover:bg-purple-100 font-bold text-[10px] uppercase tracking-wide h-8 px-4 rounded-lg transition-all shadow-sm"
@@ -1251,6 +1252,28 @@ export default function ArrivalsEntryForm() {
                                                                             placeholder="Select Item"
                                                                             className="bg-white border border-slate-300 text-slate-900 font-bold h-9 rounded-lg text-xs"
                                                                         />
+                                                                        <FormMessage />
+                                                                    </FormItem>
+                                                                )}
+                                                            />
+                                                        </div>
+                                                    )}
+
+                                                    {isVisible('lot_code') && (
+                                                        <div className="col-span-12 md:col-span-4 lg:col-span-4">
+                                                            <FormField
+                                                                control={form.control}
+                                                                name={`items.${index}.lot_code`}
+                                                                render={({ field }) => (
+                                                                    <FormItem>
+                                                                        <FormLabel className="text-[10px] font-bold text-slate-700 uppercase tracking-wide mb-1 block">Lot No (Custom)</FormLabel>
+                                                                        <FormControl>
+                                                                            <Input 
+                                                                                placeholder="AUTO" 
+                                                                                {...field} 
+                                                                                className="bg-white border border-slate-300 h-9 text-xs text-slate-900 font-bold rounded-lg px-3 shadow-sm uppercase font-mono" 
+                                                                            />
+                                                                        </FormControl>
                                                                         <FormMessage />
                                                                     </FormItem>
                                                                 )}
