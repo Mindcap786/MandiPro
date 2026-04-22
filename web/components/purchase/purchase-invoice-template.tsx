@@ -49,51 +49,21 @@ export default function PurchaseBillInvoice({
             'Supplier Arrival (Commission)'
 
     // ── Financial calculations (reusing existing lib) ────────────
+    const isSettled = !!lot.settlement_at;
     const grossQty = toNumber(lot.gross_quantity) || toNumber(lot.initial_qty)
-    const lessPercent = toNumber(lot.less_percent)
-    const lessUnits = toNumber(lot.less_units)
-    const totalLessQty = (grossQty * lessPercent / 100) + lessUnits
-    const netQty = grossQty - totalLessQty
-    
-    const supplierRate = toNumber(lot.supplier_rate)
-    const trueGrossValue = grossQty * supplierRate
-    const lessDeductionValue = totalLessQty * supplierRate
-    const netGoodsValue = trueGrossValue - lessDeductionValue
+    const netQty = grossQty - ((grossQty * toNumber(lot.less_percent) / 100) + toNumber(lot.less_units))
 
-    const commissionPercent = toNumber(lot.commission_percent)
-    const otherCut = toNumber(lot.farmer_charges)
-    const packingCost = toNumber(lot.packing_cost)
-    const loadingCost = toNumber(lot.loading_cost)
-    const advance = toNumber(lot.advance)
-    const paymentMode = lot.advance_payment_mode || arrival?.advance_payment_mode || 'credit'
-
-    // Sales sum for commission lots (if sold)
-    const salesSum = Array.isArray(lot.sale_items)
+    // SOURCE OF TRUTH: Use settled values if available, else fallback to live calc
+    const netGoodsValue = isSettled ? toNumber(lot.settlement_goods_value) : (arrivalType !== 'direct' && Array.isArray(lot.sale_items) && lot.sale_items.length > 0
         ? lot.sale_items.reduce((sum: number, item: any) => sum + toNumber(item?.amount), 0)
-        : 0
+        : (grossQty - ((grossQty * toNumber(lot.less_percent) / 100) + toNumber(lot.less_units))) * toNumber(lot.supplier_rate));
+
+    const commissionAmount = isSettled ? toNumber(lot.settlement_commission) : (netGoodsValue * toNumber(lot.commission_percent)) / 100;
+    const lotExpenses = isSettled ? toNumber(lot.settlement_expenses) : (toNumber(lot.packing_cost) + toNumber(lot.loading_cost) + toNumber(lot.farmer_charges));
     
-    // For commission-based, the basis of commission is usually the sales revenue
-    const effectiveBasisValue = arrivalType !== 'direct' && salesSum > 0 ? salesSum : netGoodsValue
-    const commissionAmount = (effectiveBasisValue * commissionPercent) / 100
-
-    // Arrival-level expenses (transport share for this lot)
-    const arrivalExpenseTotal = calculateArrivalLevelExpenses(arrival)
-    let arrivalExpenseShare = 0
-    if (arrivalExpenseTotal > 0.01 && arrivalType !== 'direct') {
-        const allLots = arrivalLots.length > 0 ? arrivalLots : [lot]
-        const totalSettlement = allLots.reduce((sum, l) => sum + Math.max(calculateLotSettlementAmount(l), 0), 0)
-        const thisSettlement = Math.max(calculateLotSettlementAmount(lot), 0)
-        if (totalSettlement > 0.01) {
-            arrivalExpenseShare = (thisSettlement / totalSettlement) * arrivalExpenseTotal
-        }
-    }
-
+    const advance = toNumber(lot.advance)
     const paidAmount = toNumber(lot?.paid_amount);
-
-    // Final payable calculation — must match calculateLotSettlementAmount in lib
-    // but we use local variables for clarity in the UI
-    const lotExpenses = packingCost + loadingCost + arrivalExpenseShare
-    const finalPayable = Math.max(0, netGoodsValue - commissionAmount - otherCut - lotExpenses - advance - paidAmount)
+    const finalPayable = Math.max(0, netGoodsValue - commissionAmount - lotExpenses - advance - paidAmount)
 
     // Organization address
     const fullAddress = [
@@ -193,9 +163,15 @@ export default function PurchaseBillInvoice({
 
                 {/* Right: Bill Details */}
                 <div className="text-right space-y-0.5 text-xs self-end print:w-1/2 print:flex print:flex-col print:items-end">
-                    <div className="flex justify-end gap-2">
+                    <div className="flex justify-end gap-2 items-center">
                         <span className="text-gray-400 font-bold uppercase">Invoice No:</span>
                         <span className="font-black">#{billNo}</span>
+                        {isSettled && (
+                            <span className="ml-1 px-1.5 py-0.5 bg-green-100 text-green-700 text-[8px] font-black rounded uppercase flex items-center gap-0.5">
+                                <Check className="w-2 h-2" />
+                                Settled
+                            </span>
+                        )}
                     </div>
                     {referenceNo && (
                         <div className="flex justify-end gap-2">

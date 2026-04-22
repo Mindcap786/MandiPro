@@ -18,6 +18,16 @@ export function calculateArrivalLevelExpenses(arrivalLike: any) {
 }
 
 export function calculateLotSettlementAmount(lot: any) {
+    // Priority 1: Financial Ground Truth (Settled values)
+    if (lot?.settlement_at) {
+        const netValue = toNumber(lot.settlement_goods_value) - 
+                         toNumber(lot.settlement_commission) - 
+                         toNumber(lot.settlement_expenses);
+        const advance = toNumber(lot.advance);
+        // Note: We still subtract advance here because settlement_net_payable usually represents the BILL total
+        return netValue - advance;
+    }
+
     const qty = toNumber(lot?.initial_qty);
     const rate = toNumber(lot?.supplier_rate);
     const lessPercent = toNumber(lot?.less_percent);
@@ -64,6 +74,13 @@ export function calculateArrivalSettlementAmount(lots: any[], arrivalLike?: any)
  * Calculates the gross value of a lot (Before Advance deduction)
  */
 export function calculateLotGrossValue(lot: any) {
+    // Priority 1: Financial Ground Truth (Settled values)
+    if (lot?.settlement_at) {
+        return toNumber(lot.settlement_goods_value) - 
+               toNumber(lot.settlement_commission) - 
+               toNumber(lot.settlement_expenses);
+    }
+
     const qty = toNumber(lot?.initial_qty);
     const rate = toNumber(lot?.supplier_rate);
     const lessPercent = toNumber(lot?.less_percent);
