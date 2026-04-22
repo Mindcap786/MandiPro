@@ -253,10 +253,17 @@ function LotRow({ lot, itemDefaults, onMoveStock, onWastage, onUpdate, onReturn,
                                     className="flex items-center justify-center gap-2 h-11 rounded-xl bg-white border border-[#E5E7EB] text-[#374151] text-sm font-semibold active:bg-[#F3F4F6] transition-colors">
                                     <ArrowRightLeft className="w-4 h-4 text-blue-500" /> Move Stock
                                 </button>
-                                <button onClick={(e) => { e.stopPropagation(); onWastage() }}
-                                    className="flex items-center justify-center gap-2 h-11 rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm font-semibold active:bg-red-100 transition-colors">
-                                    <Trash2 className="w-4 h-4" /> Report Loss
-                                </button>
+                                {lot.arrival_type === 'direct' ? (
+                                    <button onClick={(e) => { e.stopPropagation(); onWastage() }}
+                                        className="flex items-center justify-center gap-2 h-11 rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm font-semibold active:bg-red-100 transition-colors">
+                                        <Trash2 className="w-4 h-4" /> Report Loss
+                                    </button>
+                                ) : (
+                                    <button onClick={(e) => { e.stopPropagation(); onWastage() }}
+                                        className="flex items-center justify-center gap-2 h-11 rounded-xl bg-orange-50 border border-orange-100 text-orange-600 text-sm font-semibold active:bg-orange-100 transition-colors">
+                                        <Trash2 className="w-4 h-4" /> Report Loss to Supplier
+                                    </button>
+                                )}
                                 <button onClick={(e) => { e.stopPropagation(); onReturn() }}
                                     className="flex items-center justify-center gap-2 h-11 rounded-xl bg-orange-50 border border-orange-100 text-orange-600 text-sm font-semibold active:bg-orange-100 transition-colors">
                                     <ArrowRightLeft className="w-4 h-4" /> Return Stock

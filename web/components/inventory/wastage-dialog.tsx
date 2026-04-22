@@ -86,10 +86,13 @@ export function WastageDialog({ isOpen, onClose, lot, onSuccess }: WastageDialog
             <DialogContent className="bg-white border-slate-200 text-black sm:max-w-md shadow-xl">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-3 text-xl font-black uppercase tracking-tight text-black">
-                        <div className="w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center text-rose-600 border border-rose-100">
+                        <div className={cn(
+                            "w-10 h-10 rounded-full flex items-center justify-center border",
+                            lot.arrival_type === 'direct' ? "bg-rose-50 text-rose-600 border-rose-100" : "bg-orange-50 text-orange-600 border-orange-100"
+                        )}>
                             <Trash2 className="w-5 h-5" />
                         </div>
-                        Report Stock Loss
+                        {lot.arrival_type === 'direct' ? 'Report Stock Loss' : 'Report Loss to Supplier/Farmer'}
                     </DialogTitle>
                 </DialogHeader>
 
@@ -148,22 +151,37 @@ export function WastageDialog({ isOpen, onClose, lot, onSuccess }: WastageDialog
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-3 p-3 rounded-lg bg-amber-50 text-amber-700 text-xs font-medium border border-amber-200">
-                        <AlertTriangle className="w-4 h-4 flex-shrink-0 text-amber-600" />
-                        <p>This action will permanently reduce stock and record a loss in the P&L statement.</p>
+                    <div className={cn(
+                        "flex items-center gap-3 p-3 rounded-lg text-xs font-medium border",
+                        lot.arrival_type === 'direct' ? "bg-red-50 text-red-700 border-red-200" : "bg-blue-50 text-blue-700 border-blue-200"
+                    )}>
+                        {lot.arrival_type === 'direct' ? (
+                            <>
+                                <AlertTriangle className="w-4 h-4 flex-shrink-0 text-red-600" />
+                                <p>This action will permanently reduce stock and record a loss in the P&L statement.</p>
+                            </>
+                        ) : (
+                            <>
+                                <AlertTriangle className="w-4 h-4 flex-shrink-0 text-blue-600" />
+                                <p>This action will reduce stock. Since this is a commission lot, the loss is borne by the supplier and will <strong>not</strong> impact your P&L.</p>
+                            </>
+                        )}
                     </div>
                 </div>
 
                 <DialogFooter className="gap-2 sm:gap-0">
                     <Button variant="ghost" onClick={onClose} className="hover:bg-slate-50 text-slate-500 hover:text-black">Cancel</Button>
-                    <Button
-                        onClick={handleSubmit}
-                        disabled={loading || !quantity}
-                        className="bg-red-600 hover:bg-red-700 text-white font-black shadow-lg shadow-red-200"
-                    >
-                        {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2" />}
-                        Confirm Wastage
-                    </Button>
+                        <Button
+                            onClick={handleSubmit}
+                            disabled={loading || !quantity}
+                            className={cn(
+                                "font-black shadow-lg",
+                                lot.arrival_type === 'direct' ? "bg-red-600 hover:bg-red-700 text-white shadow-red-200" : "bg-orange-600 hover:bg-orange-700 text-white shadow-orange-200"
+                            )}
+                        >
+                            {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2" />}
+                            {lot.arrival_type === 'direct' ? 'Confirm Wastage' : 'Confirm Loss to Supplier'}
+                        </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
