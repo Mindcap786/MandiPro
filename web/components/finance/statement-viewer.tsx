@@ -57,26 +57,35 @@ export default function StatementViewer({ contactId, contactName, contactType, o
     const abortControllerRef = useRef<AbortController | null>(null);
 
     const formatLedgerDesc = (tx: any) => {
-        // Use the narration directly from DB — it's now pre-enriched by post_arrival_ledger
+        const vNo = tx.voucher_no || tx.reference_no || '-';
+        const vType = (tx.voucher_type || '').toUpperCase();
+        
+        // Build rich product string if available
+        if (tx.products && Array.isArray(tx.products) && tx.products.length > 0) {
+            const validProducts = tx.products.filter((p: any) => p.name);
+            if (validProducts.length > 0) {
+                const totalQty = validProducts.reduce((sum: number, p: any) => sum + Number(p.qty || 0), 0);
+                const mainUnit = validProducts[0]?.unit || 'Kg';
+                
+                const detailStr = validProducts.map((p: any) => {
+                    const lotStr = p.lot_no ? ` [Lot: ${p.lot_no}]` : '';
+                    return `${p.name}${lotStr}: ${p.qty} ${p.unit || ''} @ ₹${p.rate}`;
+                }).join(', ');
+
+                const prefix = vType === 'SALE' ? 'Invoice' : (vType === 'PURCHASE' ? 'Purchase Bill' : vType);
+                return `${prefix} #${vNo} (${detailStr}) | Total Qty: ${totalQty} ${mainUnit}`;
+            }
+        }
+
+        // Fallback for simple receipts/payments
         const rawDesc = (tx.narration || tx.description || tx.particulars || '').trim();
-        // Clean trailing .0000 floats for readability
         let desc = rawDesc.replace(/(\d+)\.0+(?=\s|[A-Za-z]|$)/g, '$1');
         
-        // Return the DB narration if it has useful content (not a UUID reference)
         if (desc && !desc.match(/^[0-9a-fA-F-]{36}$/)) {
             return desc;
         }
 
-        // Fallback: build from products if narration is empty/UUID
-        if (tx.products && Array.isArray(tx.products) && tx.products.length > 0) {
-            const detailStr = tx.products
-                .filter((p: any) => p.name)
-                .map((p: any) => `${p.name} ${p.qty || 0} ${p.unit || ''}`.trim())
-                .join(', ');
-            if (detailStr) return detailStr;
-        }
-
-        return 'Transaction';
+        return vType ? `${vType} #${vNo}` : 'Transaction';
     };
 
     // Build the entries array the same way for both PDF download and PDF print
@@ -427,10 +436,10 @@ export default function StatementViewer({ contactId, contactName, contactType, o
                                                                 "text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg",
                                                                 isCredit ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
                                                             )}>
-                                                                {isCredit ? 'Cash/Item Received' : 'Cash/Item Sent'}
+                                                                {isCredit ? 'CREDIT (IN)' : 'DEBIT (OUT)'}
                                                             </span>
                                                             <span className="text-[9px] font-mono text-slate-400 uppercase">
-                                                                #{tx.bill_number || tx.voucher_no || 'TXN'}
+                                                                #{tx.voucher_no || tx.reference_no || 'TXN'}
                                                             </span>
                                                             <span className="text-[9px] font-black text-slate-300 uppercase tracking-tighter">
                                                                 {format(new Date(tx.date || tx.created_at), "dd MMM, h:mm a")}
@@ -460,7 +469,7 @@ export default function StatementViewer({ contactId, contactName, contactType, o
                                                                 "text-[8px] font-black uppercase mt-1 tracking-widest opacity-60",
                                                                 isCredit ? "text-emerald-500" : "text-rose-500"
                                                         )}>
-                                                            {isCredit ? 'Credit' : 'Debit'}
+                                                            {isCredit ? 'CREDIT (IN)' : 'DEBIT (OUT)'}
                                                         </p>
                                                     </div>
                                                 </div>

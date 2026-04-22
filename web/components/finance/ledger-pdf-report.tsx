@@ -132,8 +132,8 @@ export const LedgerPDFReport = ({
                     <View style={s.tblHdr}>
                         <View style={s.cDate}><Text style={s.hdrTxt}>Date</Text></View>
                         <View style={s.cDesc}><Text style={s.hdrTxt}>Particulars</Text></View>
-                        <View style={s.cDr}><Text style={s.hdrTxt}>Debit</Text></View>
-                        <View style={s.cCr}><Text style={s.hdrTxt}>Credit</Text></View>
+                        <View style={s.cDr}><Text style={s.hdrTxt}>Debit (Out)</Text></View>
+                        <View style={s.cCr}><Text style={s.hdrTxt}>Credit (In)</Text></View>
                         <View style={s.cBal}><Text style={s.hdrTxt}>Balance</Text></View>
                     </View>
 

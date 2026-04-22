@@ -80,8 +80,8 @@ export const PrintableLedger = React.forwardRef<HTMLDivElement, PrintableLedgerP
                             <tr className="border-b border-black">
                                 <th className="pb-2 font-black uppercase text-xs tracking-widest text-slate-600 w-[12%] text-left">Date</th>
                                 <th className="pb-2 font-black uppercase text-xs tracking-widest text-slate-600 w-[43%] text-left">Particulars</th>
-                                <th className="pb-2 font-black uppercase text-xs tracking-widest text-slate-600 w-[15%] text-right">Debit</th>
-                                <th className="pb-2 font-black uppercase text-xs tracking-widest text-slate-600 w-[15%] text-right">Credit</th>
+                                <th className="pb-2 font-black uppercase text-xs tracking-widest text-slate-600 w-[15%] text-right">Debit (Out)</th>
+                                <th className="pb-2 font-black uppercase text-xs tracking-widest text-slate-600 w-[15%] text-right">Credit (In)</th>
                                 <th className="pb-2 font-black uppercase text-xs tracking-widest text-slate-600 w-[15%] text-right">Balance</th>
                             </tr>
                         </thead>
