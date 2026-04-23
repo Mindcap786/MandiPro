@@ -730,27 +730,62 @@ export function QuickPurchaseForm() {
                                                     </FormItem>
                                                 )}
                                             />
-                                            <FormField
-                                                control={form.control}
-                                                name={`rows.${index}.commission`}
-                                                render={({ field }) => {
-                                                    return (
-                                                        <FormItem>
-                                                            <FormLabel className="text-[9px] font-black uppercase text-slate-400 mb-2 block text-center tracking-widest whitespace-nowrap">
-                                                                Comm %
-                                                            </FormLabel>
-                                                            <FormControl>
-                                                                <Input 
-                                                                    type="number" 
-                                                                    {...field} 
-                                                                    onChange={e => field.onChange(e.target.value === '' ? '' : Number(e.target.value))}
-                                                                    className="h-10 font-black text-lg bg-white border-slate-100 text-center rounded-xl focus:ring-4 focus:ring-blue-500/10 shadow-sm" 
-                                                                />
-                                                            </FormControl>
-                                                        </FormItem>
-                                                    )
-                                                }}
-                                            />
+                                            <div className="flex flex-col gap-2">
+                                                <FormField
+                                                    control={form.control}
+                                                    name={`rows.${index}.commission`}
+                                                    render={({ field }) => {
+                                                        return (
+                                                            <FormItem>
+                                                                <FormLabel className="text-[9px] font-black uppercase text-slate-400 mb-2 block text-center tracking-widest whitespace-nowrap">
+                                                                    Comm %
+                                                                </FormLabel>
+                                                                <FormControl>
+                                                                    <Input 
+                                                                        type="number" 
+                                                                        {...field} 
+                                                                        onChange={e => {
+                                                                            const val = e.target.value === '' ? '' : Number(e.target.value);
+                                                                            field.onChange(val);
+                                                                        }}
+                                                                        className="h-10 font-black text-lg bg-white border-slate-100 text-center rounded-xl focus:ring-4 focus:ring-blue-500/10 shadow-sm" 
+                                                                    />
+                                                                </FormControl>
+                                                            </FormItem>
+                                                        )
+                                                    }}
+                                                />
+                                                
+                                                {/* Farmer/Supplier Tabs - Only show if commission is entered */}
+                                                {(Number(form.watch(`rows.${index}.commission`)) > 0) && (
+                                                    <FormField
+                                                        control={form.control}
+                                                        name={`rows.${index}.commission_type`}
+                                                        render={({ field }) => (
+                                                            <FormItem className="animate-in fade-in slide-in-from-top-1 duration-300">
+                                                                <div className="flex bg-slate-50 border border-slate-100 rounded-lg p-0.5 gap-0.5 h-8">
+                                                                    {[
+                                                                        { value: 'farmer', label: 'Farmer' },
+                                                                        { value: 'supplier', label: 'Supplier' },
+                                                                    ].map(type => (
+                                                                        <button
+                                                                            key={type.value}
+                                                                            type="button"
+                                                                            onClick={() => field.onChange(type.value)}
+                                                                            className={cn(
+                                                                                "flex-1 rounded-md text-[8px] font-black uppercase tracking-widest transition-all",
+                                                                                field.value === type.value ? "bg-white text-blue-600 shadow-sm" : "text-slate-400 hover:text-slate-500"
+                                                                            )}
+                                                                        >
+                                                                            {type.label}
+                                                                        </button>
+                                                                    ))}
+                                                                </div>
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                )}
+                                            </div>
                                         </div>
 
                                         {/* Deductions block hidden as per user request */}
