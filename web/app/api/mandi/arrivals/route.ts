@@ -110,22 +110,9 @@ export async function POST(request: NextRequest) {
         return apiError.server("Database returned empty response")
     }
 
-    // post_arrival_ledger is now called INSIDE create_mixed_arrival RPC (and also via AFTER trigger).
-    // The explicit call here is a belt-and-suspenders redundancy check; if the RPC already posted,
-    // the function is idempotent (deletes+rewrites). Any RAISE from the DB becomes a hard 500.
-    const arrivalData = data as any;
-    if (arrivalData?.arrival_id) {
-        const { error: ledgerError } = await supabase.schema('mandi').rpc('post_arrival_ledger', {
-            p_arrival_id: arrivalData.arrival_id
-        });
-        if (ledgerError) {
-            console.error('[arrivals:POST] Ledger Post Failed:', ledgerError.message);
-            return NextResponse.json(
-                { error: 'Arrival saved but ledger posting failed. Check Chart of Accounts.', detail: ledgerError.message },
-                { status: 500 }
-            );
-        }
-    }
+    // post_arrival_ledger is now handled by the database trigger (sync_arrival_to_ledger).
+    // No explicit RPC call needed here.
+
 
     // Audit (fire-and-forget — never block response)
     auditLog(supabase, {
