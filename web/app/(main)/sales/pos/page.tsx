@@ -321,13 +321,10 @@ export default function POSPage() {
 
             // 2. Fetch Inventory/Stock Data (Lots + Commodities)
             const [lotRes, commodityRes] = await Promise.all([
-            const [lotRes, commodityRes] = await Promise.all([
                 supabase.schema('mandi').from('lots').select('id, item_id, arrival_id, unit, sale_price, wholesale_price, supplier_rate, packing_cost, loading_cost, farmer_charges, qr_code, barcode, current_qty, storage_location, lot_code, custom_attributes, contact_id(name)').eq('organization_id', orgId).in('status', ['active', 'available', 'partial']).gt('current_qty', 0).order('created_at', { ascending: true }),
                 supabase.schema('mandi').from('commodities').select('id, name, local_name, barcode, gst_rate, sale_price, image_url, sku_code, custom_attributes').eq('organization_id', orgId)
             ]);
 
-                supabase.schema('mandi').from('commodities').select('id, name, local_name, barcode, gst_rate, sale_price, image_url, sku_code, custom_attributes').eq('organization_id', orgId)
-            ]);
 
 
             if (lotRes.error) throw lotRes.error;
