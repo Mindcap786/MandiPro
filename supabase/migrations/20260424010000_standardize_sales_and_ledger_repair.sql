@@ -82,22 +82,32 @@ BEGIN
     IF NOT FOUND THEN RETURN jsonb_build_object('success', false, 'error', 'Sale not found'); END IF;
     
     v_total_inc_tax := v_sale.total_calc;
-    v_received := COALESCE(v_sale.amount_received, 0);
     v_payment_mode := LOWER(COALESCE(v_sale.payment_mode, 'udhaar'));
 
-    -- 2. Resolve Accounts with 100% success rate
+    -- SMART FIX: Calculate received amount from ALL vouchers tied to this invoice
+    -- This ensures that even if amount_received column is stale, the ledger is correct.
+    SELECT COALESCE(SUM(amount), 0) INTO v_received 
+    FROM mandi.vouchers 
+    WHERE invoice_id = p_sale_id AND type IN ('receipt', 'sale_payment', 'cash_receipt');
+
+    -- If no vouchers found but the sale record itself claims an amount (e.g. from POS), use that.
+    IF v_received = 0 THEN
+        v_received := COALESCE(v_sale.amount_received, 0);
+    END IF;
+
+    -- 2. Resolve Accounts
     v_rev_acc_id := mandi.resolve_account_robust(v_sale.organization_id, 'sales', '%Sales Revenue%', '4001');
     v_ar_acc_id := mandi.resolve_account_robust(v_sale.organization_id, 'receivable', '%Receivable%', '1200');
 
-    -- Safety check: If accounts are STILL missing, use first available income/asset
     IF v_rev_acc_id IS NULL THEN SELECT id INTO v_rev_acc_id FROM mandi.accounts WHERE organization_id = v_sale.organization_id AND type = 'income' LIMIT 1; END IF;
     IF v_ar_acc_id IS NULL THEN SELECT id INTO v_ar_acc_id FROM mandi.accounts WHERE organization_id = v_sale.organization_id AND type = 'asset' LIMIT 1; END IF;
 
-    -- 3. Clean existing entries for this sale (Idempotency)
+    -- 3. Clean ONLY the Sale/Invoice part (Idempotency)
+    -- We DON'T delete receipts here anymore to prevent wiping out manually recorded payments
     DELETE FROM mandi.ledger_entries WHERE reference_id = p_sale_id;
-    DELETE FROM mandi.vouchers WHERE invoice_id = p_sale_id OR reference_id = p_sale_id;
+    DELETE FROM mandi.vouchers WHERE invoice_id = p_sale_id AND type = 'sale';
 
-    -- 4. Create Invoice Voucher (Type 'sale' is required by Daybook)
+    -- 4. Create Invoice Voucher
     SELECT COALESCE(MAX(voucher_no), 0) + 1 INTO v_voucher_no 
     FROM mandi.vouchers WHERE organization_id = v_sale.organization_id;
     
@@ -114,8 +124,9 @@ BEGIN
     INSERT INTO mandi.ledger_entries (organization_id, voucher_id, account_id, debit, credit, entry_date, description, transaction_type, reference_id) 
     VALUES (v_sale.organization_id, v_voucher_id, v_rev_acc_id, 0, v_total_inc_tax, v_sale.sale_date, v_summary_narration, 'sale', p_sale_id);
 
-    -- 6. Post Receipt-Side (If payment received > 0)
-    IF v_received > 0 THEN
+    -- 6. Ensure Receipt exists if amount > 0
+    -- Check if a receipt voucher already exists to avoid duplication
+    IF v_received > 0 AND NOT EXISTS (SELECT 1 FROM mandi.vouchers WHERE invoice_id = p_sale_id AND type IN ('receipt', 'sale_payment', 'cash_receipt')) THEN
         IF v_payment_mode = 'cash' THEN 
             v_liquid_acc_id := mandi.resolve_account_robust(v_sale.organization_id, 'cash', '%Cash%', '1001');
         ELSE 
@@ -129,12 +140,6 @@ BEGIN
             INSERT INTO mandi.vouchers (organization_id, date, type, voucher_no, narration, amount, party_id, invoice_id, reference_id, payment_mode, bank_account_id) 
             VALUES (v_sale.organization_id, v_sale.sale_date, 'receipt', v_voucher_no, 'Receipt against Bill #' || v_sale.bill_no, v_received, v_sale.buyer_id, p_sale_id, p_sale_id, v_sale.payment_mode, v_liquid_acc_id)
             RETURNING id INTO v_voucher_id;
-
-            INSERT INTO mandi.ledger_entries (organization_id, voucher_id, account_id, debit, credit, entry_date, description, transaction_type, reference_id) 
-            VALUES (v_sale.organization_id, v_voucher_id, v_liquid_acc_id, v_received, 0, v_sale.sale_date, 'Cash/Bank Received for #' || v_sale.bill_no, 'receipt', p_sale_id);
-            
-            INSERT INTO mandi.ledger_entries (organization_id, voucher_id, contact_id, account_id, debit, credit, entry_date, description, transaction_type, reference_id) 
-            VALUES (v_sale.organization_id, v_voucher_id, v_sale.buyer_id, v_ar_acc_id, 0, v_received, v_sale.sale_date, 'Payment Settled for #' || v_sale.bill_no, 'receipt', p_sale_id);
         END IF;
     END IF;
 
@@ -147,11 +152,12 @@ BEGIN
     
     UPDATE mandi.sales SET 
         payment_status = v_status, 
+        amount_received = v_received,
         balance_due = GREATEST(v_total_inc_tax - v_received, 0),
         total_amount_inc_tax = v_total_inc_tax
     WHERE id = p_sale_id;
 
-    RETURN jsonb_build_object('success', true, 'status', v_status);
+    RETURN jsonb_build_object('success', true, 'status', v_status, 'received', v_received);
 END;
 $$;
 
