@@ -670,7 +670,10 @@ export default function POSPage() {
                     gstTotal: gstTotal,
                     isIgst: isIgst,
                     placeOfSupply: isIgst ? (buyerInfo?.state_code || null) : (taxSettings.state_code || null),
-                    buyerGstin: buyerInfo?.gstin || null
+                    buyerGstin: buyerInfo?.gstin || null,
+                    narration: notesText,
+                    createdBy: profile.id,
+                    gstEnabled: taxSettings.gst_enabled
                 });
 
                 if (rpcError) {

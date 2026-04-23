@@ -33,6 +33,9 @@ type ConfirmSaleTransactionParams = {
     vehicleNumber?: string | null;
     bookNo?: string | null;
     lotNo?: string | null;
+    narration?: string | null;
+    createdBy?: string | null;
+    gstEnabled?: boolean;
 };
 
 type ConfirmSaleTransactionResult = {
@@ -86,6 +89,9 @@ export async function confirmSaleTransactionWithFallback(
         p_vehicle_number: params.vehicleNumber,
         p_book_no: params.bookNo,
         p_lot_no: params.lotNo,
+        p_narration: params.narration,
+        p_created_by: params.createdBy,
+        p_gst_enabled: params.gstEnabled || false,
     };
 
     // 15-second timeout guard — prevents infinite spinners if DB hangs
