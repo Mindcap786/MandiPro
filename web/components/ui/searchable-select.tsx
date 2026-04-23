@@ -3,7 +3,7 @@
 import * as React from "react"
 import { Check, ChevronsUpDown, Search } from "lucide-react"
 
-import { cn } from "@/lib/utils"
+import { cn, focusNext } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
     Command,
@@ -45,17 +45,35 @@ export const SearchableSelect = React.forwardRef<HTMLButtonElement, SearchableSe
     onSelected,
 }, ref) => {
     const [open, setOpen] = React.useState(false)
+    const internalRef = React.useRef<HTMLButtonElement>(null)
+
+    // Merge refs
+    React.useImperativeHandle(ref, () => internalRef.current!)
 
     // Find the label for the current value
     const selectedLabel = React.useMemo(() => {
         return options.find((option) => option.value === value)?.label
     }, [options, value])
 
+    const handleSelect = (val: string) => {
+        onChange(val)
+        setOpen(false)
+        onSelected?.(val)
+        
+        // After selection, move focus to the next field in the form
+        // Small timeout to allow the popover to close and focus to return to the button
+        setTimeout(() => {
+            if (internalRef.current) {
+                focusNext(internalRef.current);
+            }
+        }, 50);
+    }
+
     return (
         <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
                 <Button
-                    ref={ref}
+                    ref={internalRef}
                     variant="outline"
                     role="combobox"
                     aria-expanded={open}
@@ -80,6 +98,18 @@ export const SearchableSelect = React.forwardRef<HTMLButtonElement, SearchableSe
                         <Search className="mr-2 h-4 w-4 shrink-0 opacity-50 text-slate-500" />
                         <CommandInput
                             placeholder={searchPlaceholder}
+                            onKeyDown={(e) => {
+                                // If user presses TAB, we want to select current item and move to next field
+                                if (e.key === 'Tab') {
+                                    e.preventDefault();
+                                    setOpen(false);
+                                    setTimeout(() => {
+                                        if (internalRef.current) {
+                                            focusNext(internalRef.current);
+                                        }
+                                    }, 50);
+                                }
+                            }}
                             className="bg-transparent border-none text-black font-black placeholder:text-slate-400 focus:ring-0 text-sm h-10 w-full"
                         />
                     </div>
@@ -90,16 +120,7 @@ export const SearchableSelect = React.forwardRef<HTMLButtonElement, SearchableSe
                                 <CommandItem
                                     key={option.value}
                                     value={`${option.label}__${option.value}`}
-                                    onSelect={() => {
-                                        onChange(option.value)
-                                        setOpen(false)
-                                        onSelected?.(option.value)
-                                    }}
-                                    onClick={() => {
-                                        onChange(option.value)
-                                        setOpen(false)
-                                        onSelected?.(option.value)
-                                    }}
+                                    onSelect={() => handleSelect(option.value)}
                                     className="!pointer-events-auto flex items-center gap-2 px-2 py-2 rounded-md font-black text-sm text-black hover:bg-slate-100 cursor-pointer aria-selected:bg-slate-100 data-[selected='true']:bg-blue-50 data-[selected='true']:text-blue-700 transition-colors"
                                 >
                                     <Check
