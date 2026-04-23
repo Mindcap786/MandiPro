@@ -28,7 +28,7 @@ import { cacheGet, cacheSet } from "@/lib/data-cache";
 import { useTableKeyboard } from "@/hooks/use-table-keyboard";
 import { findImbalancedVoucherIds, summarizeVoucherHealth } from "@/lib/finance/voucher-integrity";
 
-const DAYBOOK_CACHE_VERSION = 'v2.6'; // Bumped 2026-04-20: Fix advance payment grouping for arrivals
+const DAYBOOK_CACHE_VERSION = 'v2.8'; // Bumped 2026-04-20: Fix legs is not iterable crash
 const AMOUNT_EPSILON = 0.01;
 
 // ── TRANSACTION TYPE MAP (from real DB audit — all known transaction_type values) ──────────────
@@ -1383,6 +1383,18 @@ export default function DayBook() {
                     if (a.displayCredit > 0 && b.displayDebit > 0) return 1;
                     return 0;
                 }),
+                // Legacy support for any cached components expecting .legs
+                legs: rawLegs.map(l => ({
+                    ...l,
+                    displayTimestamp: l.entry_date || l.created_at,
+                    displayDebit: Number(l.debit || 0),
+                    displayCredit: Number(l.credit || 0),
+                    displayDescription: l.voucher?.narration || l.description
+                })).sort((a, b) => {
+                    if (a.displayDebit > 0 && b.displayCredit > 0) return -1;
+                    if (a.displayCredit > 0 && b.displayDebit > 0) return 1;
+                    return 0;
+                }),
                 timestamp: (visibleLegs[0]) ? (visibleLegs[0].displayTimestamp || visibleLegs[0].created_at || visibleLegs[0].entry_date) : new Date().toISOString(),
                 voucherIds: groupVoucherIds,
                 isImbalanced: hasImbalancedVoucher,
@@ -1680,7 +1692,7 @@ export default function DayBook() {
                             <div className="divide-y divide-slate-100">
                                 {filteredGroups.map((g: any) => (
                                     <div key={g.gid} className="hover:bg-slate-50/30 transition-colors">
-                                        {g.renderLegs.map((leg: any, idx: number) => {
+                                        {(g.renderLegs || g.legs || []).map((leg: any, idx: number) => {
                                             const time = format(new Date(leg.displayTimestamp || leg.created_at || leg.entry_date), "HH:mm");
                                             const refNo = leg.voucher?.voucher_no || leg.reference_no || g.gid.split('_').pop();
                                             const particulars = leg.contact?.name || leg.account?.name;
@@ -1976,10 +1988,10 @@ export default function DayBook() {
                                 <span className="ml-auto text-[10px] text-slate-400 font-bold">
                                     {transactionGroups.filter(g => {
                                     if (!(g as any).hasCash) return false;
-                                    if (cashFilter === 'inflow')    return g.legs.some((l: any) => (l.displayCredit || 0) > 0);
-                                    if (cashFilter === 'outflow')   return g.legs.some((l: any) => (l.displayDebit || 0) > 0 && ['purchase','payment','paid_receipt','expense_receipt'].includes(l.displayType));
-                                    if (cashFilter === 'sales')     return g.legs.some((l: any) => l.displayType === 'sale' || l.displayType === 'sale_payment' || l.displayType === 'receipt' || l.displayType === 'receive_receipt');
-                                    if (cashFilter === 'purchases') return g.legs.some((l: any) => l.displayType === 'purchase');
+                                    if (cashFilter === 'inflow')    return g.renderLegs.some((l: any) => (l.displayCredit || 0) > 0);
+                                    if (cashFilter === 'outflow')   return g.renderLegs.some((l: any) => (l.displayDebit || 0) > 0 && ['purchase','payment','paid_receipt','expense_receipt'].includes(l.displayType));
+                                    if (cashFilter === 'sales')     return g.summaryLegs.some((l: any) => l.displayType === 'sale' || l.displayType === 'sale_payment' || l.displayType === 'receipt' || l.displayType === 'receive_receipt');
+                                    if (cashFilter === 'purchases') return g.summaryLegs.some((l: any) => l.displayType === 'purchase');
                                     return true;
                                 }).length} results
                                 </span>
@@ -2020,7 +2032,7 @@ export default function DayBook() {
                                     </td>
                                 </tr>
                             ) : filteredGroups.map((group, groupIdx) => {
-                                const legs = [...group.legs];
+                                const legs = [...(group.renderLegs || group.legs || [])];
                                 return (
                                     <React.Fragment key={group.gid}>
                                         {legs.map((e, legIdx) => {
