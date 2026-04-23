@@ -359,7 +359,31 @@ const getPurchaseSettlementKey = (entry: any) => {
 };
 
 const getEntryGroupKey = (entry: any) => {
+    const v = entry.voucher || {};
+    const flow = inferVoucherFlow(entry);
+    const text = `${entry.description || ""} ${v.narration || ""}`.toLowerCase();
+    
+    // 1. Linked Transactions (Group by Arrival/Invoice ID)
+    const refId = entry.reference_id || v.invoice_id || v.arrival_id;
+    if (refId) {
+        if (flow === 'sale' || flow === 'sale_payment' || flow === 'receive_receipt' || text.includes('invoice #') || text.includes('sale #')) {
+            return `sale_group_${refId}`;
+        }
+        if (flow === 'purchase' || flow === 'payment' || flow === 'paid_receipt' || text.includes('bill #') || text.includes('arrival #')) {
+            return `purchase_ref_${refId}`;
+        }
+    }
+
+    // 2. Fallback to Bill No extraction for manual entries
+    const billNo = extractVoucherBillNo(entry);
+    if (billNo) {
+        if (flow === 'sale' || flow === 'sale_payment') return `sale_bill_${billNo}`;
+        if (flow === 'purchase' || flow === 'payment') return `purchase_bill_${billNo}`;
+    }
+
+    // 3. Fallback to Voucher ID (one group per voucher)
     if (entry.voucher_id) return `voucher_${entry.voucher_id}`;
+    
     return `entry_${entry.id}`;
 };
 
@@ -659,7 +683,7 @@ const getEntryDescription = (
             const detailStr = (details || []).map((d: any) => `${d.name}: ${d.qty} ${d.unit || ''} @ ₹${d.rate}`).join(', ');
             const totals = qtyByUnit ? Object.entries(qtyByUnit).map(([u, q]) => `${q} ${u}`).join(', ') : '0';
             
-            return `Purchase Bill #${bNo || 'N/A'} (${detailStr}) | Total Qty: ${totals}`;
+            return `Purchase Bill #${bNo || 'N/A'} (${detailStr})\nTotal Qty: ${totals}`;
         }
         
         if (isAdvanceSettlementEntry(entry) || entry.transaction_type === 'payment') {
@@ -679,7 +703,7 @@ const getEntryDescription = (
                 const { details, qtyByUnit, qty, unit, avgPrice } = (saleInfo as any);
                 const detailStr = (details || []).map((d: any) => `${d.name}: ${d.qty} ${d.unit || ''} @ ₹${d.rate}`).join(', ');
                 const totals = qtyByUnit ? Object.entries(qtyByUnit).map(([u, q]) => `${q} ${u}`).join(', ') : `${qty} ${unit}`;
-                return `Sale Bill #${bNo || 'N/A'} (${detailStr}) | Total Qty: ${totals}`;
+                return `Sale Bill #${bNo || 'N/A'} (${detailStr})\nTotal Qty: ${totals}`;
             }
         }
     }
@@ -1152,25 +1176,9 @@ export default function DayBook() {
             return { ...e, sortIndex: index, displayTimestamp: transactionTimestamp || e.created_at || e.entry_date, reference_no: e.reference_no || (flowType === 'purchase' && e.reference_id ? arrivalReferenceMap[String(e.reference_id)] : e.reference_no), contact: { name: baseDisplayName }, displayNameLotPrefix: displayLotPrefix, displayType: rowType, displayLabel, displayDescription, displayDebit: rawDebit, displayCredit: rawCredit, isUdhaar: (rowType === 'sale' || rowType === 'purchase') && !((e.account?.account_sub_type === 'cash' || e.account?.account_sub_type === 'bank' || e.account?.type === 'bank')) };
         });
 
-        const voucherGroupMap = new Map<string, string>();
-        enriched.forEach(e => {
-            if (e.voucher_id) {
-                const gid = getEntryGroupKey(e);
-                if (gid.startsWith('sale_group_') || gid.startsWith('purchase_ref_') || gid.startsWith('sale_invoice_')) {
-                    const vMapKey = `${e.voucher_id}_${e.contact_id || 'no_contact'}`;
-                    const existing = voucherGroupMap.get(vMapKey);
-                    if (!existing || existing.startsWith('ref_') || !existing.includes('_')) voucherGroupMap.set(vMapKey, gid);
-                }
-            }
-        });
-
         const finalGroupMap = new Map<string, any[]>();
         enriched.forEach(e => {
-            const baseGid = getEntryGroupKey(e);
-            const flow = inferVoucherFlow(e);
-            const isSingleEntryFlow = ['paid_receipt', 'receive_receipt', 'expense_receipt', 'sale_payment'].includes(flow);
-            const vMapKey = e.voucher_id ? `${e.voucher_id}_${e.contact_id || 'no_contact'}` : null;
-            const gid = (!isSingleEntryFlow && vMapKey && voucherGroupMap.get(vMapKey)) || baseGid;
+            const gid = getEntryGroupKey(e);
             if (!finalGroupMap.has(gid)) finalGroupMap.set(gid, []);
             finalGroupMap.get(gid)!.push(e);
         });
@@ -1182,18 +1190,17 @@ export default function DayBook() {
             const repEntry = visibleLegs[0];
             const fullGroupKey = repEntry ? getEntryGroupKey(repEntry) : gid;
             const rawLegs = entriesByGroup.get(fullGroupKey) || visibleLegs;
-
             const hasSaleLeg = rawLegs.some(l => inferVoucherFlow(l) === 'sale' || inferVoucherFlow(l) === 'sale_payment');
             const hasPurchaseLeg = rawLegs.some(l => inferVoucherFlow(l) === 'purchase');
             const flowType = hasPurchaseLeg ? 'purchase' : (hasSaleLeg ? 'sale' : inferVoucherFlow(rawLegs[0]));
             let legs: any[] = [];
             if (flowType === 'purchase') {
                 const { cashPaid, totalValue } = getPurchaseSettlementTotals(rawLegs);
-                const goodsLeg = visibleLegs.find(l => l.contact_id && Number(l.credit || 0) > 0);
+                const goodsLeg = visibleLegs.find(l => (inferVoucherFlow(l) === 'purchase' || l.transaction_type === 'purchase') && Number(l.credit || 0) > 0);
                 const baseLeg = goodsLeg || visibleLegs.find(l => l.contact_id) || visibleLegs[0];
                 
                 if (baseLeg) {
-                    // 1. Bill Leg (Credit)
+                    // 1. Bill Leg (Credit - Goods Received)
                     legs.push({
                         ...baseLeg,
                         displayDebit: 0,
@@ -1202,14 +1209,15 @@ export default function DayBook() {
                         displayType: 'purchase'
                     });
 
-                    // 2. Payment Leg (Debit) - if any cash paid
+                    // 2. Payment Leg (Debit - Money Paid)
                     if (cashPaid > 0) {
+                        const actualPaymentLeg = visibleLegs.find(l => (inferVoucherFlow(l) === 'payment' || inferVoucherFlow(l) === 'paid_receipt') && Number(l.debit || 0) > 0);
                         legs.push({
-                            ...baseLeg,
+                            ...(actualPaymentLeg || baseLeg),
                             displayDebit: cashPaid,
                             displayCredit: 0,
                             displayLabel: '',
-                            displayDescription: `Payment for Bill #${(baseLeg as any).reference_no || 'N/A'}`,
+                            displayDescription: actualPaymentLeg?.displayDescription || `Payment for Bill #${(baseLeg as any).reference_no || 'N/A'}`,
                             displayType: 'payment'
                         });
                     }
@@ -1220,11 +1228,11 @@ export default function DayBook() {
                 const totalSaleValue = saleLegs.reduce((sum, l) => sum + Number(l.debit || 0), 0);
                 const totalPaidValue = paymentLegs.reduce((sum, l) => sum + Number(l.credit || 0), 0);
                 
-                const goodsLeg = visibleLegs.find(l => l.contact_id && Number(l.debit || 0) > 0);
+                const goodsLeg = visibleLegs.find(l => (inferVoucherFlow(l) === 'sale' || l.transaction_type === 'sale') && Number(l.debit || 0) > 0);
                 const baseLeg = goodsLeg || visibleLegs.find(l => l.contact_id) || visibleLegs[0];
                 
                 if (baseLeg) {
-                    // 1. Sale Leg (Debit)
+                    // 1. Sale Leg (Debit - Goods Sold)
                     legs.push({
                         ...baseLeg,
                         displayDebit: totalSaleValue,
@@ -1233,14 +1241,15 @@ export default function DayBook() {
                         displayType: 'sale'
                     });
 
-                    // 2. Payment Leg (Credit) - if any cash received
+                    // 2. Payment Leg (Credit - Money Received)
                     if (totalPaidValue > 0) {
+                        const actualReceiptLeg = visibleLegs.find(l => (inferVoucherFlow(l) === 'sale_payment' || inferVoucherFlow(l) === 'receive_receipt') && Number(l.credit || 0) > 0);
                         legs.push({
-                            ...baseLeg,
+                            ...(actualReceiptLeg || baseLeg),
                             displayDebit: 0,
                             displayCredit: totalPaidValue,
                             displayLabel: '',
-                            displayDescription: `Payment for Invoice #${(baseLeg as any).reference_no || 'N/A'}`,
+                            displayDescription: actualReceiptLeg?.displayDescription || `Payment for Invoice #${(baseLeg as any).reference_no || 'N/A'}`,
                             displayType: 'receipt'
                         });
                     }
@@ -1599,63 +1608,73 @@ export default function DayBook() {
                     ) : (
                         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
                             {/* Table Header */}
-                            <div className="grid grid-cols-[80px_80px_1fr_120px_120px] gap-4 px-6 py-4 bg-slate-50 border-b border-slate-200 text-[11px] font-black uppercase tracking-widest text-slate-500">
+                            <div className="grid grid-cols-[80px_100px_1fr_80px_120px_120px] gap-4 px-6 py-4 bg-slate-50 border-b border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-500">
                                 <div>Time</div>
-                                <div>#Ref</div>
-                                <div>Particulars</div>
-                                <div className="text-right">Debit</div>
-                                <div className="text-right">Credit</div>
+                                <div>Particulars(partyname)</div>
+                                <div>Description</div>
+                                <div>Type</div>
+                                <div className="text-right">
+                                    Debit
+                                    <div className="text-[8px] opacity-60">Goods Sold / Money Paid</div>
+                                </div>
+                                <div className="text-right">
+                                    Credit
+                                    <div className="text-[8px] opacity-60">Goods Rec'vd / Money Rec'vd</div>
+                                </div>
                             </div>
 
                             <div className="divide-y divide-slate-100">
                                 {filteredGroups.map((g: any) => (
                                     <div key={g.gid} className="hover:bg-slate-50/30 transition-colors">
-                                        {(g.renderLegs || g.legs || []).map((leg: any, idx: number) => {
+                                        {g.summaryLegs.map((leg: any, idx: number) => {
                                             const time = format(new Date(leg.displayTimestamp || leg.created_at || leg.entry_date), "HH:mm");
-                                            const refNo = leg.voucher?.voucher_no || leg.reference_no || g.gid.split('_').pop();
                                             const particulars = leg.contact?.name || leg.account?.name;
                                             const description = leg.displayDescription;
-                                            const isDebit = (leg.displayDebit || 0) > 0;
-                                            const isCredit = (leg.displayCredit || 0) > 0;
+                                            const isDebit = (leg.displayDebit || 0) > 0.01;
+                                            const isCredit = (leg.displayCredit || 0) > 0.01;
 
                                             return (
-                                                <div key={`${g.gid}_${idx}`} className="grid grid-cols-1 md:grid-cols-[80px_80px_1fr_120px_120px] gap-2 md:gap-4 px-6 py-4 items-center">
-                                                    {/* Mobile View */}
-                                                    <div className="md:hidden flex justify-between text-[10px] font-bold text-slate-400 mb-1">
-                                                        <span>{time} | #{refNo}</span>
+                                                <div key={`${g.gid}_${idx}`} className={cn(
+                                                    "grid grid-cols-1 md:grid-cols-[80px_100px_1fr_80px_120px_120px] gap-2 md:gap-4 px-6 py-3 items-start",
+                                                    idx > 0 && "pt-0 pb-4" // Payment sub-row styling
+                                                )}>
+                                                    <div className="hidden md:block text-[11px] font-medium text-slate-400 font-mono">
+                                                        {idx === 0 ? time : ""}
                                                     </div>
-
-                                                    {/* Desktop Columns */}
-                                                    <div className="hidden md:block text-[11px] font-medium text-slate-400 font-mono">{time}</div>
-                                                    <div className="hidden md:block text-[11px] font-bold text-slate-600 font-mono">#{refNo}</div>
                                                     
                                                     <div className="min-w-0">
-                                                        <div className="text-[13px] font-medium text-slate-900 leading-snug">
-                                                            <span className="font-bold">{particulars}</span>
-                                                            <span className="text-slate-400 mx-2">|</span>
-                                                            <span className="text-slate-600 italic">{description}</span>
-                                                            {leg.displayNameLotPrefix && (
+                                                        <div className="text-[12px] font-bold text-slate-900 truncate">
+                                                            {idx === 0 ? particulars : ""}
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="min-w-0">
+                                                        <div className="text-[12px] font-medium text-slate-600 whitespace-pre-wrap leading-relaxed">
+                                                            {description}
+                                                            {leg.displayNameLotPrefix && idx === 0 && (
                                                                 <span className="ml-2 text-[10px] text-emerald-600 font-mono bg-emerald-50 px-1.5 py-0.5 rounded">[{leg.displayNameLotPrefix}]</span>
                                                             )}
                                                         </div>
                                                     </div>
 
+                                                    <div className="hidden md:block text-[10px] font-black text-slate-400 uppercase tracking-tighter">
+                                                        {leg.displayLabel}
+                                                    </div>
+
                                                     <div className="text-right">
                                                         {isDebit && (
-                                                            <div className="text-sm font-bold text-rose-700">
-                                                                Rs.{Number(leg.displayDebit).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                            <div className="text-[13px] font-black text-rose-800">
+                                                                {Number(leg.displayDebit).toLocaleString()}
                                                             </div>
                                                         )}
-                                                        {!isDebit && <div className="hidden md:block text-slate-200">—</div>}
                                                     </div>
 
                                                     <div className="text-right">
                                                         {isCredit && (
-                                                            <div className="text-sm font-bold text-emerald-700">
-                                                                Rs.{Number(leg.displayCredit).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                            <div className="text-[13px] font-black text-emerald-800">
+                                                                {Number(leg.displayCredit).toLocaleString()}
                                                             </div>
                                                         )}
-                                                        {!isCredit && <div className="hidden md:block text-slate-200">—</div>}
                                                     </div>
                                                 </div>
                                             );
