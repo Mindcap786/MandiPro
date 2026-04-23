@@ -1279,7 +1279,8 @@ export default function DayBook() {
                     // 2. Payment Leg (Credit - Money Received)
                     if (totalPaidValue > 0) {
                         const actualReceiptLeg = rawLegs.find(l => (inferVoucherFlow(l) === 'sale_payment' || inferVoucherFlow(l) === 'receive_receipt') && Number(l.credit || 0) > 0);
-                        const bNo = effectiveReferenceId ? saleReferenceMap?.[String(effectiveReferenceId)] : extractBillNo(baseLeg);
+                        const refId = baseLeg.reference_id || baseLeg.voucher?.invoice_id || baseLeg.voucher?.reference_id;
+                        const bNo = refId ? saleReferenceMap?.[String(refId)] : extractBillNo(baseLeg);
                         legs.push({
                             ...(actualReceiptLeg || baseLeg),
                             displayDebit: 0,
