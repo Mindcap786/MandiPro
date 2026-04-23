@@ -72,6 +72,7 @@ import { cacheGet, cacheSet, cacheIsStale } from '@/lib/data-cache'
 import { ItemDialog } from '@/components/inventory/item-dialog'
 import { Switch } from '@/components/ui/switch'
 import { formatCommodityName } from '@/lib/utils/commodity-utils'
+import { useArrivalsMasterData } from '@/hooks/mandi/useArrivalsMasterData'
 
 const formSchema = z.object({
     arrival_date: z.date(),
@@ -126,19 +127,25 @@ interface QuickPurchaseFormValues {
 export function QuickPurchaseForm() {
     const router = useRouter()
     const { profile, loading: authLoading } = useAuth()
-    const [isSubmitting, setIsSubmitting] = useState(false)
-    const [items, setItems] = useState<any[]>([])
-    const [contacts, setContacts] = useState<any[]>([])
-    const [locations, setLocations] = useState<any[]>([])
-    const [bankAccounts, setBankAccounts] = useState<any[]>([])
-    const [isLoading, setIsLoading] = useState(true)
+    const [finalBillNo, setFinalBillNo] = useState<string | null>(null)
+    
+    // UI State
     const [showSuccessDialog, setShowSuccessDialog] = useState(false)
     const [isConfirming, setIsConfirming] = useState(false)
     const [submittedValues, setSubmittedValues] = useState<QuickPurchaseFormValues | null>(null)
     const [successData, setSuccessData] = useState<{ bill_no: string; totals: any; type: string } | null>(null)
     const [recordCompleted, setRecordCompleted] = useState(false)
-    const [finalBillNo, setFinalBillNo] = useState<string | null>(null)
-    const [defaultCommissionRate, setDefaultCommissionRate] = useState<number>(0)
+
+    // Use the unified master data hook
+    const { 
+        contacts: masterContacts, 
+        commodities: masterCommodities, 
+        storageLocations: masterLocations, 
+        bankAccounts: masterBanks,
+        defaultCommissionRate: masterDefaultComm,
+        loading: masterLoading,
+        refetch: refetchMasterData
+    } = useArrivalsMasterData(profile?.organization_id)
 
     const form = useForm<QuickPurchaseFormValues>({
         resolver: zodResolver(formSchema) as any,
@@ -177,88 +184,18 @@ export function QuickPurchaseForm() {
         name: 'rows'
     })
 
-    const fetchMasterData = async () => {
-        if (!profile?.organization_id) {
-            setIsLoading(false)
-            return
+    useEffect(() => {
+        if (!masterLoading && masterLocations.length > 0 && !form.getValues('storage_location')) {
+            form.setValue('storage_location', masterLocations[0].name)
         }
-        
-        const cacheKey = 'quick_purchase_master'
-        const cached = cacheGet<any>(cacheKey, profile.organization_id)
-        
-        if (cached) {
-            setItems(cached.items || [])
-            setContacts(cached.contacts || [])
-            setLocations(cached.locations || [])
-            setBankAccounts(cached.bankAccounts || [])
-            if (cached.locations?.length > 0 && !form.getValues('storage_location')) {
-                form.setValue('storage_location', cached.locations[0].name)
-            }
-            // Pre-select default bank account
-            if (cached.bankAccounts?.length > 0 && !form.getValues('advance_bank_account_id')) {
-                const defaultBank = cached.bankAccounts.find((b: any) => b.is_default) || cached.bankAccounts[0]
-                form.setValue('advance_bank_account_id', defaultBank.id)
-            }
-            if (cached.settings?.commission_rate_default) {
-                const defaultComm = Number(cached.settings.commission_rate_default);
-                setDefaultCommissionRate(defaultComm);
-            }
-            setIsLoading(false)
-            if (!cacheIsStale(cacheKey, profile.organization_id)) return
-        }
-
-        try {
-            const [itemsRes, contactsRes, locsRes, banksRes, settingsRes] = await Promise.all([
-                supabase.schema('mandi').from('commodities').select('id, name, local_name, sku_code, default_unit, custom_attributes').eq('organization_id', profile.organization_id).order('name'),
-                supabase.schema('mandi').from('contacts').select('id, name, type:contact_type, city, status').eq('organization_id', profile.organization_id).in('contact_type', ['farmer', 'supplier']).neq('status', 'deleted'),
-                supabase.schema('mandi').from('storage_locations').select('*').eq('organization_id', profile.organization_id),
-                supabase.schema('mandi').from('accounts').select('id, name, description, is_default').eq('organization_id', profile.organization_id).eq('account_sub_type', 'bank').eq('type', 'asset').eq('is_active', true).order('name'),
-                supabase.schema('mandi').from('mandi_settings' as any).select('commission_rate_default').eq('organization_id', profile.organization_id).maybeSingle()
-            ])
-
-            const data = {
-                items: itemsRes.data || [],
-                contacts: contactsRes.data || [],
-                locations: locsRes.data || [],
-                bankAccounts: banksRes.data || [],
-                settings: settingsRes.data || {}
-            }
-
-            setItems(data.items)
-            setContacts(data.contacts)
-            setLocations(data.locations)
-            setBankAccounts(data.bankAccounts)
-            
-            if (data.locations.length > 0 && !form.getValues('storage_location')) {
-                form.setValue('storage_location', data.locations[0].name)
-            }
-
-            // Pre-select default bank account
-            if (data.bankAccounts.length > 0 && !form.getValues('advance_bank_account_id')) {
-                const defaultBank = data.bankAccounts.find((b: any) => b.is_default) || data.bankAccounts[0]
-                form.setValue('advance_bank_account_id', defaultBank.id)
-            }
-
-            if (data.settings?.commission_rate_default) {
-                const defaultComm = Number(data.settings.commission_rate_default);
-                setDefaultCommissionRate(defaultComm);
-            }
-
-            cacheSet(cacheKey, profile.organization_id || '', data)
-        } catch (error) {
-            console.error('Error fetching master data:', error)
-        } finally {
-            setIsLoading(false)
-        }
-    }
+    }, [masterLoading, masterLocations, form])
 
     useEffect(() => {
-        if (profile?.organization_id) {
-            fetchMasterData()
-        } else if (!authLoading) {
-            setIsLoading(false)
+        if (!masterLoading && masterBanks.length > 0 && !form.getValues('advance_bank_account_id')) {
+            const defaultBank = masterBanks.find(b => b.is_default) || masterBanks[0]
+            form.setValue('advance_bank_account_id', defaultBank.id)
         }
-    }, [profile?.organization_id, authLoading])
+    }, [masterLoading, masterBanks, form])
 
     const calculateRowFinancials = (row: any) => {
         if (!row) return { grossValue: 0, commissionAmount: 0, billAmount: 0 }
@@ -355,7 +292,7 @@ export function QuickPurchaseForm() {
             return;
         }
 
-        const selectedParty = contacts.find(c => c.id === values.supplier_id)
+        const selectedParty = masterContacts.find(c => c.id === values.supplier_id)
         const hasCommission = values.rows.some(r => Number(r.commission) > 0)
         let submissionType: 'commission' | 'direct' | 'commission_supplier' = 'direct'
         if (hasCommission) {
@@ -376,7 +313,7 @@ export function QuickPurchaseForm() {
         if (!submittedValues || !profile?.organization_id) return
         
         const values = submittedValues
-        const selectedParty = contacts.find(c => c.id === values.supplier_id)
+        const selectedParty = masterContacts.find(c => c.id === values.supplier_id)
         const hasCommission = values.rows.some(r => Number(r.commission) > 0)
         
         let submissionType: 'commission' | 'direct' | 'commission_supplier' = 'direct'
@@ -388,7 +325,7 @@ export function QuickPurchaseForm() {
         try {
             // Explicitly map items to ensure types and field names match RPC expectation precisely
             const rpcItems = values.rows.map(row => {
-                const commodity = items.find(i => i.id === row.item_id);
+                const commodity = masterCommodities.find(i => i.id === row.item_id);
                 return {
                     ...row,
                     qty: Number(row.qty),
@@ -398,8 +335,8 @@ export function QuickPurchaseForm() {
                     less_units: Number(row.less_units),
                     custom_attributes: {
                         ...commodity?.custom_attributes,
-                        variety: commodity?.custom_attributes?.variety,
-                        grade: commodity?.custom_attributes?.grade
+                        variety: (commodity?.custom_attributes as any)?.variety,
+                        grade: (commodity?.custom_attributes as any)?.grade
                     }
                 };
             })
@@ -460,7 +397,7 @@ export function QuickPurchaseForm() {
         }
     }
 
-    if (isLoading) {
+    if (masterLoading) {
         return (
             <div className="flex h-[400px] items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
@@ -521,7 +458,7 @@ export function QuickPurchaseForm() {
                                 <FormItem>
                                     <FormLabel className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Supplier / Farmer</FormLabel>
                                     <SearchableSelect
-                                        options={contacts.map(c => ({
+                                        options={masterContacts.map(c => ({
                                             label: `${c.name}${c.type === 'staff' ? ' (Staff)' : ''} - ${c.city || ''}`,
                                             value: c.id
                                         }))}
@@ -552,8 +489,8 @@ export function QuickPurchaseForm() {
                                             </SelectTrigger>
                                         </FormControl>
                                         <SelectContent className="rounded-2xl border-none shadow-xl">
-                                            {locations.map((loc) => (
-                                                <SelectItem key={loc.id} value={loc.name} className="py-3 font-bold">
+                                            {masterLocations.map((loc) => (
+                                                <SelectItem key={loc.name} value={loc.name} className="py-3 font-bold">
                                                     {loc.name}
                                                 </SelectItem>
                                             ))}
@@ -627,9 +564,9 @@ export function QuickPurchaseForm() {
                                                     <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Line Item</div>
                                                     <div className="text-sm font-black text-slate-900 uppercase tracking-tight">
                                                         {(() => {
-                                                            const item = items.find(i => i.id === row.item_id);
+                                                            const item = masterCommodities.find(i => i.id === row.item_id);
                                                             const baseName = item?.name || "Pick Item";
-                                                            const baseAttributes = item?.custom_attributes || {};
+                                                            const baseAttributes = (item?.custom_attributes as any) || {};
                                                             
                                                             return formatCommodityName(baseName, baseAttributes);
                                                         })()}
@@ -658,21 +595,21 @@ export function QuickPurchaseForm() {
                                                         <FormItem>
                                                             <div className="flex items-center justify-between mb-2">
                                                                 <FormLabel className="text-[9px] font-black uppercase text-slate-400">Commodity</FormLabel>
-                                                                <ItemDialog onSuccess={fetchMasterData}>
+                                                                <ItemDialog onSuccess={masterLoading ? undefined : () => {}}>
                                                                     <Button type="button" variant="link" className="h-auto p-0 text-blue-600 text-[9px] font-bold uppercase tracking-widest hover:text-blue-800 transition-colors">
                                                                         + ADD
                                                                     </Button>
                                                                 </ItemDialog>
                                                             </div>
                                                             <SearchableSelect
-                                                                options={items.map(item => ({
+                                                                options={masterCommodities.map(item => ({
                                                                     value: item.id,
                                                                     label: formatCommodityName(item.name, item.custom_attributes)
                                                                 }))}
                                                                 value={field.value}
                                                                 onChange={(val) => {
                                                                     field.onChange(val);
-                                                                    const selectedItem = items.find(i => i.id === val);
+                                                                    const selectedItem = masterCommodities.find(i => i.id === val);
                                                                     if (selectedItem?.default_unit) {
                                                                         form.setValue(`rows.${index}.unit`, selectedItem.default_unit);
                                                                     }

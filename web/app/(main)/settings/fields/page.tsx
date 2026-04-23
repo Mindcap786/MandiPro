@@ -701,11 +701,13 @@ export default function FieldSettingsPage() {
  
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {storageLocations.slice().sort((a, b) => {
-                                if (a.name === 'Mandi (Yard)') return -1;
-                                if (b.name === 'Mandi (Yard)') return 1;
-                                return 0;
+                                if (a.name === 'Mandi') return -1;
+                                if (b.name === 'Mandi') return 1;
+                                if (a.name === 'Cold Storage') return -1;
+                                if (b.name === 'Cold Storage') return 1;
+                                return a.name.localeCompare(b.name);
                             }).map(loc => {
-                                const isDefault = loc.name === 'Mandi (Yard)';
+                                const isDefault = ['Mandi', 'Cold Storage'].includes(loc.name);
                                 const isEditing = editingLocId === loc.id;
                                 return (
                                     <motion.div key={loc.id} layout
@@ -719,7 +721,7 @@ export default function FieldSettingsPage() {
                                                 <div className="flex items-center gap-2">
                                                     <div className={cn("w-2 h-2 rounded-full", loc.is_active ? "bg-blue-500" : "bg-slate-300", isDefault && loc.is_active && "animate-pulse")} />
                                                     <span className={cn("text-[8px] font-black uppercase tracking-widest", isDefault ? "text-blue-500" : "text-slate-400")}>
-                                                        {isDefault ? 'System Default' : (loc.is_active ? (loc.location_type || 'warehouse') : 'Offline')}
+                                                        {isDefault ? 'Standard Point' : (loc.is_active ? (loc.location_type || 'warehouse') : 'Offline')}
                                                     </span>
                                                 </div>
                                                 {isEditing ? (
@@ -760,7 +762,7 @@ export default function FieldSettingsPage() {
                                                         </svg>
                                                     </Button>
                                                 )}
-                                                {!isDefault && !isEditing && (
+                                                {!isEditing && (
                                                     <Button size="icon" variant="ghost" onClick={() => deleteLocation(loc.id)}
                                                         className="h-8 w-8 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50">
                                                         <Trash2 className="w-3.5 h-3.5" />

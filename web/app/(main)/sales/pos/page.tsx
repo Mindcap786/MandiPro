@@ -1202,7 +1202,8 @@ export default function POSPage() {
                                 {showQR && (() => {
                                     const acc = accounts.find(a => a.id === selectedAccountId)
                                     const meta = acc && acc.description?.startsWith('{') ? JSON.parse(acc.description) : {}
-                                    const upiId = meta.upi_id || orgSettings?.payment?.upi_id
+                                    const upiId = meta.upi_id || orgSettings?.payment?.upi_id || orgSettings?.upi_id
+                                    
                                     if (upiId) {
                                         const qrAmount = (amountReceived > 0 ? amountReceived : grandTotal);
                                         const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(orgName)}&am=${qrAmount.toFixed(2)}&cu=INR`
@@ -1223,7 +1224,12 @@ export default function POSPage() {
                                             </motion.div>
                                         )
                                     } else if (selectedAccountId) {
-                                        return <div className="text-[9px] font-bold text-amber-600 italic text-center py-2 bg-amber-50 rounded-lg border border-amber-100 mt-1">⚠️ No UPI ID configured on this bank.</div>
+                                        return (
+                                            <div className="text-[9px] font-bold text-amber-600 italic text-center py-2 bg-amber-50 rounded-lg border border-amber-100 mt-1">
+                                                ⚠️ No UPI ID configured for this bank. 
+                                                <p className="mt-1 text-[8px] text-slate-400 font-medium">Add it in Settings {'>'} Payment Details</p>
+                                            </div>
+                                        )
                                     }
                                     return null;
                                 })()}

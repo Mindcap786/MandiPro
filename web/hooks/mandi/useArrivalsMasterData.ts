@@ -182,8 +182,8 @@ export function useArrivalsMasterData(organizationId: string | undefined): Arriv
 function sortLocations(locs: StorageLocation[]): StorageLocation[] {
   const unique = Array.from(new Map(locs.map(l => [l.name, l])).values())
   return unique.sort((a, b) => {
-    if (a.name === 'Mandi (Yard)') return -1
-    if (b.name === 'Mandi (Yard)') return 1
+    if (a.name === 'Mandi') return -1
+    if (b.name === 'Mandi') return 1
     if (a.name === 'Cold Storage') return -1
     if (b.name === 'Cold Storage') return 1
     return a.name.localeCompare(b.name)
