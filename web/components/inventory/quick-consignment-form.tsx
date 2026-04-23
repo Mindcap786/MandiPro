@@ -312,11 +312,15 @@ export function QuickPurchaseForm() {
             finalPayable = rowTotals.netPayable - tripLoading - tripOther
         }
 
+        const advance = Number(advanceValue) || 0
+        const finalPay = finalPayable - advance
+
         return {
             ...rowTotals,
             tripExpenses: tripLoading + tripOther,
             billAmount: finalPayable,
-            isOverpaid: (Number(advanceValue) || 0) > finalPayable
+            finalPay: finalPay,
+            isOverpaid: advance > finalPayable
         }
     }, [rows, advanceValue, form.watch('arrival_type'), form.watch('loading_amount'), form.watch('other_expenses')])
 
@@ -1033,7 +1037,7 @@ export function QuickPurchaseForm() {
 
                                                     <div className="flex flex-col items-center justify-center h-10 bg-blue-600/5 rounded-xl border border-blue-600/10 px-4">
                                                         <span className="text-[6px] font-black text-blue-400 uppercase tracking-widest mb-1 leading-none">Net Payable</span>
-                                                        <span className="text-xs font-black text-blue-600 leading-none">₹{rowFinancials.netPayable.toLocaleString()}</span>
+                                                        <span className="text-xs font-black text-blue-600 leading-none">₹{(rowFinancials?.netPayable || 0).toLocaleString()}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1044,22 +1048,22 @@ export function QuickPurchaseForm() {
                                             <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
                                                 <div className="flex flex-col items-center justify-center p-2 rounded-2xl bg-slate-50/50">
                                                     <span className="text-[7px] font-black uppercase text-slate-400 mb-1">Gross Value</span>
-                                                    <span className="text-xs font-black text-slate-900">₹{rowFinancials.grossValue.toLocaleString()}</span>
+                                                    <span className="text-xs font-black text-slate-900">₹{(rowFinancials?.grossValue || 0).toLocaleString()}</span>
                                                     <span className="text-[6px] text-slate-400">{row.qty} x {row.rate}</span>
                                                 </div>
                                                 <div className="flex flex-col items-center justify-center p-2 rounded-2xl bg-orange-50/50">
                                                     <span className="text-[7px] font-black uppercase text-orange-400 mb-1">Adjusted Value</span>
-                                                    <span className="text-xs font-black text-orange-600">₹{rowFinancials.adjustedValue.toLocaleString()}</span>
+                                                    <span className="text-xs font-black text-orange-600">₹{(rowFinancials?.adjustedValue || 0).toLocaleString()}</span>
                                                     <span className="text-[6px] text-orange-400">After cuts/discounts</span>
                                                 </div>
                                                 <div className="flex flex-col items-center justify-center p-2 rounded-2xl bg-purple-50/50">
                                                     <span className="text-[7px] font-black uppercase text-purple-400 mb-1">Commission</span>
-                                                    <span className="text-xs font-black text-purple-600">₹{rowFinancials.commissionAmount.toLocaleString()}</span>
+                                                    <span className="text-xs font-black text-purple-600">₹{(rowFinancials?.commissionAmount || 0).toLocaleString()}</span>
                                                     <span className="text-[6px] text-purple-400">{row.commission}% of adjusted</span>
                                                 </div>
                                                 <div className="flex flex-col items-center justify-center p-2 rounded-2xl bg-red-50/50">
                                                     <span className="text-[7px] font-black uppercase text-red-400 mb-1">Expenses & Cuts</span>
-                                                    <span className="text-xs font-black text-red-600">₹{rowFinancials.expensesTotal.toLocaleString()}</span>
+                                                    <span className="text-xs font-black text-red-600">₹{(rowFinancials?.expensesTotal || 0).toLocaleString()}</span>
                                                     <span className="text-[6px] text-red-400">Incl. Other Cut</span>
                                                 </div>
                                                 <div className="flex flex-col items-center justify-center p-2 rounded-2xl bg-emerald-50/50 border border-emerald-100">
@@ -1067,12 +1071,12 @@ export function QuickPurchaseForm() {
                                                         {form.watch('arrival_type') === 'direct' ? 'Net Cost' : 
                                                          form.watch('arrival_type') === 'commission' ? 'Farmer Gets' : 'Supplier Gets'}
                                                     </span>
-                                                    <span className="text-sm font-black text-emerald-600">₹{rowFinancials.netPayable.toLocaleString()}</span>
+                                                    <span className="text-sm font-black text-emerald-600">₹{(rowFinancials?.netPayable || 0).toLocaleString()}</span>
                                                     <span className="text-[6px] text-emerald-400">Net payable</span>
                                                 </div>
                                                 <div className="flex flex-col items-center justify-center p-2 rounded-2xl bg-slate-50/50">
                                                     <span className="text-[7px] font-black uppercase text-slate-400 mb-1">Unit Cost</span>
-                                                    <span className="text-xs font-black text-slate-900">₹{rowFinancials.unitCost.toFixed(2)}</span>
+                                                    <span className="text-xs font-black text-slate-900">₹{(rowFinancials?.unitCost || 0).toFixed(2)}</span>
                                                     <span className="text-[6px] text-slate-400">Per {row.unit}</span>
                                                 </div>
                                             </div>
@@ -1332,17 +1336,17 @@ export function QuickPurchaseForm() {
                             )}>
                                 <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 flex flex-col items-center justify-center">
                                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Total Gross</span>
-                                    <span className="text-2xl font-black text-slate-900">₹{totalFinancials.grossValue.toLocaleString()}</span>
+                                    <span className="text-2xl font-black text-slate-900">₹{(totalFinancials?.grossValue || 0).toLocaleString()}</span>
                                 </div>
                                 {totalFinancials.commissionAmount > 0 && (
                                     <div className="bg-emerald-50/50 p-6 rounded-3xl border border-emerald-100 flex flex-col items-center justify-center animate-in zoom-in-95 duration-300">
                                         <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-2">Mandi Commission</span>
-                                        <span className="text-2xl font-black text-emerald-600">₹{totalFinancials.commissionAmount.toLocaleString()}</span>
+                                        <span className="text-2xl font-black text-emerald-600">₹{(totalFinancials?.commissionAmount || 0).toLocaleString()}</span>
                                     </div>
                                 )}
                                 <div className="bg-blue-50/50 p-6 rounded-3xl border border-blue-100 flex flex-col items-center justify-center">
                                     <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-2">Balance Pending</span>
-                                    <span className="text-2xl font-black text-blue-600">₹{totalFinancials.finalPay.toLocaleString()}</span>
+                                    <span className="text-2xl font-black text-blue-600">₹{(totalFinancials?.finalPay || 0).toLocaleString()}</span>
                                 </div>
                                 <div className={cn(
                                     "bg-slate-900 p-6 rounded-[32px] flex items-center justify-between shadow-2xl shadow-slate-200 ring-8 ring-slate-50",
@@ -1350,7 +1354,7 @@ export function QuickPurchaseForm() {
                                 )}>
                                     <div className="flex flex-col">
                                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Total Payable</span>
-                                        <span className="text-3xl font-black text-white">₹{totalFinancials.finalPay.toLocaleString()}</span>
+                                        <span className="text-3xl font-black text-white">₹{(totalFinancials?.finalPay || 0).toLocaleString()}</span>
                                     </div>
                                     <Button
                                         type="submit"
@@ -1411,7 +1415,7 @@ export function QuickPurchaseForm() {
                                 <div className="grid grid-cols-2 gap-6 bg-slate-50 p-8 rounded-[32px] border border-slate-100">
                                     <div className="space-y-1 text-left">
                                         <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Total Payable</span>
-                                        <span className="text-2xl font-black text-slate-900 italic">₹{successData?.totals.finalPay.toLocaleString()}</span>
+                                        <span className="text-2xl font-black text-slate-900 italic">₹{(successData?.totals?.finalPay || 0).toLocaleString()}</span>
                                     </div>
                                     <div className="space-y-1 text-right">
                                         <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Payment Mode</span>
@@ -1498,15 +1502,15 @@ export function QuickPurchaseForm() {
                                     </div>
                                     <div className="flex flex-col items-center">
                                         <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Comm</span>
-                                        <span className="text-sm font-black text-emerald-600">₹{successData?.totals.commissionAmount.toLocaleString()}</span>
+                                        <span className="text-sm font-black text-emerald-600">₹{(successData?.totals?.commissionAmount || 0).toLocaleString()}</span>
                                     </div>
                                     <div className="flex flex-col items-center">
                                         <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Paid</span>
-                                        <span className="text-sm font-black text-blue-600">₹{successData?.totals.advance.toLocaleString()}</span>
+                                        <span className="text-sm font-black text-blue-600">₹{(successData?.totals?.advance || 0).toLocaleString()}</span>
                                     </div>
                                     <div className="flex flex-col items-center">
                                         <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Payable</span>
-                                        <span className="text-sm font-black text-slate-900">₹{successData?.totals.finalPay.toLocaleString()}</span>
+                                        <span className="text-sm font-black text-slate-900">₹{(successData?.totals?.finalPay || 0).toLocaleString()}</span>
                                     </div>
                                 </div>
                             </div>
