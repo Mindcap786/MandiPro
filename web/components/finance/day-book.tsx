@@ -1625,7 +1625,7 @@ export default function DayBook() {
 
                             <div className="space-y-6 px-6 py-8 bg-white">
                                 {filteredGroups.map((g: any) => (
-                                    <div key={g.gid} className="border-t-2 border-b-2 border-slate-600 bg-white">
+                                    <div key={g.gid} className="border-t border-b border-slate-300 bg-blue-50/30">
                                         {g.summaryLegs.map((leg: any, idx: number) => {
                                             const particulars = leg.contact?.name || leg.account?.name;
                                             const description = leg.displayDescription;
@@ -1634,14 +1634,15 @@ export default function DayBook() {
 
                                             return (
                                                 <div key={`${g.gid}_${idx}`} className={cn(
-                                                    "grid grid-cols-[1fr_120px_120px_120px] gap-4 px-2 py-4 items-start",
-                                                    idx > 0 && "pt-0 pb-4" // Payment sub-row styling
+                                                    "grid grid-cols-[1fr_120px_120px_120px] gap-4 px-4 py-2 items-start",
+                                                    idx === 0 && "pt-4",
+                                                    idx === g.summaryLegs.length - 1 && "pb-4"
                                                 )}>
-                                                    {/* Particulars Column (Description in Screenshot 2) */}
+                                                    {/* Particulars Column */}
                                                     <div className="min-w-0">
-                                                        <div className="text-[14px] text-slate-800 leading-relaxed font-medium">
+                                                        <div className="text-[12px] text-slate-800 leading-normal font-medium">
                                                             {idx === 0 && particulars && (
-                                                                <div className="text-[12px] font-black text-slate-400 mb-1 uppercase tracking-tight">
+                                                                <div className="text-[10px] font-black text-slate-400 mb-0.5 uppercase tracking-tight">
                                                                     {particulars}
                                                                 </div>
                                                             )}
@@ -1652,17 +1653,17 @@ export default function DayBook() {
                                                     </div>
 
                                                     {/* Type Column */}
-                                                    <div className="text-[14px] font-medium text-slate-700 pt-0.5">
+                                                    <div className="text-[11px] font-semibold text-slate-500 pt-0.5 uppercase tracking-tighter">
                                                         {leg.displayLabel || ""}
                                                     </div>
 
                                                     {/* Debit Column */}
-                                                    <div className="text-right text-[15px] font-bold text-slate-900 pt-0.5">
+                                                    <div className="text-right text-[13px] font-bold text-slate-900 pt-0.5">
                                                         {isDebit ? Number(leg.displayDebit).toLocaleString() : ""}
                                                     </div>
 
                                                     {/* Credit Column */}
-                                                    <div className="text-right text-[15px] font-bold text-slate-900 pt-0.5">
+                                                    <div className="text-right text-[13px] font-bold text-slate-900 pt-0.5">
                                                         {isCredit ? Number(leg.displayCredit).toLocaleString() : ""}
                                                     </div>
                                                 </div>
