@@ -218,6 +218,7 @@ export const Sidebar = memo(function Sidebar({ onCollapseChange }: SidebarProps 
 })
 
 const NavGroup = React.memo(function NavGroup({ item, pathname, collapsed, profile, can, t, dir }: { item: any, pathname: string, collapsed: boolean, profile: any, can: (i: any) => boolean, t: any, dir: string }) {
+    const router = useRouter()
     const isGroupActive = item.items ? item.items.filter((i: any) => !i.sidebarHidden).filter(can).some((sub: any) => pathname === sub.href) : false;
     const [expanded, setExpanded] = useState(isGroupActive)
 

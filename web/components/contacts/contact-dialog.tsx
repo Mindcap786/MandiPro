@@ -192,7 +192,7 @@ export function ContactDialog({ children, onSuccess, defaultType = "farmer", ini
                     .from('ledger_entries')
                     .insert({
                         organization_id: profile.organization_id,
-                        contact_id: newContact.id,
+                        contact_id: savedContact.id,
                         entry_date: new Date().toISOString(),
                         description: "Opening Balance",
                         debit: data.balanceType === 'receivable' ? data.openingBalance : 0,

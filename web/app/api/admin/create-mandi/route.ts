@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
 
         // 3. Create Organization
         const { data: org, error: orgError } = await supabaseAdmin
-            .schema('core')
+            .schema('core' as any)
             .from('organizations')
             .insert({
                 name,
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
 
         if (userError) {
             // Rollback Org (Optional but recommended)
-            await supabaseAdmin.schema('core').from('organizations').delete().eq('id', org.id)
+            await supabaseAdmin.schema('core' as any).from('organizations').delete().eq('id', org.id)
 
             console.error('User Creation Error:', userError)
             return NextResponse.json(
@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
 
         // Wait a small bit for trigger (if any) or just upsert
         const { error: profileError } = await supabaseAdmin
-            .schema('core')
+            .schema('core' as any)
             .from('profiles')
             .upsert({
                 id: user.user.id,

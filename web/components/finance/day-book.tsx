@@ -695,9 +695,6 @@ const getEntryDescription = (
     return baseDescription;
 };
 
-    return baseDescription;
-};
-
 export default function DayBook() {
     const { profile } = useAuth();
     const { t } = useLanguage();
@@ -1080,7 +1077,7 @@ export default function DayBook() {
             }
         };
 
-        const { entries: normalizedEntries, arrivalTimestampMap, arrivalLotMap, arrivalLotPrefixMap, arrivalReferenceMap, saleReferenceMap, saleItemMap, contactMap } = rawData;
+        const { entries: normalizedEntries, arrivalTimestampMap, arrivalLotMap, arrivalLotPrefixMap, arrivalReferenceMap, saleReferenceMap, saleItemMap, contactMap, billToSaleMap } = rawData;
         const saleSettlements = buildSaleSettlementMap(normalizedEntries);
 
         // ── VOUCHER INTEGRITY QUARANTINE ─────────────────────────────────────
@@ -1138,6 +1135,7 @@ export default function DayBook() {
             const effectiveContactId = e.contact_id || groupContactId;
             const baseDisplayName = effectiveContactId ? contactMap[effectiveContactId] : (e.account?.name || 'Unknown');
             const purchaseLotPrefix = effectiveContactId && flowType === 'purchase' && e.reference_id ? arrivalLotPrefixMap[String(e.reference_id)] : null;
+            const saleIdFromBill = e.bill_id ? billToSaleMap?.[String(e.bill_id)] : null;
             const saleLotPrefix = effectiveContactId && (flowType === 'sale' || flowType === 'sale_payment') && (e.reference_id || saleIdFromBill) ? saleItemMap[String(e.reference_id || saleIdFromBill)]?.lotPrefix : null;
             const displayLotPrefix = purchaseLotPrefix || saleLotPrefix;
             

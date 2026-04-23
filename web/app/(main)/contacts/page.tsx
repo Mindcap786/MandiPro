@@ -417,7 +417,7 @@ export default function ContactsPage() {
             <div className="hidden print:block mb-8 border-b-2 border-black pb-4">
                 <div className="flex justify-between items-end">
                     <div>
-                        <h2 className="text-2xl font-black uppercase tracking-tighter">{profile?.organization_name || 'MANDIPRO NETWORK'}</h2>
+                        <h2 className="text-2xl font-black uppercase tracking-tighter">{profile?.organization?.name || 'MANDIPRO NETWORK'}</h2>
                         <h1 className="text-4xl font-[1000] tracking-tighter uppercase mt-1">Network Contacts Report</h1>
                     </div>
                     <div className="text-right">

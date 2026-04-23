@@ -153,8 +153,6 @@ export function EditLotDialog({ lot, open, onClose, onSuccess }: EditLotDialogPr
                                 />
                             </div>
                         )}
-
-                        )}
                     </div>
 
                     <div className="pt-4 border-t border-slate-100 space-y-4">

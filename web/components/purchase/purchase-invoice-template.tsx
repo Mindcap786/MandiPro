@@ -80,6 +80,8 @@ export default function PurchaseBillInvoice({
         totalOtherCharges += toNumber(l.other_charges || 0);
         totalArrivalExpenseShare += toNumber(l.farmer_charges || 0);
     });
+    
+    const isSettled = lotsToProcess.some(l => !!l.settlement_at);
 
     const finalPayable = Math.max(0, totalNetGoodsValue - totalCommission - totalLotExpenses - totalAdvance - totalPaidAmount - totalOtherCharges - totalArrivalExpenseShare)
 

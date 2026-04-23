@@ -59,7 +59,8 @@ type POSItem = {
     loading_cost: number
     farmer_charges: number
     lot_id: string | null 
-
+    lot_code?: string
+    grade?: string
 }
 
 const toRpcPaymentMode = (paymentMode: 'Cash' | 'Credit' | 'UPI/Bank' | 'Cheque') => {
@@ -366,6 +367,7 @@ export default function POSPage() {
                         image_url: imgUrl,
                         lot_id: lot.id,
                         lot_code: lot.lot_code,
+                        grade: displayAttributes?.grade || displayAttributes?.GRADE || '',
                         lot_details: [],
                         supplier_name: supplierName,
                         sale_price: price,
@@ -408,7 +410,8 @@ export default function POSPage() {
                 loading_cost: stock.loading_cost,
                 farmer_charges: stock.farmer_charges,
                 lot_id: stock.lot_id,
-                lot_code: stock.lot_code
+                lot_code: stock.lot_code,
+                grade: stock.grade
             })).sort((a: any, b: any) => (a.name || '').localeCompare(b.name || ''));
 
 
