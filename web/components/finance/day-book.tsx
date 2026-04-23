@@ -824,6 +824,7 @@ export default function DayBook() {
                 .select(`
                     *,
                     account:accounts(name, account_sub_type, type),
+                    contact:contacts(id, name, contact_type),
                     voucher:vouchers(type, voucher_no, narration, source, invoice_id, cheque_status, is_cleared, arrival_id)
                 `)
                 .eq('organization_id', profile?.organization_id)
@@ -1003,6 +1004,7 @@ export default function DayBook() {
                 const statsBySale = new Map<string, { 
                     items: string[], 
                     detailsMap: Map<string, { qty: number, rate: number, unit: string }>, 
+                    qtyByUnit: Record<string, number>,
                     qty: number, 
                     unit: string, 
                     priceSum: number, 
@@ -1043,6 +1045,11 @@ export default function DayBook() {
                         }
                         const d = stat.detailsMap.get(rateKey)!;
                         d.qty += Number(si.quantity || 0);
+                        
+                        // Mixed Unit Aggregation for Sales
+                        const u = si.unit || 'Unit';
+                        if (!stat.qtyByUnit) stat.qtyByUnit = {};
+                        stat.qtyByUnit[u] = (stat.qtyByUnit[u] || 0) + Number(si.quantity || 0);
                     }
                     stat.qty += Number(si.quantity || 0);
                     stat.priceSum += Number(si.rate || 0);
@@ -1057,6 +1064,7 @@ export default function DayBook() {
                     saleItemMap[sid] = { 
                         items: itemLabel, 
                         details: Array.from(stat.detailsMap.values()),
+                        qtyByUnit: stat.qtyByUnit,
                         qty: stat.qty, 
                         unit: stat.unit, 
                         avgPrice: stat.count > 0 ? stat.priceSum / stat.count : 0,
@@ -1724,10 +1732,10 @@ export default function DayBook() {
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 bg-[#FEFCE8] p-8 rounded-[32px] border border-yellow-100 shadow-sm relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-yellow-400/10 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none opacity-40"></div>
                 <div className="relative z-10">
-                    <h1 className="text-4xl font-[1000] text-slate-800 tracking-tighter uppercase mb-2">
+                    <h1 className="text-3xl font-[1000] text-slate-800 tracking-tighter uppercase mb-2">
                         {t('daybook.title')}
                     </h1>
-                    <p className="text-slate-500 font-bold text-lg flex items-center gap-2">
+                    <p className="text-slate-500 font-bold text-base flex items-center gap-2">
                         <BookOpen className="w-5 h-5 text-emerald-600" />
                         {t('daybook.subtitle')}
                     </p>
@@ -1839,7 +1847,7 @@ export default function DayBook() {
                         <span className="text-xs font-black uppercase tracking-widest text-slate-400">📊 {t('daybook.sales_summary')}</span>
                         <div className="p-2 bg-indigo-50 rounded-xl text-indigo-600 print:hidden"><Tag className="w-4 h-4" /></div>
                     </div>
-                    <div className="text-3xl font-[1000] text-slate-800 tracking-tighter mb-4 print:text-xl print:mb-2">{t('common.currency_symbol')}{summary.sales.total.toLocaleString()}</div>
+                    <div className="text-2xl font-[1000] text-slate-800 tracking-tighter mb-4 print:text-xl print:mb-2">{t('common.currency_symbol')}{summary.sales.total.toLocaleString()}</div>
                     <div className="space-y-2 border-t border-slate-50 pt-3 print:pt-1">
                         <div className="flex justify-between text-xs mb-1">
                             <span className="text-slate-400 font-bold">🟢 {t('daybook.sales_cash')}</span>
@@ -1858,7 +1866,7 @@ export default function DayBook() {
                         <span className="text-xs font-black uppercase tracking-widest text-slate-400">📦 {t('daybook.purchase_insights')}</span>
                         <div className="p-2 bg-amber-50 rounded-xl text-amber-600 print:hidden"><ArrowUpRight className="w-4 h-4" /></div>
                     </div>
-                    <div className="text-3xl font-[1000] text-slate-800 tracking-tighter mb-4 print:text-xl print:mb-2">{t('common.currency_symbol')}{summary.purchases.total.toLocaleString()}</div>
+                    <div className="text-2xl font-[1000] text-slate-800 tracking-tighter mb-4 print:text-xl print:mb-2">{t('common.currency_symbol')}{summary.purchases.total.toLocaleString()}</div>
                     <div className="space-y-2 border-t border-slate-50 pt-3 print:pt-1">
                         <div className="flex justify-between text-xs mb-1">
                             <span className="text-slate-400 font-bold">🟢 {t('daybook.purchase_cash')}</span>
@@ -1877,7 +1885,7 @@ export default function DayBook() {
                         <span className="text-xs font-black uppercase tracking-widest text-slate-400">💰 {t('daybook.liquid_assets')}</span>
                         <div className="p-2 bg-emerald-50 rounded-xl text-emerald-600 print:hidden"><ArrowDownLeft className="w-4 h-4" /></div>
                     </div>
-                    <div className="text-3xl font-[1000] text-slate-800 tracking-tighter mb-4 print:text-xl print:mb-2">{t('common.currency_symbol')}{(summary.cash.inflow - summary.cash.outflow + summary.digital.inflow - summary.digital.outflow).toLocaleString()}</div>
+                    <div className="text-2xl font-[1000] text-slate-800 tracking-tighter mb-4 print:text-xl print:mb-2">{t('common.currency_symbol')}{(summary.cash.inflow - summary.cash.outflow + summary.digital.inflow - summary.digital.outflow).toLocaleString()}</div>
                     <div className="space-y-2 border-t border-slate-50 pt-3 print:pt-1">
                         <div className="flex justify-between text-xs mb-1">
                             <span className="text-slate-400 font-bold">🟢 {t('daybook.inflow')}</span>
@@ -1896,7 +1904,7 @@ export default function DayBook() {
                         <span className="text-xs font-black uppercase tracking-widest text-slate-400">🛠️ {t('daybook.daily_expenses')}</span>
                         <div className="p-2 bg-rose-50 rounded-xl text-rose-600 print:hidden"><Activity className="w-4 h-4" /></div>
                     </div>
-                    <div className="text-3xl font-[1000] text-slate-800 tracking-tighter mb-4 print:text-xl print:mb-2">{t('common.currency_symbol')}{summary.expenses.toLocaleString()}</div>
+                    <div className="text-2xl font-[1000] text-slate-800 tracking-tighter mb-4 print:text-xl print:mb-2">{t('common.currency_symbol')}{summary.expenses.toLocaleString()}</div>
                     <div className="space-y-1 border-t border-slate-50 pt-3 print:pt-1">
                         <p className="text-[10px] text-slate-400 leading-tight">{t('daybook.expenses_desc')}</p>
                     </div>
@@ -2019,23 +2027,23 @@ export default function DayBook() {
                                                         isFirst && "rounded-tl-2xl",
                                                         isLast  && "rounded-bl-2xl"
                                                     )}>
-                                                        <span className={cn(legIdx !== 0 && "opacity-0 invisible")}>
+                                                        <span className={cn(legIdx !== 0 && "opacity-0 invisible", "text-[10px]")}>
                                                             {format(new Date(e.displayTimestamp || e.created_at || e.entry_date), 'h:mm a')}
                                                         </span>
                                                     </td>
                                                     <td className={cellBase}>
                                                         <div className="flex flex-col">
-                                                            <span className={cn("font-black text-slate-800 text-base tracking-tight leading-snug mb-1 inline-flex items-baseline gap-2 flex-wrap", e.status === 'reversed' && "line-through text-slate-500")}>
+                                                            <span className={cn("font-black text-slate-800 text-sm tracking-tight leading-snug mb-1 inline-flex items-baseline gap-2 flex-wrap", e.status === 'reversed' && "line-through text-slate-500")}>
                                                                 {e.status === 'reversed' && <span className="text-rose-500 mr-2 uppercase text-[10px] bg-rose-50 px-2 py-0.5 rounded-sm inline-block no-underline align-middle mb-1">{t('daybook.labels.reversed')}</span>}
                                                                 <span>{(e.displayDescription || e.description || e.voucher?.narration || t('daybook.descriptions.no_description')).replace(/(\d+)\.0+(?=\s|[A-Za-z]|$)/g, '$1')}</span>
                                                                 {isFirst && e.displayNameLotPrefix && (
-                                                                    <span className="text-[11px] font-bold tracking-wide text-slate-400">
+                                                                    <span className="text-[10px] font-bold tracking-wide text-slate-400">
                                                                         ({e.displayNameLotPrefix})
                                                                     </span>
                                                                 )}
                                                             </span>
                                                             {(isFirst || !!e.contact?.name) && (
-                                                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">
+                                                                <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1">
                                                                     {e.contact?.name || e.account?.name}
                                                                 </span>
                                                             )}
@@ -2051,14 +2059,14 @@ export default function DayBook() {
                                                     </td>
                                                     <td className={cn(
                                                         cellBase,
-                                                        "text-right font-mono font-[900] text-lg tracking-tighter",
+                                                        "text-right font-mono font-[900] text-base tracking-tighter",
                                                         (e.displayDebit || 0) > 0 ? "text-slate-800" : "text-slate-300"
                                                     )}>
                                                         {(e.displayDebit || 0) > 0 ? (e.displayDebit).toLocaleString() : '—'}
                                                     </td>
                                                     <td className={cn(
                                                         cellBase,
-                                                        "pr-8 text-right font-mono font-[900] text-lg tracking-tighter",
+                                                        "pr-8 text-right font-mono font-[900] text-base tracking-tighter",
                                                         isFirst && "rounded-tr-2xl",
                                                         isLast  && "rounded-br-2xl",
                                                         (e.displayCredit || 0) > 0 ? "text-slate-800" : "text-slate-300"
