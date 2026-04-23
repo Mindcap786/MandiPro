@@ -130,8 +130,8 @@ interface QuickPurchaseFormValues {
     guarantor: string;
     driver_name: string;
     driver_mobile: string;
-    loading_amount: number | '';
-    other_expenses: number | '';
+    loading_amount: number | ''; // Trip Loading
+    other_expenses: number | ''; // Trip Other Exp
 
     advance: number | '';
     advance_payment_mode: 'credit' | 'cash' | 'upi_bank' | 'cheque';
@@ -232,61 +232,90 @@ export function QuickPurchaseForm() {
         }
     }, [masterLoading, masterBanks, form])
 
-    const calculateRowFinancials = (row: any) => {
-        if (!row) return { grossValue: 0, commissionAmount: 0, billAmount: 0 }
+    const calculateRowFinancials = (row: any, type: string) => {
+        if (!row) return { 
+            grossValue: 0, 
+            adjustedValue: 0, 
+            commissionAmount: 0, 
+            expensesTotal: 0, 
+            netPayable: 0,
+            unitCost: 0
+        }
 
         const qty = Number(row.qty) || 0
         const rate = Number(row.rate) || 0
         const commPercent = Number(row.commission) || 0
+        const lessPercentVal = (qty * (Number(row.weight_loss) || 0)) / 100
         const lessUnits = Number(row.less_units) || 0
-        const commType = row.commission_type || 'farmer'
+        
+        // 1. Gross Value
+        const grossValue = qty * rate
 
-        // Single deduction: Net Qty = Total Qty - Less Units
-        const netQty = Math.max(0, qty - lessUnits)
-        const grossValue = netQty * rate
+        // 2. Adjusted Value (After Less % and Less Units)
+        const adjustedQty = Math.max(0, qty - lessPercentVal - lessUnits)
+        const adjustedValue = adjustedQty * rate
         
-        const commissionAmount = (grossValue * commPercent) / 100
+        // 3. Commission (10% of Gross - Less %)
+        const valueAfterLessPercent = (qty - lessPercentVal) * rate
+        const commissionAmount = (valueAfterLessPercent * commPercent) / 100
         
-        // In a PURCHASE context, mandi commission is ALWAYS deducted from the bill
-        // (regardless of whether it is farmer or supplier commission type)
-        const billAmount = grossValue - commissionAmount
+        // 4. Expenses (Packing + Loading + Other Cut)
+        const packing = Number(row.packing_cost) || 0
+        const loading = Number(row.loading_cost) || 0
+        const otherCut = Number(row.other_cut) || 0
+        const itemExpenses = packing + loading + otherCut
+
+        // 5. Final Math based on Type
+        let netPayable = 0
+        if (type === 'direct') {
+            // Mandi pays for everything
+            netPayable = adjustedValue + itemExpenses
+        } else {
+            // Farmer/Supplier pays for everything
+            netPayable = adjustedValue - commissionAmount - itemExpenses
+        }
 
         return {
             grossValue,
+            adjustedValue,
             commissionAmount,
-            billAmount
+            expensesTotal: itemExpenses,
+            netPayable,
+            unitCost: qty > 0 ? netPayable / qty : 0
         }
     }
 
-    const watchedRows = useWatch({
-        control: form.control,
-        name: 'rows'
-    })
-    const watchedAdvance = useWatch({
-        control: form.control,
-        name: 'advance'
-    })
-
-    const totalFinancials = (() => {
-        const rows = watchedRows || []
-        const advance = Number(watchedAdvance) || 0
+    const totalFinancials = useMemo(() => {
+        const type = form.watch('arrival_type')
+        const tripLoading = Number(form.watch('loading_amount')) || 0
+        const tripOther = Number(form.watch('other_expenses')) || 0
         
-        const totals = rows.reduce((acc, row) => {
-            const rowFin = calculateRowFinancials(row)
+        const rowTotals = rows.reduce((acc, row) => {
+            const financials = calculateRowFinancials(row, type)
             return {
-                grossValue: acc.grossValue + rowFin.grossValue,
-                commissionAmount: acc.commissionAmount + rowFin.commissionAmount,
-                billAmount: acc.billAmount + rowFin.billAmount
+                grossValue: acc.grossValue + financials.grossValue,
+                adjustedValue: acc.adjustedValue + financials.adjustedValue,
+                commissionAmount: acc.commissionAmount + financials.commissionAmount,
+                expensesTotal: acc.expensesTotal + financials.expensesTotal,
+                netPayable: acc.netPayable + financials.netPayable
             }
-        }, { grossValue: 0, commissionAmount: 0, billAmount: 0 })
+        }, { grossValue: 0, adjustedValue: 0, commissionAmount: 0, expensesTotal: 0, netPayable: 0 })
+
+        // Apply trip-level expenses
+        let finalPayable = 0
+        if (type === 'direct') {
+            finalPayable = rowTotals.netPayable + tripLoading + tripOther
+        } else {
+            finalPayable = rowTotals.netPayable - tripLoading - tripOther
+        }
 
         return {
-            ...totals,
-            advance,
-            finalPay: totals.billAmount - advance,
-            isOverpaid: advance > (totals.billAmount + 0.1)
+            ...rowTotals,
+            tripExpenses: tripLoading + tripOther,
+            billAmount: finalPayable,
+            isOverpaid: (Number(advanceValue) || 0) > finalPayable
         }
-    })()
+    }, [rows, advanceValue, form.watch('arrival_type'), form.watch('loading_amount'), form.watch('other_expenses')])
 
     const onSubmit = async (values: QuickPurchaseFormValues) => {
         if (!profile?.organization_id) return
@@ -361,6 +390,7 @@ export function QuickPurchaseForm() {
             // Explicitly map items to ensure types and field names match RPC expectation precisely
             const rpcItems = values.rows.map(row => {
                 const commodity = masterCommodities.find(i => i.id === row.item_id);
+                const financials = calculateRowFinancials(row, values.arrival_type);
                 return {
                     ...row,
                     qty: Number(row.qty),
@@ -368,6 +398,17 @@ export function QuickPurchaseForm() {
                     commission: Number(row.commission),
                     weight_loss: Number(row.weight_loss),
                     less_units: Number(row.less_units),
+                    arrival_type: values.arrival_type,
+                    // Financial Mappings
+                    gross_value: financials.grossValue,
+                    adjusted_value: financials.adjustedValue,
+                    commission_amount: financials.commissionAmount,
+                    packing_cost: Number(row.packing_cost) || 0,
+                    loading_cost: Number(row.loading_cost) || 0,
+                    other_cut: Number(row.other_cut) || 0,
+                    expenses_total: financials.expensesTotal,
+                    net_payable: financials.netPayable,
+                    unit_cost: financials.unitCost,
                     custom_attributes: {
                         ...commodity?.custom_attributes,
                         variety: (commodity?.custom_attributes as any)?.variety,
@@ -987,13 +1028,52 @@ export function QuickPurchaseForm() {
                                                         )}
                                                     />
 
-                                                    <div className="flex flex-col items-center justify-center h-10 bg-blue-600/5 rounded-xl border border-blue-600/10">
-                                                        <span className="text-[6px] font-black text-blue-400 uppercase tracking-widest mb-1 leading-none">Net Bill</span>
-                                                        <span className="text-xs font-black text-blue-600 leading-none">₹{rowFinancials.billAmount.toLocaleString()}</span>
+                                                    <div className="flex flex-col items-center justify-center h-10 bg-blue-600/5 rounded-xl border border-blue-600/10 px-4">
+                                                        <span className="text-[6px] font-black text-blue-400 uppercase tracking-widest mb-1 leading-none">Net Payable</span>
+                                                        <span className="text-xs font-black text-blue-600 leading-none">₹{rowFinancials.netPayable.toLocaleString()}</span>
                                                     </div>
                                                 </div>
                                             </div>
                                         )}
+
+                                        {/* Financial Summary Bar (Matches Screenshots) */}
+                                        <div className="md:col-span-12 mt-4 pt-4 border-t border-slate-50">
+                                            <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+                                                <div className="flex flex-col items-center justify-center p-2 rounded-2xl bg-slate-50/50">
+                                                    <span className="text-[7px] font-black uppercase text-slate-400 mb-1">Gross Value</span>
+                                                    <span className="text-xs font-black text-slate-900">₹{rowFinancials.grossValue.toLocaleString()}</span>
+                                                    <span className="text-[6px] text-slate-400">{row.qty} x {row.rate}</span>
+                                                </div>
+                                                <div className="flex flex-col items-center justify-center p-2 rounded-2xl bg-orange-50/50">
+                                                    <span className="text-[7px] font-black uppercase text-orange-400 mb-1">Adjusted Value</span>
+                                                    <span className="text-xs font-black text-orange-600">₹{rowFinancials.adjustedValue.toLocaleString()}</span>
+                                                    <span className="text-[6px] text-orange-400">After cuts/discounts</span>
+                                                </div>
+                                                <div className="flex flex-col items-center justify-center p-2 rounded-2xl bg-purple-50/50">
+                                                    <span className="text-[7px] font-black uppercase text-purple-400 mb-1">Commission</span>
+                                                    <span className="text-xs font-black text-purple-600">₹{rowFinancials.commissionAmount.toLocaleString()}</span>
+                                                    <span className="text-[6px] text-purple-400">{row.commission}% of adjusted</span>
+                                                </div>
+                                                <div className="flex flex-col items-center justify-center p-2 rounded-2xl bg-red-50/50">
+                                                    <span className="text-[7px] font-black uppercase text-red-400 mb-1">Expenses & Cuts</span>
+                                                    <span className="text-xs font-black text-red-600">₹{rowFinancials.expensesTotal.toLocaleString()}</span>
+                                                    <span className="text-[6px] text-red-400">Incl. Other Cut</span>
+                                                </div>
+                                                <div className="flex flex-col items-center justify-center p-2 rounded-2xl bg-emerald-50/50 border border-emerald-100">
+                                                    <span className="text-[7px] font-black uppercase text-emerald-500 mb-1">
+                                                        {form.watch('arrival_type') === 'direct' ? 'Net Cost' : 
+                                                         form.watch('arrival_type') === 'commission' ? 'Farmer Gets' : 'Supplier Gets'}
+                                                    </span>
+                                                    <span className="text-sm font-black text-emerald-600">₹{rowFinancials.netPayable.toLocaleString()}</span>
+                                                    <span className="text-[6px] text-emerald-400">Net payable</span>
+                                                </div>
+                                                <div className="flex flex-col items-center justify-center p-2 rounded-2xl bg-slate-50/50">
+                                                    <span className="text-[7px] font-black uppercase text-slate-400 mb-1">Unit Cost</span>
+                                                    <span className="text-xs font-black text-slate-900">₹{rowFinancials.unitCost.toFixed(2)}</span>
+                                                    <span className="text-[6px] text-slate-400">Per {row.unit}</span>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             )
