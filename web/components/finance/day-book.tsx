@@ -1602,7 +1602,7 @@ export default function DayBook() {
                 )}
 
                 {/* Transaction List: Clean Ledger Style */}
-                <div className="px-4 pb-20">
+                <div className="pb-20">
                     <div className="flex items-center justify-between px-4 mb-4">
                         <NativeSectionLabel>Transactions ({filteredGroups.length})</NativeSectionLabel>
                     </div>
@@ -1614,18 +1614,18 @@ export default function DayBook() {
                             <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">No entries found today</p>
                         </div>
                     ) : (
-                        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                        <div className="bg-white border-y border-slate-200 overflow-hidden">
                             {/* Table Header */}
-                            <div className="grid grid-cols-[1fr_120px_120px_120px] gap-4 px-6 py-4 bg-slate-50 border-b border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                            <div className="grid grid-cols-[1fr_100px_100px_100px] gap-2 px-4 py-2 bg-slate-100 border-b border-slate-300 text-[9px] font-black uppercase tracking-widest text-slate-600">
                                 <div>Particulars(partyname)</div>
                                 <div>Type</div>
                                 <div className="text-right">Debit</div>
                                 <div className="text-right">Credit</div>
                             </div>
 
-                            <div className="space-y-6 px-6 py-8 bg-white">
+                            <div className="space-y-0.5 bg-slate-200/50">
                                 {filteredGroups.map((g: any) => (
-                                    <div key={g.gid} className="border-t border-b border-slate-300 bg-blue-50/30">
+                                    <div key={g.gid} className="border-b border-slate-300 bg-white hover:bg-slate-50 transition-colors">
                                         {g.summaryLegs.map((leg: any, idx: number) => {
                                             const particulars = leg.contact?.name || leg.account?.name;
                                             const description = leg.displayDescription;
@@ -1634,15 +1634,15 @@ export default function DayBook() {
 
                                             return (
                                                 <div key={`${g.gid}_${idx}`} className={cn(
-                                                    "grid grid-cols-[1fr_120px_120px_120px] gap-4 px-4 py-2 items-start",
-                                                    idx === 0 && "pt-4",
-                                                    idx === g.summaryLegs.length - 1 && "pb-4"
+                                                    "grid grid-cols-[1fr_100px_100px_100px] gap-2 px-4 py-1.5 items-start",
+                                                    idx === 0 && "pt-3",
+                                                    idx === g.summaryLegs.length - 1 && "pb-3"
                                                 )}>
                                                     {/* Particulars Column */}
                                                     <div className="min-w-0">
-                                                        <div className="text-[12px] text-slate-800 leading-normal font-medium">
+                                                        <div className="text-[11px] text-slate-800 leading-tight font-medium">
                                                             {idx === 0 && particulars && (
-                                                                <div className="text-[10px] font-black text-slate-400 mb-0.5 uppercase tracking-tight">
+                                                                <div className="text-[9px] font-black text-slate-400 mb-0.5 uppercase tracking-tighter">
                                                                     {particulars}
                                                                 </div>
                                                             )}
@@ -1653,17 +1653,17 @@ export default function DayBook() {
                                                     </div>
 
                                                     {/* Type Column */}
-                                                    <div className="text-[11px] font-semibold text-slate-500 pt-0.5 uppercase tracking-tighter">
+                                                    <div className="text-[10px] font-bold text-slate-500 pt-0.5 uppercase tracking-tighter">
                                                         {leg.displayLabel || ""}
                                                     </div>
 
                                                     {/* Debit Column */}
-                                                    <div className="text-right text-[13px] font-bold text-slate-900 pt-0.5">
+                                                    <div className="text-right text-[12px] font-black text-slate-900 pt-0.5">
                                                         {isDebit ? Number(leg.displayDebit).toLocaleString() : ""}
                                                     </div>
 
                                                     {/* Credit Column */}
-                                                    <div className="text-right text-[13px] font-bold text-slate-900 pt-0.5">
+                                                    <div className="text-right text-[12px] font-black text-slate-900 pt-0.5">
                                                         {isCredit ? Number(leg.displayCredit).toLocaleString() : ""}
                                                     </div>
                                                 </div>
