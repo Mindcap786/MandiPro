@@ -359,29 +359,6 @@ const getPurchaseSettlementKey = (entry: any) => {
 };
 
 const getEntryGroupKey = (entry: any) => {
-    const flow = inferVoucherFlow(entry);
-    const voucher = entry.voucher || {};
-    
-    if (flow === 'sale' || flow === 'sale_payment') {
-        const invoiceId = voucher.invoice_id || entry.reference_id;
-        if (invoiceId) {
-            const isSaleType = voucher.type === 'sale';
-            const narration = (voucher.narration || '').toLowerCase();
-            const isConcurrent = narration.includes('receipt against bill') || narration.includes('pos payment') || isSaleType;
-            if (isConcurrent) return `sale_invoice_${invoiceId}`;
-        }
-    }
-
-    if (flow === 'purchase') {
-        const arrivalId = voucher.arrival_id || entry.reference_id;
-        if (arrivalId) {
-            const isPurchaseType = voucher.type === 'purchase';
-            const narration = (voucher.narration || '').toLowerCase();
-            const isConcurrent = narration.includes('arrival #') || isPurchaseType;
-            if (isConcurrent) return `purchase_arrival_${arrivalId}`;
-        }
-    }
-
     if (entry.voucher_id) return `voucher_${entry.voucher_id}`;
     return `entry_${entry.id}`;
 };
@@ -1393,7 +1370,19 @@ export default function DayBook() {
             return {
                 gid,
                 scenario: getTransactionScenario(rawLegs, saleSettlements, t),
-                legs: legs.filter(Boolean),
+                summaryLegs: legs.filter(Boolean),
+                renderLegs: rawLegs.map(l => ({
+                    ...l,
+                    displayTimestamp: l.entry_date || l.created_at,
+                    displayDebit: Number(l.debit || 0),
+                    displayCredit: Number(l.credit || 0),
+                    displayDescription: l.voucher?.narration || l.description
+                })).sort((a, b) => {
+                    // Sort Debits first, then Credits
+                    if (a.displayDebit > 0 && b.displayCredit > 0) return -1;
+                    if (a.displayCredit > 0 && b.displayDebit > 0) return 1;
+                    return 0;
+                }),
                 timestamp: (visibleLegs[0]) ? (visibleLegs[0].displayTimestamp || visibleLegs[0].created_at || visibleLegs[0].entry_date) : new Date().toISOString(),
                 voucherIds: groupVoucherIds,
                 isImbalanced: hasImbalancedVoucher,
@@ -1424,7 +1413,7 @@ export default function DayBook() {
             // rendered in the transaction table with a ⚠️ badge so the user
             // can see and investigate it.
             if ((group as any).isImbalanced) return;
-            group.legs.forEach((leg: any) => {
+            group.summaryLegs.forEach((leg: any) => {
                 const type = leg.displayType as string;
 
                 // 1. PURCHASE → Only Purchase Insights
@@ -1516,7 +1505,7 @@ export default function DayBook() {
 
 
     const exportTransactionGroups = (groups: any[], filename: string) => {
-        const flatEntries = groups.flatMap(g => g.legs.map(l => ({
+        const flatEntries = groups.flatMap(g => g.renderLegs.map((l: any) => ({
             ...l,
             scenario: g.scenario,
             groupTimestamp: g.timestamp
@@ -1526,18 +1515,18 @@ export default function DayBook() {
 
     const isBalanced = Math.abs(summary.rawDebit - summary.rawCredit) < 1;
     
-    const totalDebit = transactionGroups.reduce((sum, g) => sum + g.legs.reduce((s, e) => s + (e.displayDebit || 0), 0), 0);
-    const totalCredit = transactionGroups.reduce((sum, g) => sum + g.legs.reduce((s, e) => s + (e.displayCredit || 0), 0), 0);
+    const totalDebit = transactionGroups.reduce((sum, g) => sum + g.renderLegs.reduce((s: any, e: any) => s + (e.displayDebit || 0), 0), 0);
+    const totalCredit = transactionGroups.reduce((sum, g) => sum + g.renderLegs.reduce((s: any, e: any) => s + (e.displayCredit || 0), 0), 0);
     const footerDebitTextClass = 'text-rose-700';
     const footerCreditTextClass = 'text-emerald-700';
 
     // Cash Book filter: compute filtered list before render
     const filteredGroups = transactionGroups.filter(g => {
         if (cashFilter !== 'all') {
-            if (cashFilter === 'sales')     return g.legs.some((l: any) => l.displayType === 'sale');
-            if (cashFilter === 'purchases') return g.legs.some((l: any) => l.displayType === 'purchase');
-            if (cashFilter === 'liquid')    return g.legs.some((l: any) => l.displayType === 'receipt' || l.displayType === 'payment' || l.displayType === 'receive_receipt' || l.displayType === 'paid_receipt' || l.displayType === 'sale_payment');
-            if (cashFilter === 'expenses')  return g.legs.some((l: any) => l.displayType === 'expense_receipt');
+            if (cashFilter === 'sales')     return g.summaryLegs.some((l: any) => l.displayType === 'sale');
+            if (cashFilter === 'purchases') return g.summaryLegs.some((l: any) => l.displayType === 'purchase');
+            if (cashFilter === 'liquid')    return g.summaryLegs.some((l: any) => l.displayType === 'receipt' || l.displayType === 'payment' || l.displayType === 'receive_receipt' || l.displayType === 'paid_receipt' || l.displayType === 'sale_payment');
+            if (cashFilter === 'expenses')  return g.summaryLegs.some((l: any) => l.displayType === 'expense_receipt');
         } else if (viewMode === 'cash') {
             return (g as any).hasCash;
         }
@@ -1691,9 +1680,9 @@ export default function DayBook() {
                             <div className="divide-y divide-slate-100">
                                 {filteredGroups.map((g: any) => (
                                     <div key={g.gid} className="hover:bg-slate-50/30 transition-colors">
-                                        {g.legs.map((leg: any, idx: number) => {
+                                        {g.renderLegs.map((leg: any, idx: number) => {
                                             const time = format(new Date(leg.displayTimestamp || leg.created_at || leg.entry_date), "HH:mm");
-                                            const refNo = leg.reference_no || g.gid.split('_').pop();
+                                            const refNo = leg.voucher?.voucher_no || leg.reference_no || g.gid.split('_').pop();
                                             const particulars = leg.contact?.name || leg.account?.name;
                                             const description = leg.displayDescription;
                                             const isDebit = (leg.displayDebit || 0) > 0;

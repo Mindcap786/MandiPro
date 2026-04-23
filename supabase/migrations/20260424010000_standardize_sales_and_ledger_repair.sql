@@ -95,6 +95,11 @@ BEGIN
         v_received := COALESCE(v_sale.amount_received, 0);
     END IF;
 
+    -- FAILSAFE: If it's a cash/digital transaction but received amount is still 0 (frontend bug), FORCE it to full amount
+    IF v_received = 0 AND v_payment_mode IN ('cash', 'upi', 'bank', 'upi/bank') THEN
+        v_received := v_total_inc_tax;
+    END IF;
+
     -- 2. Resolve Accounts
     v_rev_acc_id := mandi.resolve_account_robust(v_sale.organization_id, 'sales', '%Sales Revenue%', '4001');
     v_ar_acc_id := mandi.resolve_account_robust(v_sale.organization_id, 'receivable', '%Receivable%', '1200');
