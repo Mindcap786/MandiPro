@@ -81,6 +81,35 @@ export default function PaymentDetailsSettings() {
         setLoading(false)
     }
 
+    // Auto-sync UPI ID if bank ID is set but UPI is missing in settings
+    useEffect(() => {
+        if (!loading && bankAccounts.length > 0 && payment.qr_bank_id && !payment.upi_id) {
+            const acc = bankAccounts.find(a => a.id === payment.qr_bank_id)
+            if (acc) {
+                const meta = acc.description?.startsWith('{') ? JSON.parse(acc.description) : {}
+                if (meta.upi_id) {
+                    setPayment(prev => ({ ...prev, upi_id: meta.upi_id }))
+                }
+            }
+        }
+        // Also sync bank details if missing
+        if (!loading && bankAccounts.length > 0 && payment.text_bank_id && !payment.account_number) {
+            const acc = bankAccounts.find(a => a.id === payment.text_bank_id)
+            if (acc) {
+                const meta = acc.description?.startsWith('{') ? JSON.parse(acc.description) : {}
+                if (meta.account_number) {
+                    setPayment(prev => ({
+                        ...prev,
+                        bank_name: meta.bank_name || prev.bank_name,
+                        account_number: meta.account_number,
+                        ifsc_code: meta.ifsc_code || prev.ifsc_code,
+                        account_holder: meta.account_name || acc.name || prev.account_holder
+                    }))
+                }
+            }
+        }
+    }, [loading, bankAccounts, payment.qr_bank_id, payment.text_bank_id])
+
     const handleSave = async () => {
         setSaving(true)
         // First get existing settings to merge
