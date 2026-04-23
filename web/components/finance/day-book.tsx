@@ -1616,57 +1616,63 @@ export default function DayBook() {
                     ) : (
                         <div className="bg-[#fffbeb] border-y-2 border-slate-900 overflow-hidden">
                             {/* Table Header: Register Style */}
-                            <div className="grid grid-cols-[1fr_80px_100px_100px] bg-[#fef3c7] border-b border-slate-400 text-[9px] font-black uppercase tracking-tighter text-slate-800">
-                                <div className="px-2 py-1.5 border-r border-slate-400">Particulars</div>
-                                <div className="px-2 py-1.5 border-r border-slate-400">Type</div>
-                                <div className="px-2 py-1.5 border-r border-slate-400 text-right">Debit</div>
-                                <div className="px-2 py-1.5 text-right">Credit</div>
+                            <div className="grid grid-cols-[1fr_80px_90px_90px] bg-[#fef3c7] border-b border-slate-400 text-[8px] font-black uppercase tracking-tighter text-slate-800">
+                                <div className="px-2 py-1 border-r border-slate-400">Particulars</div>
+                                <div className="px-2 py-1 border-r border-slate-400">Type</div>
+                                <div className="px-2 py-1 border-r border-slate-400 text-right">Debit</div>
+                                <div className="px-2 py-1 text-right">Credit</div>
                             </div>
 
-                            <div className="bg-slate-200/20">
-                                {filteredGroups.map((g: any) => (
-                                    <div key={g.gid} className="border-b-2 border-slate-900 bg-[#fffbeb]">
-                                        {g.summaryLegs.map((leg: any, idx: number) => {
-                                            const particulars = leg.contact?.name || leg.account?.name;
-                                            const description = leg.displayDescription;
-                                            const isDebit = (leg.displayDebit || 0) > 0.01;
-                                            const isCredit = (leg.displayCredit || 0) > 0.01;
+                            <div className="bg-slate-200/10 p-1">
+                                {filteredGroups.map((g: any) => {
+                                    const isGroup = g.summaryLegs.length > 1;
+                                    return (
+                                        <div key={g.gid} className={cn(
+                                            "bg-[#fffbeb] mb-1 overflow-hidden",
+                                            isGroup ? "border-2 border-slate-800 rounded shadow-sm" : "border border-slate-300"
+                                        )}>
+                                            {g.summaryLegs.map((leg: any, idx: number) => {
+                                                const particulars = leg.contact?.name || leg.account?.name;
+                                                const description = leg.displayDescription;
+                                                const isDebit = (leg.displayDebit || 0) > 0.01;
+                                                const isCredit = (leg.displayCredit || 0) > 0.01;
 
-                                            return (
-                                                <div key={`${g.gid}_${idx}`} className="grid grid-cols-[1fr_80px_100px_100px] border-b border-slate-200/50 last:border-b-0">
-                                                    {/* Particulars Column */}
-                                                    <div className="px-2 py-1 border-r border-slate-400 min-w-0">
-                                                        <div className="text-[10px] text-slate-900 leading-tight font-medium">
-                                                            {idx === 0 && particulars && (
-                                                                <div className="text-[8px] font-black text-slate-500 mb-0.5 uppercase tracking-tighter">
-                                                                    {particulars}
+                                                return (
+                                                    <div key={`${g.gid}_${idx}`} className="grid grid-cols-[1fr_80px_90px_90px] border-b border-slate-200/40 last:border-b-0">
+                                                        {/* Particulars Column */}
+                                                        <div className="px-1.5 py-0.5 border-r border-slate-400 min-w-0">
+                                                            <div className="text-[9px] text-slate-900 leading-[1.1] font-medium">
+                                                                {idx === 0 && particulars && (
+                                                                    <div className="text-[7.5px] font-black text-slate-500 mb-0.5 uppercase tracking-tighter">
+                                                                        {particulars}
+                                                                    </div>
+                                                                )}
+                                                                <div className="whitespace-pre-wrap opacity-90">
+                                                                    {description}
                                                                 </div>
-                                                            )}
-                                                            <div className="whitespace-pre-wrap opacity-90">
-                                                                {description}
                                                             </div>
                                                         </div>
-                                                    </div>
 
-                                                    {/* Type Column */}
-                                                    <div className="px-2 py-1 border-r border-slate-400 text-[9px] font-bold text-slate-600 uppercase tracking-tighter self-stretch flex items-center">
-                                                        {leg.displayLabel || ""}
-                                                    </div>
+                                                        {/* Type Column */}
+                                                        <div className="px-1.5 py-0.5 border-r border-slate-400 text-[8px] font-bold text-slate-600 uppercase tracking-tighter self-stretch flex items-center">
+                                                            {leg.displayLabel || ""}
+                                                        </div>
 
-                                                    {/* Debit Column */}
-                                                    <div className="px-2 py-1 border-r border-slate-400 text-right text-[11px] font-black text-slate-900 self-stretch flex items-center justify-end">
-                                                        {isDebit ? Number(leg.displayDebit).toLocaleString() : ""}
-                                                    </div>
+                                                        {/* Debit Column */}
+                                                        <div className="px-1.5 py-0.5 border-r border-slate-400 text-right text-[10px] font-black text-slate-900 self-stretch flex items-center justify-end">
+                                                            {isDebit ? Number(leg.displayDebit).toLocaleString() : ""}
+                                                        </div>
 
-                                                    {/* Credit Column */}
-                                                    <div className="px-2 py-1 text-right text-[11px] font-black text-slate-900 self-stretch flex items-center justify-end">
-                                                        {isCredit ? Number(leg.displayCredit).toLocaleString() : ""}
+                                                        {/* Credit Column */}
+                                                        <div className="px-1.5 py-0.5 text-right text-[10px] font-black text-slate-900 self-stretch flex items-center justify-end">
+                                                            {isCredit ? Number(leg.displayCredit).toLocaleString() : ""}
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                ))}
+                                                );
+                                            })}
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
                     )
