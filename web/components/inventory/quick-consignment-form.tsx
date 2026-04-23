@@ -952,6 +952,9 @@ export function QuickPurchaseForm() {
                                                                 field.onChange(mode.value);
                                                                 if (mode.value === 'credit') {
                                                                     form.setValue('advance', 0);
+                                                                } else {
+                                                                    // Automatically populate Paid Amount with Total Payable
+                                                                    form.setValue('advance', totalFinancials.billAmount);
                                                                 }
                                                             }}
                                                             className={cn(
