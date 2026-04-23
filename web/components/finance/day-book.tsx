@@ -923,8 +923,7 @@ export default function DayBook() {
         if (!rawData) setLoading(true);
         try {
             const schema = 'mandi';
-            const start = new Date(date); start.setHours(0, 0, 0, 0);
-            const end = new Date(date); end.setHours(23, 59, 59, 999);
+            const dateString = date.toISOString().split('T')[0];
 
             const { data, error } = await supabase
                 .schema(schema)
@@ -935,8 +934,7 @@ export default function DayBook() {
                     voucher:vouchers(type, voucher_no, narration, source, invoice_id, cheque_status, is_cleared, arrival_id)
                 `)
                 .eq('organization_id', profile?.organization_id)
-                .gte('entry_date', start.toISOString())
-                .lte('entry_date', end.toISOString())
+                .eq('entry_date', dateString)
                 .order('entry_date', { ascending: false })
                 .order('id', { ascending: false });
 
