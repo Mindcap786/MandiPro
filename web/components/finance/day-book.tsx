@@ -325,12 +325,35 @@ const getScenarioStyles = (scenario: string = "") => {
     
     // 2. Purchase Scenarios (Emerald/Orange/Amber)
     if (lower.includes('purchase') || lower.includes('buy')) {
-        if (lower.includes('scenario 1') || (lower.includes('full') && (lower.includes('amount') || lower.includes('paid')))) 
+        if (lower.includes('scenario 1') || (lower.includes('full') && (lower.includes('amount') || lower.includes('paid'))))
             return { bg: "bg-emerald-50/60", border: "border-emerald-200", chipBg: "bg-emerald-100", chipBorder: "border-emerald-200", text: "text-emerald-700", color: "#10b981" };
-        if (lower.includes('scenario 3') || (lower.includes('udhaar') || lower.includes('credit') || lower.includes('outstanding'))) 
+        if (lower.includes('scenario 3') || (lower.includes('udhaar') || lower.includes('credit') || lower.includes('outstanding')))
             return { bg: "bg-orange-50/60", border: "border-orange-200", chipBg: "bg-orange-100", chipBorder: "border-orange-200", text: "text-orange-700", color: "#f97316" };
-        if (lower.includes('scenario 2') || lower.includes('partial')) 
+        if (lower.includes('scenario 2') || lower.includes('partial'))
             return { bg: "bg-amber-50/60", border: "border-amber-200", chipBg: "bg-amber-100", chipBorder: "border-amber-200", text: "text-amber-700", color: "#f59e0b" };
+    }
+
+    // 3. Money-only scenarios (payment, receipt, expense, transfer, deposit, withdrawal)
+    if (lower.includes('receipt') || lower.includes('received')) {
+        return { bg: "bg-teal-50/60", border: "border-teal-200", chipBg: "bg-teal-100", chipBorder: "border-teal-200", text: "text-teal-700", color: "#14b8a6" };
+    }
+    if (lower.includes('payment') || lower.includes('paid')) {
+        return { bg: "bg-sky-50/60", border: "border-sky-200", chipBg: "bg-sky-100", chipBorder: "border-sky-200", text: "text-sky-700", color: "#0ea5e9" };
+    }
+    if (lower.includes('expense')) {
+        return { bg: "bg-red-50/60", border: "border-red-200", chipBg: "bg-red-100", chipBorder: "border-red-200", text: "text-red-700", color: "#ef4444" };
+    }
+    if (lower.includes('deposit') || lower.includes('transfer in')) {
+        return { bg: "bg-lime-50/60", border: "border-lime-200", chipBg: "bg-lime-100", chipBorder: "border-lime-200", text: "text-lime-700", color: "#84cc16" };
+    }
+    if (lower.includes('withdrawal') || lower.includes('transfer out')) {
+        return { bg: "bg-fuchsia-50/60", border: "border-fuchsia-200", chipBg: "bg-fuchsia-100", chipBorder: "border-fuchsia-200", text: "text-fuchsia-700", color: "#d946ef" };
+    }
+    if (lower.includes('transfer')) {
+        return { bg: "bg-cyan-50/60", border: "border-cyan-200", chipBg: "bg-cyan-100", chipBorder: "border-cyan-200", text: "text-cyan-700", color: "#06b6d4" };
+    }
+    if (lower.includes('opening')) {
+        return { bg: "bg-stone-50/60", border: "border-stone-300", chipBg: "bg-stone-100", chipBorder: "border-stone-300", text: "text-stone-700", color: "#78716c" };
     }
 
     // Default
@@ -1961,40 +1984,49 @@ export default function DayBook() {
                                 </tr>
                             ) : filteredGroups.map((group, groupIdx) => {
                                 const legs = [...(group.summaryLegs || [])];
+                                const styles = getScenarioStyles(group.scenario);
+                                // Each transaction group: coloured bordered box.
+                                // First leg gets top border + rounded top corners;
+                                // last leg gets bottom border + rounded bottom corners.
                                 return (
                                     <React.Fragment key={group.gid}>
                                         {legs.map((e, legIdx) => {
-                                            const styles = getScenarioStyles(group.scenario);
                                             const isFirst = legIdx === 0;
-                                            const isLast = legIdx === legs.length - 1;
-                                            const borderClass = styles.border;
+                                            const isLast  = legIdx === legs.length - 1;
+
+                                            const cellBase = cn(
+                                                "px-6 py-4",
+                                                styles.bg,
+                                                "border-x-2",
+                                                styles.border,
+                                                isFirst && "border-t-2 pt-5",
+                                                isLast  && "border-b-2 pb-5"
+                                            );
 
                                             return (
                                                 <tr
                                                     key={e.id}
                                                     data-row-index={isFirst ? groupIdx : undefined}
                                                     className={cn(
-                                                        "transition-all group border-none relative print:break-inside-avoid bg-white",
+                                                        "transition-all group border-none relative print:break-inside-avoid",
                                                         focusedIndex === groupIdx ? "brightness-95" : "",
-                                                        e.status === 'reversed' ? "opacity-50 grayscale" : "hover:bg-slate-50/30"
+                                                        e.status === 'reversed' ? "opacity-60 grayscale" : ""
                                                     )}
                                                 >
                                                     <td className={cn(
-                                                        "p-6 pl-8 text-slate-400 font-mono text-xs font-black border-t border-slate-100",
-                                                        legIdx !== 0 && "border-t-0"
+                                                        cellBase,
+                                                        "pl-8 font-mono text-xs font-black text-slate-500",
+                                                        isFirst && "rounded-tl-2xl",
+                                                        isLast  && "rounded-bl-2xl"
                                                     )}>
                                                         <span className={cn(legIdx !== 0 && "opacity-0 invisible")}>
                                                             {format(new Date(e.displayTimestamp || e.created_at || e.entry_date), 'h:mm a')}
                                                         </span>
                                                     </td>
-                                                    <td className={cn(
-                                                        "p-6 border-t border-slate-100",
-                                                        legIdx !== 0 && "border-t-0"
-                                                    )}>
+                                                    <td className={cellBase}>
                                                         <div className="flex flex-col">
-                                                            <span className={cn("font-black text-slate-800 text-lg tracking-tight leading-none mb-1 inline-flex items-baseline gap-2 flex-wrap", e.status === 'reversed' && "line-through text-slate-500")}>
+                                                            <span className={cn("font-black text-slate-800 text-base tracking-tight leading-snug mb-1 inline-flex items-baseline gap-2 flex-wrap", e.status === 'reversed' && "line-through text-slate-500")}>
                                                                 {e.status === 'reversed' && <span className="text-rose-500 mr-2 uppercase text-[10px] bg-rose-50 px-2 py-0.5 rounded-sm inline-block no-underline align-middle mb-1">{t('daybook.labels.reversed')}</span>}
-                                                                
                                                                 <span>{(e.displayDescription || e.description || e.voucher?.narration || t('daybook.descriptions.no_description')).replace(/(\d+)\.0+(?=\s|[A-Za-z]|$)/g, '$1')}</span>
                                                                 {isFirst && e.displayNameLotPrefix && (
                                                                     <span className="text-[11px] font-bold tracking-wide text-slate-400">
@@ -2003,45 +2035,42 @@ export default function DayBook() {
                                                                 )}
                                                             </span>
                                                             {(isFirst || !!e.contact?.name) && (
-                                                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">
+                                                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">
                                                                     {e.contact?.name || e.account?.name}
                                                                 </span>
                                                             )}
                                                         </div>
                                                     </td>
-                                                    <td className={cn(
-                                                        "p-6 border-t border-slate-100",
-                                                        legIdx !== 0 && "border-t-0"
-                                                    )}>
+                                                    <td className={cellBase}>
                                                         <span className={cn(
                                                             "text-[9px] font-[1000] px-3 py-1 rounded-full uppercase tracking-widest border shadow-sm",
-                                                            e.displayType === 'sale' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' :
-                                                            e.displayType === 'purchase' ? 'bg-amber-50 text-amber-700 border-amber-100' :
-                                                            'bg-slate-50 text-slate-500 border-slate-100'
+                                                            styles.chipBg, styles.chipBorder, styles.text
                                                         )}>
                                                             {e.displayLabel}
                                                         </span>
                                                     </td>
                                                     <td className={cn(
-                                                        "p-6 text-right font-mono font-[900] text-xl tracking-tighter border-t border-slate-100",
-                                                        legIdx !== 0 && "border-t-0",
-                                                        (e.displayDebit || 0) > 0 ? "text-slate-800" : "text-slate-100"
+                                                        cellBase,
+                                                        "text-right font-mono font-[900] text-lg tracking-tighter",
+                                                        (e.displayDebit || 0) > 0 ? "text-slate-800" : "text-slate-300"
                                                     )}>
-                                                        {(e.displayDebit || 0) > 0 ? (e.displayDebit).toLocaleString() : '-'}
+                                                        {(e.displayDebit || 0) > 0 ? (e.displayDebit).toLocaleString() : '—'}
                                                     </td>
                                                     <td className={cn(
-                                                        "p-6 text-right pr-8 font-mono font-[900] text-xl tracking-tighter border-t border-slate-100",
-                                                        legIdx !== 0 && "border-t-0",
-                                                        (e.displayCredit || 0) > 0 ? "text-slate-800" : "text-slate-100"
+                                                        cellBase,
+                                                        "pr-8 text-right font-mono font-[900] text-lg tracking-tighter",
+                                                        isFirst && "rounded-tr-2xl",
+                                                        isLast  && "rounded-br-2xl",
+                                                        (e.displayCredit || 0) > 0 ? "text-slate-800" : "text-slate-300"
                                                     )}>
-                                                        {(e.displayCredit || 0) > 0 ? (e.displayCredit).toLocaleString() : '-'}
+                                                        {(e.displayCredit || 0) > 0 ? (e.displayCredit).toLocaleString() : '—'}
                                                     </td>
                                                 </tr>
                                             );
                                         })}
-                                        {/* Spacer Row and visual gap */}
-                                        <tr className="h-4 border-none bg-transparent">
-                                            <td colSpan={6} className="p-2"></td>
+                                        {/* Spacer between transaction groups */}
+                                        <tr className="h-4 border-none bg-transparent print:h-2">
+                                            <td colSpan={6} className="p-0"></td>
                                         </tr>
                                     </React.Fragment>
                                 );
