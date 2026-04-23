@@ -652,136 +652,48 @@ const getEntryDescription = (
         const refId = effectiveReferenceId;
         const arrivalInfo = refId ? arrivalLotMap?.[String(refId)] : null;
         
-        // 1. First priority: if we have arrivalInfo, ALWAYS show the actual bill items and charges
         if (arrivalInfo) {
-            const { details, items, qtyByUnit, totalCharges, breakdown } = (arrivalInfo as any);
+            const { details, qtyByUnit } = (arrivalInfo as any);
             const bNo = refId ? arrivalReferenceMap?.[String(refId)] : 'N/A';
             
-            let desc = `Purchase Bill #${bNo || 'N/A'}`;
-            if (details && Array.isArray(details) && details.length > 0) {
-                const detailStr = details.map((d: any) => `${d.name}: ${d.qty} ${d.unit || ''} @ ₹${d.rate}`).join(', ');
-                const totals = qtyByUnit ? Object.entries(qtyByUnit).map(([u, q]) => `${q} ${u}`).join(', ') : '0';
-                desc += ` (${detailStr}) | Total Qty: ${totals}`;
-            } else {
-                const singleQty = (arrivalInfo as any).qty || 0;
-                const singleUnit = (arrivalInfo as any).unit || '';
-                const avgRate = (arrivalInfo as any).avgRate || 0;
-                desc += ` (${items}) | Qty: ${singleQty} ${singleUnit} @ ₹${avgRate}${singleUnit ? `/${singleUnit}` : ''}`;
-            }
+            const detailStr = (details || []).map((d: any) => `${d.name}: ${d.qty} ${d.unit || ''} @ ₹${d.rate}`).join(', ');
+            const totals = qtyByUnit ? Object.entries(qtyByUnit).map(([u, q]) => `${q} ${u}`).join(', ') : '0';
             
-            if (totalCharges > 0) {
-                const chgStr = ` (Comm: ${roundTo2(breakdown.comm).toFixed(2)}, Exp: ${roundTo2(breakdown.exp).toFixed(2)}, Less: ${roundTo2(breakdown.less).toFixed(2)})`;
-                desc += ` | Charges: ${formatCurrency(totalCharges)}${chgStr}`;
-            }
-            return desc;
+            return `Purchase Bill #${bNo || 'N/A'} (${detailStr}) | Total Qty: ${totals}`;
         }
-
-        // 2. Fallback: Quick purchase JSON products array
-        if (entry.products && Array.isArray(entry.products) && entry.products.length > 0) {
-            const detailStr = entry.products.map((p: any) => `${p.name}: ${p.qty} ${p.unit || ''} @ ₹${p.rate}`).join(', ');
-            return `Items: ${detailStr}`;
-        }
-
-        // 3. Last fallback: determine if it's a payment or standard item received
+        
         if (isAdvanceSettlementEntry(entry) || entry.transaction_type === 'payment') {
-            return t('daybook.descriptions.cash_paid_to', { name: counterpartyName || t('common.unknown') });
-        } else if (Number(entry.credit || 0) > 0) {
-            return t('daybook.descriptions.items_received', { name: counterpartyName || t('common.unknown') });
+            return `Payment for Bill #${billNo || 'N/A'}`;
         }
     }
     
     if (flowType === 'sale' || flowType === 'sale_payment' || flowType === 'receive_receipt') {
-        const discountMap = (rawData as any)?.saleDiscountMap || {};
         const isSettlement = flowType === 'sale_payment' || flowType === 'receive_receipt' || entry.transaction_type === 'sale_payment' || Number(entry.credit || 0) > 0;
         if (isSettlement) {
-            // If this is a direct/full payment for a sale, try to find the sale details in the same group/voucher
-            const saleLeg = group.find(l => inferVoucherFlow(l) === 'sale' && Number(l.debit || 0) > 0 && (l.reference_id || saleIdFromBill));
-            const refIdForSale = saleLeg?.reference_id || saleIdFromBill;
-
-            if (refIdForSale) {
-                const bNo = saleReferenceMap?.[String(refIdForSale)] || null;
-                const saleInfo = saleItemMap?.[String(refIdForSale)] || null;
-                const discSuffix = discountMap[String(refIdForSale)] ? ` | Disc: -₹${discountMap[String(refIdForSale)].toLocaleString()}` : '';
-                if (saleInfo) {
-                    const { items, details, qtyByUnit, qty, unit, avgPrice } = (saleInfo as any);
-                    if (details && Array.isArray(details) && details.length > 0) {
-                        const detailStr = details.map((d: any) => `${d.name}: ${d.qty} ${d.unit || ''} @ ₹${d.rate}`).join(', ');
-                        const totals = qtyByUnit ? Object.entries(qtyByUnit).map(([u, q]) => `${q} ${u}`).join(', ') : `${qty} ${unit}`;
-                        return `Sale Invoice #${bNo || 'N/A'} (${detailStr}) | Total Qty: ${totals}${discSuffix}`;
-                    }
-                    return `Sale Invoice #${bNo || 'N/A'} (${items}) | Qty: ${qty} ${unit || ''} @ ₹${avgPrice || 0}${unit ? `/${unit}` : ''}${discSuffix}`;
-                }
-            }
-            return t('daybook.descriptions.cash_received', { name: counterpartyName || t('common.unknown') });
+            return `Payment for Invoice #${billNo || 'N/A'}`;
         } else if (Number(entry.debit || 0) > 0) {
             const bNo = effectiveReferenceId ? saleReferenceMap?.[String(effectiveReferenceId)] : null;
             const saleInfo = effectiveReferenceId ? saleItemMap?.[String(effectiveReferenceId)] : null;
-            if (!saleInfo) return t('daybook.descriptions.items_sold', { name: counterpartyName || t('common.unknown') });
-
-            const discSuffix = effectiveReferenceId && discountMap[String(effectiveReferenceId)] ? ` | Disc: -₹${discountMap[String(effectiveReferenceId)].toLocaleString()}` : '';
-            const { items, details, qtyByUnit, qty, unit, avgPrice } = (saleInfo as any);
-            if (details && Array.isArray(details) && details.length > 0) {
-                const detailStr = details.map((d: any) => `${d.name}: ${d.qty} ${d.unit || ''} @ ₹${d.rate}`).join(', ');
+            
+            if (saleInfo) {
+                const { details, qtyByUnit, qty, unit, avgPrice } = (saleInfo as any);
+                const detailStr = (details || []).map((d: any) => `${d.name}: ${d.qty} ${d.unit || ''} @ ₹${d.rate}`).join(', ');
                 const totals = qtyByUnit ? Object.entries(qtyByUnit).map(([u, q]) => `${q} ${u}`).join(', ') : `${qty} ${unit}`;
-                return `Sale Invoice #${bNo || 'N/A'} (${detailStr}) | Total Qty: ${totals}${discSuffix}`;
+                return `Sale Bill #${bNo || 'N/A'} (${detailStr}) | Total Qty: ${totals}`;
             }
-            return `Invoice #${bNo || 'N/A'} (${items}) | Qty: ${qty} ${unit || ''} @ ₹${avgPrice || 0}${unit ? `/${unit}` : ''}${discSuffix}`;
-        }
-    }
-
-    // Settlement Write-off / Gain entries
-    if (flowType === 'receipt' || flowType === 'receive_receipt') {
-        const writeOffLeg = group.find(l => (l.description || '').includes('Settlement Write-off'));
-        if (writeOffLeg) {
-            return `Settlement Write-off for ${counterpartyName || t('common.unknown')}`;
-        }
-    }
-    if (flowType === 'payment' || flowType === 'paid_receipt') {
-        const gainLeg = group.find(l => (l.description || '').includes('Settlement Gain'));
-        if (gainLeg) {
-            return `Settlement Gain from ${counterpartyName || t('common.unknown')}`;
         }
     }
 
     if (flowType === 'transfer' || flowType === 'deposit' || flowType === 'withdrawal') {
         const fromLeg = group.find(l => Number(l.credit || 0) > 0);
         const toLeg = group.find(l => Number(l.debit || 0) > 0);
-        const fromName = fromLeg?.account?.name || 'Unknown Source';
-        const toName = toLeg?.account?.name || 'Unknown Destination';
-        return `Internal Funds Transfer: ${fromName} → ${toName}`;
+        const fromName = fromLeg?.account?.name || 'Unknown';
+        const toName = toLeg?.account?.name || 'Unknown';
+        return `Transfer: ${fromName} → ${toName}`;
     }
 
-    if (flowType === 'paid_receipt') {
-        return t('daybook.descriptions.cash_paid_to', { name: counterpartyName || t('common.unknown') });
-    }
-
-    if (flowType === 'expense_receipt' && !entry.contact_id) {
-        return t('daybook.descriptions.expense', { desc: baseDescription });
-    }
-
-    if (flowType === 'opening_balance') {
-        return `Initial Opening Balance set for ${counterpartyName || t('common.unknown')}`;
-    }
-
-    if (!isAdvanceSettlementEntry(entry)) return baseDescription;
-
-    const purchaseLotLabel = entry.reference_id ? arrivalLotMap[String(entry.reference_id)] : null;
-    if (purchaseLotLabel) {
-        return t('daybook.descriptions.advance_paid_purchase', { label: purchaseLotLabel });
-    }
-
-    const counterpartyLeg = group.find((leg) => leg.contact_id);
-    const groupCounterpartyName = counterpartyLeg?.contact_id ? contactMap[counterpartyLeg.contact_id] : null;
-    const sourceLeg = group.find((leg) => !leg.contact_id && isInstantSettlementEntry(leg));
-    const sourceName = sourceLeg?.account?.name || null;
-
-    if (entry.contact_id && sourceName) {
-        return t('daybook.descriptions.advance_paid_from', { name: sourceName });
-    }
-
-    if (!entry.contact_id && groupCounterpartyName) {
-        return t('daybook.descriptions.advance_paid_to', { name: groupCounterpartyName, source: entry.account?.name || sourceName || t('daybook.descriptions.settlement_account') });
-    }
+    return baseDescription;
+};
 
     return baseDescription;
 };
@@ -1281,40 +1193,59 @@ export default function DayBook() {
                 const { cashPaid, totalValue } = getPurchaseSettlementTotals(rawLegs);
                 const goodsLeg = visibleLegs.find(l => l.contact_id && Number(l.credit || 0) > 0);
                 const baseLeg = goodsLeg || visibleLegs.find(l => l.contact_id) || visibleLegs[0];
+                
                 if (baseLeg) {
-                    const isFullPaid = Math.abs(totalValue - cashPaid) < 1;
-                    const isUdhaar = cashPaid <= 0;
-                    const scenarioLabel = isFullPaid ? 'SCENARIO 1: FULL PAID PURCHASE' : 
-                                         isUdhaar ? 'SCENARIO 3: FULL UDHAAR PURCHASE' : 
-                                         'SCENARIO 2: PARTIAL PURCHASE';
+                    // 1. Bill Leg (Credit)
                     legs.push({
                         ...baseLeg,
-                        displayDebit: cashPaid,
+                        displayDebit: 0,
                         displayCredit: totalValue,
-                        displayLabel: scenarioLabel,
+                        displayLabel: 'Purchase',
                         displayType: 'purchase'
                     });
+
+                    // 2. Payment Leg (Debit) - if any cash paid
+                    if (cashPaid > 0) {
+                        legs.push({
+                            ...baseLeg,
+                            displayDebit: cashPaid,
+                            displayCredit: 0,
+                            displayLabel: '',
+                            displayDescription: `Payment for Bill #${(baseLeg as any).reference_no || 'N/A'}`,
+                            displayType: 'payment'
+                        });
+                    }
                 }
             } else if (flowType === 'sale') {
                 const saleLegs = rawLegs.filter(l => isSaleReceivableEntry(l));
                 const paymentLegs = rawLegs.filter(l => isSaleSettlementReceiptEntry(l));
                 const totalSaleValue = saleLegs.reduce((sum, l) => sum + Number(l.debit || 0), 0);
                 const totalPaidValue = paymentLegs.reduce((sum, l) => sum + Number(l.credit || 0), 0);
+                
                 const goodsLeg = visibleLegs.find(l => l.contact_id && Number(l.debit || 0) > 0);
                 const baseLeg = goodsLeg || visibleLegs.find(l => l.contact_id) || visibleLegs[0];
+                
                 if (baseLeg) {
-                    const isFullPaid = Math.abs(totalSaleValue - totalPaidValue) < 1;
-                    const isUdhaar = totalPaidValue <= 0;
-                    const scenarioLabel = isFullPaid ? 'SCENARIO 1: FULL PAID SALE' : 
-                                         isUdhaar ? 'SCENARIO 3: FULL UDHAAR SALE' : 
-                                         'SCENARIO 2: PARTIAL CASH SALE';
+                    // 1. Sale Leg (Debit)
                     legs.push({
                         ...baseLeg,
                         displayDebit: totalSaleValue,
-                        displayCredit: totalPaidValue,
-                        displayLabel: scenarioLabel,
+                        displayCredit: 0,
+                        displayLabel: 'Sale',
                         displayType: 'sale'
                     });
+
+                    // 2. Payment Leg (Credit) - if any cash received
+                    if (totalPaidValue > 0) {
+                        legs.push({
+                            ...baseLeg,
+                            displayDebit: 0,
+                            displayCredit: totalPaidValue,
+                            displayLabel: '',
+                            displayDescription: `Payment for Invoice #${(baseLeg as any).reference_no || 'N/A'}`,
+                            displayType: 'receipt'
+                        });
+                    }
                 }
             } else {
                 const mainLeg = visibleLegs.find(l => l.contact_id) || visibleLegs[0];
@@ -1327,28 +1258,10 @@ export default function DayBook() {
                     const isExpense = flowType === 'expense_receipt';
 
                     const v = mainLeg.voucher || {};
-                    const invoiceId = v.invoice_id;
-                    const arrivalId = v.arrival_id;
-                    const narration = (v.narration || '').toLowerCase();
-                    
-                    let label = 'Transaction';
-                    if (isReceipt) {
-                        if (invoiceId) {
-                            const billNo = Object.entries(rawData.billToSaleMap || {}).find(([k,v_id]) => v_id === invoiceId)?.[0];
-                            label = `SALE PAYMENT FOR INVOICE #${billNo || '?'}`;
-                        } else {
-                            label = 'PAYMENT RECEIVED';
-                        }
-                    } else if (isPayment) {
-                        if (arrivalId) {
-                            const billNo = Object.entries(rawData.billToArrivalMap || {}).find(([k,v_id]) => v_id === arrivalId)?.[0];
-                            label = `PURCHASE PAYMENT FOR ARRIVAL #${billNo || '?'}`;
-                        } else {
-                            label = 'PAYMENT MADE';
-                        }
-                    } else if (isExpense) {
-                        label = 'EXPENSE';
-                    }
+                    let label = 'Other';
+                    if (isReceipt) label = 'Receipt';
+                    else if (isPayment) label = 'Payment';
+                    else if (isExpense) label = 'Expense';
 
                     legs.push({
                         ...mainLeg,
@@ -1463,18 +1376,25 @@ export default function DayBook() {
                         || String(leg.account?.name || '').toLowerCase().includes('bank')
                         || String(leg.displayDescription || '').toLowerCase().includes('upi');
                     if (isBank) digitalInflow += val; else totalInflow += val;
+                    
+                    // If this is a payment for a sale in the SAME group, count as cash sale
+                    if (leg.displayDescription?.includes('Payment for Invoice')) {
+                        cashSales += val;
+                    }
                     return;
                 }
 
-                // 4. MANUAL PAYMENT (money paid to supplier/farmer — standalone Pay Money)
-                //    → Only Liquid Assets Outflow
-                //    Does NOT affect Purchase Insights
                 if (type === 'payment' || type === 'paid_receipt') {
                     const val = Math.max(leg.displayDebit || 0, leg.displayCredit || 0);
                     const isBank = String(leg.account?.account_sub_type || '').toLowerCase() === 'bank'
                         || String(leg.account?.name || '').toLowerCase().includes('bank')
                         || String(leg.displayDescription || '').toLowerCase().includes('upi');
                     if (isBank) digitalOutflow += val; else totalOutflow += val;
+
+                    // If this is a payment for a purchase in the SAME group, count as cash purchase
+                    if (leg.displayDescription?.includes('Payment for Bill')) {
+                        cashPurchases += val;
+                    }
                     return;
                 }
 
@@ -1527,17 +1447,17 @@ export default function DayBook() {
 
     const isBalanced = Math.abs(summary.rawDebit - summary.rawCredit) < 1;
     
-    const totalDebit = transactionGroups.reduce((sum, g) => sum + g.renderLegs.reduce((s: any, e: any) => s + (e.displayDebit || 0), 0), 0);
-    const totalCredit = transactionGroups.reduce((sum, g) => sum + g.renderLegs.reduce((s: any, e: any) => s + (e.displayCredit || 0), 0), 0);
+    const totalDebit = transactionGroups.reduce((sum, g) => sum + g.summaryLegs.reduce((s: any, e: any) => s + (e.displayDebit || 0), 0), 0);
+    const totalCredit = transactionGroups.reduce((sum, g) => sum + g.summaryLegs.reduce((s: any, e: any) => s + (e.displayCredit || 0), 0), 0);
     const footerDebitTextClass = 'text-rose-700';
     const footerCreditTextClass = 'text-emerald-700';
 
     // Cash Book filter: compute filtered list before render
     const filteredGroups = transactionGroups.filter(g => {
         if (cashFilter !== 'all') {
-            if (cashFilter === 'sales')     return g.summaryLegs.some((l: any) => l.displayType === 'sale');
-            if (cashFilter === 'purchases') return g.summaryLegs.some((l: any) => l.displayType === 'purchase');
-            if (cashFilter === 'liquid')    return g.summaryLegs.some((l: any) => l.displayType === 'receipt' || l.displayType === 'payment' || l.displayType === 'receive_receipt' || l.displayType === 'paid_receipt' || l.displayType === 'sale_payment');
+            if (cashFilter === 'sales')     return g.summaryLegs.some((l: any) => ['sale', 'sale_payment', 'receive_receipt', 'receipt'].includes(l.displayType));
+            if (cashFilter === 'purchases') return g.summaryLegs.some((l: any) => ['purchase', 'payment', 'paid_receipt'].includes(l.displayType));
+            if (cashFilter === 'liquid')    return g.summaryLegs.some((l: any) => ['receipt', 'payment', 'receive_receipt', 'paid_receipt', 'sale_payment', 'expense_receipt'].includes(l.displayType));
             if (cashFilter === 'expenses')  return g.summaryLegs.some((l: any) => l.displayType === 'expense_receipt');
         } else if (viewMode === 'cash') {
             return (g as any).hasCash;
@@ -2003,20 +1923,19 @@ export default function DayBook() {
                     <table className="w-full text-left border-separate border-spacing-0">
                         <thead className="text-[10px] uppercase font-black tracking-[0.2em] text-slate-500 bg-slate-50/50 border-b border-slate-100">
                             <tr>
-                                <th className="p-6 pl-8 flex items-center gap-2"><Clock className="w-3 h-3" /> {t('daybook.table.time')}</th>
-                                <th className="p-6"><Hash className="w-3 h-3 inline mr-1" /> {t('daybook.table.ref')}</th>
-                                <th className="p-6">{t('daybook.table.scenario')}</th>
-                                <th className="p-6"><Tag className="w-3 h-3 inline mr-1" /> {t('daybook.table.type')}</th>
+                                <th className="p-6 pl-8 flex items-center gap-2 font-black text-slate-800"><Clock className="w-4 h-4 text-slate-400" /> {t('daybook.table.time')}</th>
+                                <th className="p-6 font-black text-slate-800">{t('daybook.table.particulars')}</th>
+                                <th className="p-6 font-black text-slate-800">{t('daybook.table.type')}</th>
                                 <th className="p-6 text-right">
                                     <div className="flex flex-col items-end">
-                                        <span><ArrowUpRight className="w-4 h-4 inline mr-1" /> DEBIT (OUT)</span>
-                                        <span className="text-[9px] font-bold text-slate-400 capitalize tracking-normal mt-1">₹ (Goods Sold / Money Paid)</span>
+                                        <span className="font-black text-slate-800 tracking-tight">DEBIT</span>
+                                        <span className="text-[10px] font-bold text-slate-400 capitalize tracking-normal leading-tight">Goods Sold<br/>Money Paid</span>
                                     </div>
                                 </th>
                                 <th className="p-6 text-right pr-8">
                                     <div className="flex flex-col items-end">
-                                        <span><ArrowDownLeft className="w-4 h-4 inline mr-1" /> CREDIT (IN)</span>
-                                        <span className="text-[9px] font-bold text-slate-400 capitalize tracking-normal mt-1">₹ (Goods Rec'd / Money Rec'd)</span>
+                                        <span className="font-black text-slate-800 tracking-tight">CREDIT</span>
+                                        <span className="text-[10px] font-bold text-slate-400 capitalize tracking-normal leading-tight text-right">Goods Received<br/>Money Received</span>
                                     </div>
                                 </th>
                             </tr>
@@ -2032,7 +1951,7 @@ export default function DayBook() {
                                     </td>
                                 </tr>
                             ) : filteredGroups.map((group, groupIdx) => {
-                                const legs = [...(group.renderLegs || group.legs || [])];
+                                const legs = [...(group.summaryLegs || [])];
                                 return (
                                     <React.Fragment key={group.gid}>
                                         {legs.map((e, legIdx) => {
@@ -2046,130 +1965,67 @@ export default function DayBook() {
                                                     key={e.id}
                                                     data-row-index={isFirst ? groupIdx : undefined}
                                                     className={cn(
-                                                        "transition-all group border-none relative print:break-inside-avoid",
-                                                        focusedIndex === groupIdx ? "ring-2 ring-inset ring-indigo-500 brightness-95" : "",
-                                                        styles.bg,
-                                                        e.status === 'reversed' ? "opacity-50 grayscale" : "hover:brightness-[0.98]"
+                                                        "transition-all group border-none relative print:break-inside-avoid bg-white",
+                                                        focusedIndex === groupIdx ? "brightness-95" : "",
+                                                        e.status === 'reversed' ? "opacity-50 grayscale" : "hover:bg-slate-50/30"
                                                     )}
                                                 >
                                                     <td className={cn(
-                                                        "p-6 pl-8 text-slate-400 font-mono text-xs font-black border-l-4",
-                                                        borderClass,
-                                                        isFirst && "rounded-tl-[40px] border-t-4",
-                                                        isLast && "rounded-bl-[40px] border-b-4",
-                                                        !isFirst && "border-t-0",
-                                                        !isLast && "border-b-0"
+                                                        "p-6 pl-8 text-slate-400 font-mono text-xs font-black border-t border-slate-100",
+                                                        legIdx !== 0 && "border-t-0"
                                                     )}>
                                                         <span className={cn(legIdx !== 0 && "opacity-0 invisible")}>
                                                             {format(new Date(e.displayTimestamp || e.created_at || e.entry_date), 'h:mm a')}
                                                         </span>
                                                     </td>
                                                     <td className={cn(
-                                                        "p-6 text-blue-600 font-black text-sm group-hover:underline cursor-pointer tracking-tight",
-                                                        borderClass,
-                                                        isFirst && "border-t-4",
-                                                        isLast && "border-b-4",
-                                                        !isFirst && "border-t-0",
-                                                        !isLast && "border-b-0",
-                                                        legIdx !== 0 && "opacity-20"
-                                                    )}>
-                                                        {/* Task 2: Prioritize contact_bill_no (reference_no) over system voucher_no */}
-                                                        {e.reference_no || e.voucher?.voucher_no || (legIdx === 0 ? '-' : '')}
-                                                    </td>
-                                                    <td className={cn(
-                                                        "p-6",
-                                                        borderClass,
-                                                        isFirst && "border-t-4",
-                                                        isLast && "border-b-4",
-                                                        !isFirst && "border-t-0",
-                                                        !isLast && "border-b-0"
+                                                        "p-6 border-t border-slate-100",
+                                                        legIdx !== 0 && "border-t-0"
                                                     )}>
                                                         <div className="flex flex-col">
-                                                            {/* SCENARIO STATUS CHIP */}
-                                                            {(isFirst || e.isSource) && (
-                                                                <div className={cn(
-                                                                    "font-[1000] text-[9px] uppercase tracking-[0.15em] mb-2 px-3 py-1 rounded-full border inline-block w-fit shadow-sm",
-                                                                    styles.text,
-                                                                    styles.chipBg,
-                                                                    styles.chipBorder
-                                                                )}>
-                                                                    {group.scenario}
-                                                                </div>
-                                                            )}
                                                             <span className={cn("font-black text-slate-800 text-lg tracking-tight leading-none mb-1 inline-flex items-baseline gap-2 flex-wrap", e.status === 'reversed' && "line-through text-slate-500")}>
                                                                 {e.status === 'reversed' && <span className="text-rose-500 mr-2 uppercase text-[10px] bg-rose-50 px-2 py-0.5 rounded-sm inline-block no-underline align-middle mb-1">{t('daybook.labels.reversed')}</span>}
-                                                                {(group as any).isImbalanced && isFirst && (
-                                                                    <span
-                                                                        title="This voucher's debits do not equal its credits. It is excluded from summary totals."
-                                                                        className="text-amber-700 mr-1 uppercase text-[9px] bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full inline-block align-middle font-black tracking-widest"
-                                                                    >
-                                                                        ⚠️ Imbalanced
-                                                                    </span>
-                                                                )}
-                                                                <span>{e.contact?.name || e.account?.name || t('daybook.descriptions.unknown')}</span>
-                                                                {e.displayNameLotPrefix && (
+                                                                
+                                                                <span>{(e.displayDescription || e.description || e.voucher?.narration || t('daybook.descriptions.no_description')).replace(/(\d+)\.0+(?=\s|[A-Za-z]|$)/g, '$1')}</span>
+                                                                {isFirst && e.displayNameLotPrefix && (
                                                                     <span className="text-[11px] font-bold tracking-wide text-slate-400">
                                                                         ({e.displayNameLotPrefix})
                                                                     </span>
                                                                 )}
                                                             </span>
-                                                            <span className={cn("text-xs text-slate-400 font-bold tracking-wide italic", e.status === 'reversed' && "line-through")}>
-                                                                {(e.displayDescription || e.description || e.voucher?.narration || t('daybook.descriptions.no_description')).replace(/(\d+)\.0+(?=\s|[A-Za-z]|$)/g, '$1')}
-                                                            </span>
+                                                            {(isFirst || !!e.contact?.name) && (
+                                                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">
+                                                                    {e.contact?.name || e.account?.name}
+                                                                </span>
+                                                            )}
                                                         </div>
                                                     </td>
                                                     <td className={cn(
-                                                        "p-6",
-                                                        borderClass,
-                                                        isFirst && "border-t-4",
-                                                        isLast && "border-b-4",
-                                                        !isFirst && "border-t-0",
-                                                        !isLast && "border-b-0"
+                                                        "p-6 border-t border-slate-100",
+                                                        legIdx !== 0 && "border-t-0"
                                                     )}>
                                                         <span className={cn(
-                                                            "text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest border shadow-sm",
-                                                            e.displayType === 'sale' || e.displayType === 'sale_payment' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
-                                                            e.displayType === 'receive_receipt' || e.displayType === 'receipt' ? 'bg-teal-50 text-teal-700 border-teal-100' :
+                                                            "text-[9px] font-[1000] px-3 py-1 rounded-full uppercase tracking-widest border shadow-sm",
+                                                            e.displayType === 'sale' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' :
                                                             e.displayType === 'purchase' ? 'bg-amber-50 text-amber-700 border-amber-100' :
-                                                            e.displayType === 'paid_receipt' || e.displayType === 'payment' ? 'bg-rose-50 text-rose-700 border-rose-100' :
-                                                            e.displayType === 'expense_receipt' ? 'bg-orange-50 text-orange-700 border-orange-100' :
-                                                            e.displayType === 'opening_balance' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' :
-                                                                        'bg-slate-100 text-slate-500 border-slate-200'
+                                                            'bg-slate-50 text-slate-500 border-slate-100'
                                                         )}>
                                                             {e.displayLabel}
                                                         </span>
                                                     </td>
                                                     <td className={cn(
-                                                        "p-6 text-right font-mono font-black text-xl tracking-tighter",
-                                                        borderClass,
-                                                        isFirst && "border-t-4",
-                                                        isLast && "border-b-4",
-                                                        !isFirst && "border-t-0",
-                                                        !isLast && "border-b-0",
-                                                        (e.displayDebit || 0) > 0 ? "text-rose-700" : "text-slate-200"
+                                                        "p-6 text-right font-mono font-[900] text-xl tracking-tighter border-t border-slate-100",
+                                                        legIdx !== 0 && "border-t-0",
+                                                        (e.displayDebit || 0) > 0 ? "text-slate-800" : "text-slate-100"
                                                     )}>
-                                                        {(e.displayDebit || 0) > 0 ? (
-                                                            <span className="inline-flex items-center justify-end gap-1">
-                                                                <ArrowUpRight className="w-5 h-5 opacity-50" />
-                                                                <span>{t('common.currency_symbol')}{(e.displayDebit).toLocaleString()}</span>
-                                                            </span>
-                                                        ) : '-'}
+                                                        {(e.displayDebit || 0) > 0 ? (e.displayDebit).toLocaleString() : '-'}
                                                     </td>
                                                     <td className={cn(
-                                                        "p-6 text-right pr-8 font-mono font-black text-xl tracking-tighter border-r-4",
-                                                        borderClass,
-                                                        isFirst && "rounded-tr-[40px] border-t-4",
-                                                        isLast && "rounded-br-[40px] border-b-4",
-                                                        !isFirst && "border-t-0",
-                                                        !isLast && "border-b-0",
-                                                        (e.displayCredit || 0) > 0 ? "text-emerald-700" : "text-slate-200"
+                                                        "p-6 text-right pr-8 font-mono font-[900] text-xl tracking-tighter border-t border-slate-100",
+                                                        legIdx !== 0 && "border-t-0",
+                                                        (e.displayCredit || 0) > 0 ? "text-slate-800" : "text-slate-100"
                                                     )}>
-                                                        {(e.displayCredit || 0) > 0 ? (
-                                                            <span className="inline-flex items-center justify-end gap-1">
-                                                                <ArrowUpRight className="w-5 h-5 opacity-50 rotate-90" />
-                                                                <span>{t('common.currency_symbol')}{(e.displayCredit).toLocaleString()}</span>
-                                                            </span>
-                                                        ) : '-'}
+                                                        {(e.displayCredit || 0) > 0 ? (e.displayCredit).toLocaleString() : '-'}
                                                     </td>
                                                 </tr>
                                             );
