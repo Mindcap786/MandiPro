@@ -61,7 +61,7 @@ export function WastageDialog({ isOpen, onClose, lot, onSuccess }: WastageDialog
 
         setLoading(true)
         try {
-            const { error } = await supabase.rpc('record_lot_damage_v3', {
+            const { error } = await supabase.schema('mandi').rpc('record_lot_damage_v3', {
                 p_organization_id: profile?.organization_id,
                 p_lot_id: lot.id || lot.lot_id,
                 p_qty: Number(quantity),

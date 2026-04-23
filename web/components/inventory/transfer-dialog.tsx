@@ -49,7 +49,15 @@ export function TransferDialog({ isOpen, onClose, lot, onSuccess }: TransferDial
             if (error) throw error
 
             // Map the rows to extract the names and filter out the lot's current location
-            const locations = (data || []).map(row => row.name).filter((loc: string) => loc !== lot?.storage_location)
+            let locations = (data || []).map(row => row.name).filter((loc: string) => loc !== lot?.storage_location)
+            
+            // FALLBACK: If no other locations found, and current is Mandi, add Cold Storage
+            if (locations.length === 0) {
+                if (lot?.storage_location === 'Mandi') locations = ['Cold Storage']
+                else if (lot?.storage_location === 'Cold Storage') locations = ['Mandi']
+                else locations = ['Mandi', 'Cold Storage'].filter(l => l !== lot?.storage_location)
+            }
+
             setAvailableLocations(locations)
             if (locations.length > 0) {
                 setTargetLocation(locations[0])
@@ -63,7 +71,7 @@ export function TransferDialog({ isOpen, onClose, lot, onSuccess }: TransferDial
         if (!lot || !profile || !targetLocation) return
         setLoading(true)
         try {
-            const { data, error } = await supabase.rpc('transfer_stock_v3', {
+            const { data, error } = await supabase.schema('mandi').rpc('transfer_stock_v3', {
                 p_organization_id: profile?.organization_id,
                 p_lot_id: lot.id || lot.lot_id,
                 p_qty: Number(qty),
