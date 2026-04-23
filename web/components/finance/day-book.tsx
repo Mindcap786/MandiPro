@@ -1614,22 +1614,22 @@ export default function DayBook() {
                             <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">No entries found today</p>
                         </div>
                     ) : (
-                        <div className="bg-[#fffbeb] border-y-2 border-slate-900 overflow-hidden">
+                        <div className="bg-[#fffbeb] border-t-2 border-slate-900 overflow-hidden">
                             {/* Table Header: Register Style */}
-                            <div className="grid grid-cols-[1fr_80px_90px_90px] bg-[#fef3c7] border-b border-slate-400 text-[8px] font-black uppercase tracking-tighter text-slate-800">
-                                <div className="px-2 py-1 border-r border-slate-400">Particulars</div>
-                                <div className="px-2 py-1 border-r border-slate-400">Type</div>
-                                <div className="px-2 py-1 border-r border-slate-400 text-right">Debit</div>
-                                <div className="px-2 py-1 text-right">Credit</div>
+                            <div className="grid grid-cols-[1fr_70px_90px_90px] bg-[#fef3c7] border-b-2 border-slate-900 text-[8px] font-black uppercase tracking-tighter text-black">
+                                <div className="px-1.5 py-1 border-r border-slate-800">Particulars</div>
+                                <div className="px-1.5 py-1 border-r border-slate-800">Type</div>
+                                <div className="px-1.5 py-1 border-r border-slate-800 text-right">Debit</div>
+                                <div className="px-1.5 py-1 text-right">Credit</div>
                             </div>
 
-                            <div className="bg-slate-200/10 p-1">
+                            <div className="bg-slate-300">
                                 {filteredGroups.map((g: any) => {
                                     const isGroup = g.summaryLegs.length > 1;
                                     return (
                                         <div key={g.gid} className={cn(
-                                            "bg-[#fffbeb] mb-1 overflow-hidden",
-                                            isGroup ? "border-2 border-slate-800 rounded shadow-sm" : "border border-slate-300"
+                                            "bg-[#fffbeb] overflow-hidden",
+                                            isGroup ? "border-y-2 border-slate-900 my-0.5 shadow-sm" : "border-b border-slate-400"
                                         )}>
                                             {g.summaryLegs.map((leg: any, idx: number) => {
                                                 const particulars = leg.contact?.name || leg.account?.name;
@@ -1638,33 +1638,33 @@ export default function DayBook() {
                                                 const isCredit = (leg.displayCredit || 0) > 0.01;
 
                                                 return (
-                                                    <div key={`${g.gid}_${idx}`} className="grid grid-cols-[1fr_80px_90px_90px] border-b border-slate-200/40 last:border-b-0">
+                                                    <div key={`${g.gid}_${idx}`} className="grid grid-cols-[1fr_70px_90px_90px] border-b border-slate-300/30 last:border-b-0">
                                                         {/* Particulars Column */}
-                                                        <div className="px-1.5 py-0.5 border-r border-slate-400 min-w-0">
-                                                            <div className="text-[9px] text-slate-900 leading-[1.1] font-medium">
+                                                        <div className="px-1.5 py-0.5 border-r border-slate-800 min-w-0">
+                                                            <div className="text-[8px] text-black leading-tight font-bold">
                                                                 {idx === 0 && particulars && (
-                                                                    <div className="text-[7.5px] font-black text-slate-500 mb-0.5 uppercase tracking-tighter">
+                                                                    <div className="text-[7px] font-black text-slate-500 mb-0 uppercase tracking-tighter">
                                                                         {particulars}
                                                                     </div>
                                                                 )}
-                                                                <div className="whitespace-pre-wrap opacity-90">
+                                                                <div className="whitespace-pre-wrap">
                                                                     {description}
                                                                 </div>
                                                             </div>
                                                         </div>
 
                                                         {/* Type Column */}
-                                                        <div className="px-1.5 py-0.5 border-r border-slate-400 text-[8px] font-bold text-slate-600 uppercase tracking-tighter self-stretch flex items-center">
+                                                        <div className="px-1.5 py-0.5 border-r border-slate-800 text-[8px] font-bold text-slate-700 uppercase tracking-tighter self-stretch flex items-center">
                                                             {leg.displayLabel || ""}
                                                         </div>
 
                                                         {/* Debit Column */}
-                                                        <div className="px-1.5 py-0.5 border-r border-slate-400 text-right text-[10px] font-black text-slate-900 self-stretch flex items-center justify-end">
+                                                        <div className="px-1.5 py-0.5 border-r border-slate-800 text-right text-[9px] font-black text-black self-stretch flex items-center justify-end">
                                                             {isDebit ? Number(leg.displayDebit).toLocaleString() : ""}
                                                         </div>
 
                                                         {/* Credit Column */}
-                                                        <div className="px-1.5 py-0.5 text-right text-[10px] font-black text-slate-900 self-stretch flex items-center justify-end">
+                                                        <div className="px-1.5 py-0.5 text-right text-[9px] font-black text-black self-stretch flex items-center justify-end">
                                                             {isCredit ? Number(leg.displayCredit).toLocaleString() : ""}
                                                         </div>
                                                     </div>
