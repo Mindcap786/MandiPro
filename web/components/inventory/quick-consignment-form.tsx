@@ -268,10 +268,10 @@ export function QuickPurchaseForm() {
         // 5. Final Math based on Type
         let netPayable = 0
         if (type === 'direct') {
-            // Mandi pays for everything
+            // Mandi pays for everything. Net Cost and Final Payable are the SAME.
             netPayable = adjustedValue + itemExpenses
         } else {
-            // Farmer/Supplier pays for everything
+            // Farmer/Supplier pays for everything. Deduct costs and commission.
             netPayable = adjustedValue - commissionAmount - itemExpenses
         }
 
@@ -304,8 +304,10 @@ export function QuickPurchaseForm() {
         // Apply trip-level expenses
         let finalPayable = 0
         if (type === 'direct') {
+            // Add trip expenses to the final payable (as per user request: Net Cost = Final Payable)
             finalPayable = rowTotals.netPayable + tripLoading + tripOther
         } else {
+            // Deduct trip expenses from farmer payment
             finalPayable = rowTotals.netPayable - tripLoading - tripOther
         }
 
