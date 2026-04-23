@@ -237,8 +237,10 @@ const getSaleSettlementKey = (entry: any) => {
     const flowType = inferVoucherFlow(entry);
 
     // Priority 1: Invoice ID matching (system-generated linked records)
+    // ONLY group if it's the actual 'sale' voucher part. 
+    // Separate 'receipt' vouchers should remain independent rows.
     const invoiceId = entry.voucher?.invoice_id || (flowType === 'sale' ? entry.reference_id : null);
-    if (invoiceId) return `invoice_${invoiceId}`;
+    if (invoiceId && entry.voucher?.type === 'sale') return `invoice_${invoiceId}`;
 
     // Priority 2: Contact-aware bill number matching for manual/legacy rows
     const billNo = extractVoucherBillNo(entry);
