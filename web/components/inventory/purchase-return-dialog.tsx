@@ -56,7 +56,7 @@ export function PurchaseReturnDialog({ isOpen, onClose, lot, onSuccess }: Purcha
 
         setLoading(true)
         try {
-            const { error } = await supabase.schema('mandi').rpc('process_purchase_return', {
+            const { error } = await supabase.schema('mandi').rpc('process_lot_purchase_return_v3', {
                 p_organization_id: profile?.organization_id,
                 p_lot_id: lot.id || lot.lot_id,
                 p_qty: Number(quantity),

@@ -62,7 +62,8 @@ export default function TeamPage() {
     useEffect(() => {
         if (profile) {
             const isAdmin = profile.role === 'tenant_admin' || profile.role === 'owner' || profile.role === 'super_admin' || profile.role === 'company_admin';
-            const hasTeamAccess = profile.rbac_matrix?.['nav.team_access'] === true;
+            // Default to true if missing (matching PermissionMatrix logic), unless explicitly restricted
+            const hasTeamAccess = profile.rbac_matrix?.['nav.team_access'] !== false;
             
             const authorized = isAdmin || hasTeamAccess;
             setIsAuthorized(authorized);

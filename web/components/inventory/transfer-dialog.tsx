@@ -48,12 +48,15 @@ export function TransferDialog({ isOpen, onClose, lot, onSuccess }: TransferDial
 
             if (error) throw error
 
-            // Map the rows to extract the names and filter out the lot's current location
-            const locations = (data || []).map(row => row.name).filter((loc: string) => loc !== lot?.storage_location)
+            // Get all locations, but we'll disable the current one in the UI
+            const locations = (data || []).map(row => row.name)
             
             setAvailableLocations(locations)
-            if (locations.length > 0) {
-                setTargetLocation(locations[0])
+            
+            // Set default target to the first available location that isn't the current one
+            const otherLoc = locations.find(loc => loc !== lot?.storage_location)
+            if (otherLoc) {
+                setTargetLocation(otherLoc)
             }
         } catch (err) {
             console.error("Failed to fetch locations:", err)
@@ -68,7 +71,7 @@ export function TransferDialog({ isOpen, onClose, lot, onSuccess }: TransferDial
                 p_organization_id: profile?.organization_id,
                 p_lot_id: lot.id || lot.lot_id,
                 p_qty: Number(qty),
-                p_from_location: lot.storage_location,
+                p_from_location: lot.storage_location || 'Mandi',
                 p_to_location: targetLocation
             })
 
@@ -108,8 +111,8 @@ export function TransferDialog({ isOpen, onClose, lot, onSuccess }: TransferDial
                 <div className="space-y-6 py-4">
                     <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-100 shadow-sm">
                         <div className="flex flex-col items-center gap-2 flex-1">
-                            {lot.storage_location === 'Mandi' ? <Warehouse className="w-8 h-8 text-blue-500" /> : <Snowflake className="w-8 h-8 text-purple-500" />}
-                            <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest text-center">{lot.storage_location}</span>
+                            {lot.storage_location === 'Cold Storage' ? <Snowflake className="w-8 h-8 text-purple-500" /> : <Warehouse className="w-8 h-8 text-blue-500" />}
+                            <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest text-center">{lot.storage_location || 'Mandi'}</span>
                         </div>
                         <ArrowRightLeft className="w-4 h-4 text-slate-400 animate-pulse flex-shrink-0 mx-2" />
                         <div className="flex flex-col items-center gap-2 flex-1 w-full max-w-[140px]">
@@ -120,7 +123,14 @@ export function TransferDialog({ isOpen, onClose, lot, onSuccess }: TransferDial
                                 </SelectTrigger>
                                 <SelectContent>
                                     {availableLocations.map(loc => (
-                                        <SelectItem key={loc} value={loc} className="text-xs font-bold uppercase">{loc}</SelectItem>
+                                        <SelectItem 
+                                            key={loc} 
+                                            value={loc} 
+                                            disabled={loc === lot.storage_location}
+                                            className="text-xs font-bold uppercase"
+                                        >
+                                            {loc} {loc === lot.storage_location ? '(Current)' : ''}
+                                        </SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>

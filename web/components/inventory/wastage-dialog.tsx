@@ -29,13 +29,11 @@ export function WastageDialog({ isOpen, onClose, lot, onSuccess }: WastageDialog
     const [quantity, setQuantity] = useState("")
     const [reason, setReason] = useState("Spoilage")
     const [notes, setNotes] = useState("")
-    const [lossBorneBy, setLossBorneBy] = useState<'mandi' | 'supplier'>(
-        lot?.arrival_type === 'direct' ? 'mandi' : 'supplier'
-    )
+    const [lossBorneBy, setLossBorneBy] = useState<'mandi' | 'supplier'>('mandi')
 
     useEffect(() => {
         if (lot) {
-            setLossBorneBy(lot.arrival_type === 'direct' ? 'mandi' : 'supplier')
+            setLossBorneBy('mandi')
         }
     }, [lot])
 
@@ -74,8 +72,8 @@ export function WastageDialog({ isOpen, onClose, lot, onSuccess }: WastageDialog
 
             toast({
                 title: "Loss Reported Successfully",
-                description: `Recorded ${quantity} ${lot.unit} as loss to ${lossBorneBy}.`,
-                variant: lossBorneBy === 'mandi' ? "destructive" : "default"
+                description: `Recorded ${quantity} ${lot.unit} as loss.`,
+                variant: "destructive"
             })
             onSuccess()
             onClose()
@@ -124,34 +122,11 @@ export function WastageDialog({ isOpen, onClose, lot, onSuccess }: WastageDialog
                         </div>
                     </div>
 
-                    {/* Loss Attribution Selector */}
+                    {/* Loss Attribution Info */}
                     <div className="space-y-3">
-                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Who bears the loss?</Label>
-                        <Tabs value={lossBorneBy} onValueChange={(v: any) => setLossBorneBy(v)} className="w-full">
-                            <TabsList className="grid w-full grid-cols-2 h-11 bg-slate-100 p-1 rounded-xl">
-                                <TabsTrigger 
-                                    value="supplier" 
-                                    className="rounded-lg text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm"
-                                >
-                                    Supplier/Farmer
-                                </TabsTrigger>
-                                <TabsTrigger 
-                                    value="mandi"
-                                    className="rounded-lg text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-white data-[state=active]:text-rose-600 data-[state=active]:shadow-sm"
-                                >
-                                    Mandi (P&L)
-                                </TabsTrigger>
-                            </TabsList>
-                        </Tabs>
-                        <div className={cn(
-                            "p-3 rounded-lg text-[10px] font-bold border leading-relaxed",
-                            lossBorneBy === 'mandi' ? "bg-rose-50 text-rose-700 border-rose-100" : "bg-blue-50 text-blue-700 border-blue-100"
-                        )}>
-                            {lossBorneBy === 'mandi' ? (
-                                "Mandi bears the financial cost. This will reduce Mandi's profit in the P&L statement."
-                            ) : (
-                                "Supplier bears the loss. Stock is removed but Mandi financials remain unaffected."
-                            )}
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Loss Attribution</Label>
+                        <div className="p-3 rounded-lg text-[10px] font-bold border leading-relaxed bg-rose-50 text-rose-700 border-rose-100">
+                            Mandi bears the financial cost. This will reduce stock and record a wastage entry in Mandi's profit & loss account.
                         </div>
                     </div>
 
