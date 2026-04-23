@@ -152,8 +152,10 @@ DECLARE
     v_comm_income_acc_id UUID;
     v_recovery_acc_id UUID;
     v_gross_purchase NUMERIC := 0;
+    v_total_expenses NUMERIC := 0;
     v_net_payable NUMERIC := 0;
     v_total_comm NUMERIC := 0;
+    v_total_other_cut NUMERIC := 0;
     v_narration TEXT;
 BEGIN
     -- 1. Resolve Accounts
@@ -162,39 +164,63 @@ BEGIN
     v_comm_income_acc_id := mandi.resolve_account_consolidated(NEW.organization_id, 'commission', '%Commission%', '4003');
     v_recovery_acc_id := mandi.resolve_account_consolidated(NEW.organization_id, 'fees', '%Recovery%', '4002');
 
-    -- 2. Calculate Totals from Lots
+    -- 2. Aggregate lot-level financials
+    -- In Direct Purchase, Mandi pays for goods + expenses.
+    -- net_payable in DB for direct is (base_value - other_cut + expenses).
     SELECT 
         SUM(COALESCE(initial_qty * supplier_rate, 0)) as gross,
+        SUM(COALESCE(packing_cost, 0) + COALESCE(loading_cost, 0)) as expenses,
         SUM(COALESCE(net_payable, 0)) as net,
-        SUM(COALESCE(initial_qty * supplier_rate * (COALESCE(commission_percent, 0) / 100.0), 0)) as comm
-    INTO v_gross_purchase, v_net_payable, v_total_comm
+        SUM(COALESCE(initial_qty * supplier_rate * (COALESCE(commission_percent, 0) / 100.0), 0)) as comm,
+        SUM(COALESCE(farmer_charges, 0)) as other_cut
+    INTO v_gross_purchase, v_total_expenses, v_net_payable, v_total_comm, v_total_other_cut
     FROM mandi.lots WHERE arrival_id = NEW.id;
 
-    -- 3. Clean existing
+    -- 3. Clean existing (Idempotency)
     DELETE FROM mandi.ledger_entries WHERE reference_id = NEW.id AND transaction_type = 'purchase';
 
-    -- 4. Post DR Purchase / CR Farmer / CR Income
     v_narration := 'Arrival #' || NEW.bill_no;
-    IF NEW.vehicle_number IS NOT NULL THEN v_narration := v_narration || ' | Veh: ' || NEW.vehicle_number; END IF;
+    IF NEW.vehicle_number IS NOT NULL AND NEW.vehicle_number <> '' THEN 
+        v_narration := v_narration || ' | Veh: ' || NEW.vehicle_number; 
+    END IF;
 
-    -- DR Purchase
-    INSERT INTO mandi.ledger_entries (organization_id, account_id, debit, credit, entry_date, description, transaction_type, reference_id) 
-    VALUES (NEW.organization_id, v_purchase_acc_id, v_gross_purchase, 0, NEW.arrival_date, v_narration, 'purchase', NEW.id);
+    -- 4. Post DR Purchase / CR Farmer / CR Income / CR Recovery
     
-    -- CR Farmer (Net Payable)
+    -- DR Purchase Account
+    -- For Direct: Mandi buys goods + pays for packing/loading
+    -- For Commission: Mandi records the gross purchase value
+    IF NEW.arrival_type = 'direct' THEN
+        INSERT INTO mandi.ledger_entries (organization_id, account_id, debit, credit, entry_date, description, transaction_type, reference_id) 
+        VALUES (NEW.organization_id, v_purchase_acc_id, v_gross_purchase + v_total_expenses, 0, NEW.arrival_date, v_narration, 'purchase', NEW.id);
+    ELSE
+        INSERT INTO mandi.ledger_entries (organization_id, account_id, debit, credit, entry_date, description, transaction_type, reference_id) 
+        VALUES (NEW.organization_id, v_purchase_acc_id, v_gross_purchase, 0, NEW.arrival_date, v_narration, 'purchase', NEW.id);
+    END IF;
+    
+    -- CR Accounts Payable (Party)
     INSERT INTO mandi.ledger_entries (organization_id, contact_id, account_id, debit, credit, entry_date, description, transaction_type, reference_id) 
     VALUES (NEW.organization_id, NEW.party_id, v_ap_acc_id, 0, v_net_payable, NEW.arrival_date, v_narration, 'purchase', NEW.id);
     
-    -- CR Commission
+    -- CR Commission Income (if any)
     IF v_total_comm > 0 THEN
         INSERT INTO mandi.ledger_entries (organization_id, account_id, debit, credit, entry_date, description, transaction_type, reference_id) 
         VALUES (NEW.organization_id, v_comm_income_acc_id, 0, v_total_comm, NEW.arrival_date, 'Commission Income #' || NEW.bill_no, 'purchase', NEW.id);
     END IF;
 
-    -- CR Recoveries
-    IF (v_gross_purchase - v_net_payable - v_total_comm) > 0 THEN
-        INSERT INTO mandi.ledger_entries (organization_id, account_id, debit, credit, entry_date, description, transaction_type, reference_id) 
-        VALUES (NEW.organization_id, v_recovery_acc_id, 0, (v_gross_purchase - v_net_payable - v_total_comm), NEW.arrival_date, 'Charges Recovery #' || NEW.bill_no, 'purchase', NEW.id);
+    -- CR Charges Recovery (Other Cuts)
+    -- In Commission mode, recoveries also include packing/loading recovered from farmer.
+    IF NEW.arrival_type = 'direct' THEN
+        -- Only other_cut is recovered
+        IF v_total_other_cut > 0 THEN
+            INSERT INTO mandi.ledger_entries (organization_id, account_id, debit, credit, entry_date, description, transaction_type, reference_id) 
+            VALUES (NEW.organization_id, v_recovery_acc_id, 0, v_total_other_cut, NEW.arrival_date, 'Charges Recovery #' || NEW.bill_no, 'purchase', NEW.id);
+        END IF;
+    ELSE
+        -- Recoveries = Gross - Net - Comm
+        IF (v_gross_purchase - v_net_payable - v_total_comm) > 0 THEN
+            INSERT INTO mandi.ledger_entries (organization_id, account_id, debit, credit, entry_date, description, transaction_type, reference_id) 
+            VALUES (NEW.organization_id, v_recovery_acc_id, 0, (v_gross_purchase - v_net_payable - v_total_comm), NEW.arrival_date, 'Charges Recovery #' || NEW.bill_no, 'purchase', NEW.id);
+        END IF;
     END IF;
 
     RETURN NEW;
