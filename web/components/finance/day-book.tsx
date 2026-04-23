@@ -1665,38 +1665,32 @@ export default function DayBook() {
                     </div>
                 )}
 
-                {/* Transaction List: Ledger Style */}
-                <div className="px-4 space-y-4">
-                    <div className="flex items-center justify-between px-2">
+                {/* Transaction List: Clean Ledger Style */}
+                <div className="px-4 pb-20">
+                    <div className="flex items-center justify-between px-4 mb-4">
                         <NativeSectionLabel>Transactions ({filteredGroups.length})</NativeSectionLabel>
-                        {!isBalanced && (
-                            <span className="text-[8px] font-black text-amber-600 bg-amber-50 px-2 py-1 rounded-full uppercase tracking-widest border border-amber-100">
-                                Imbalanced ⚖️
-                            </span>
-                        )}
                     </div>
                     
                     {loading && filteredGroups.length === 0 ? (
                         <div className="p-20 flex justify-center"><Loader2 className="animate-spin text-emerald-600" /></div>
                     ) : filteredGroups.length === 0 ? (
-                        <div className="py-20 text-center bg-white rounded-3xl border-2 border-dashed border-slate-100">
+                        <div className="py-20 text-center bg-white rounded-3xl border border-slate-100">
                             <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">No entries found today</p>
                         </div>
                     ) : (
-                        <div className="space-y-4">
-                            {/* Desktop/Tablet Header */}
-                            <div className="hidden md:grid grid-cols-[80px_80px_1fr_100px_100px_100px] gap-4 px-6 py-3 bg-slate-100 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-500 border border-slate-200 shadow-sm mb-2">
+                        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                            {/* Table Header */}
+                            <div className="grid grid-cols-[80px_80px_1fr_120px_120px] gap-4 px-6 py-4 bg-slate-50 border-b border-slate-200 text-[11px] font-black uppercase tracking-widest text-slate-500">
                                 <div>Time</div>
                                 <div>#Ref</div>
-                                <div>Particulars (Party Name)</div>
-                                <div className="text-center">Type</div>
-                                <div className="text-right">Debit (Dr)</div>
-                                <div className="text-right">Credit (Cr)</div>
+                                <div>Particulars</div>
+                                <div className="text-right">Debit</div>
+                                <div className="text-right">Credit</div>
                             </div>
 
-                            {filteredGroups.map((g: any) => (
-                                <div key={g.gid} className="bg-white rounded-[32px] border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-all duration-300">
-                                    <div className="divide-y divide-slate-100">
+                            <div className="divide-y divide-slate-100">
+                                {filteredGroups.map((g: any) => (
+                                    <div key={g.gid} className="hover:bg-slate-50/30 transition-colors">
                                         {g.legs.map((leg: any, idx: number) => {
                                             const time = format(new Date(leg.displayTimestamp || leg.created_at || leg.entry_date), "HH:mm");
                                             const refNo = leg.reference_no || g.gid.split('_').pop();
@@ -1706,51 +1700,31 @@ export default function DayBook() {
                                             const isCredit = (leg.displayCredit || 0) > 0;
 
                                             return (
-                                                <div key={`${g.gid}_${idx}`} className="grid grid-cols-1 md:grid-cols-[80px_80px_1fr_100px_100px_100px] gap-2 md:gap-4 p-4 md:px-6 md:py-4 items-center hover:bg-slate-50/50 transition-colors">
-                                                    {/* Mobile Time/Ref Row */}
-                                                    <div className="md:hidden flex justify-between mb-1">
-                                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{time} | #{refNo}</span>
-                                                        <span className={cn(
-                                                            "text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg",
-                                                            leg.displayType?.includes('sale') ? "bg-indigo-100 text-indigo-700" : "bg-emerald-100 text-emerald-700"
-                                                        )}>
-                                                            {leg.displayLabel}
-                                                        </span>
+                                                <div key={`${g.gid}_${idx}`} className="grid grid-cols-1 md:grid-cols-[80px_80px_1fr_120px_120px] gap-2 md:gap-4 px-6 py-4 items-center">
+                                                    {/* Mobile View */}
+                                                    <div className="md:hidden flex justify-between text-[10px] font-bold text-slate-400 mb-1">
+                                                        <span>{time} | #{refNo}</span>
                                                     </div>
 
-                                                    {/* Columns */}
-                                                    <div className="hidden md:block text-[11px] font-bold text-slate-400 font-mono">{time}</div>
+                                                    {/* Desktop Columns */}
+                                                    <div className="hidden md:block text-[11px] font-medium text-slate-400 font-mono">{time}</div>
                                                     <div className="hidden md:block text-[11px] font-bold text-slate-600 font-mono">#{refNo}</div>
                                                     
                                                     <div className="min-w-0">
-                                                        <div className="flex items-center gap-2 mb-0.5">
-                                                            <span className="text-sm font-black text-slate-900 truncate">
-                                                                {particulars}
-                                                            </span>
+                                                        <div className="text-[13px] font-medium text-slate-900 leading-snug">
+                                                            <span className="font-bold">{particulars}</span>
+                                                            <span className="text-slate-400 mx-2">|</span>
+                                                            <span className="text-slate-600 italic">{description}</span>
                                                             {leg.displayNameLotPrefix && (
-                                                                <span className="text-[10px] text-emerald-600 font-mono bg-emerald-50 px-1.5 py-0.5 rounded">[{leg.displayNameLotPrefix}]</span>
+                                                                <span className="ml-2 text-[10px] text-emerald-600 font-mono bg-emerald-50 px-1.5 py-0.5 rounded">[{leg.displayNameLotPrefix}]</span>
                                                             )}
                                                         </div>
-                                                        <p className="text-[11px] text-slate-500 font-medium leading-relaxed italic">
-                                                            {description}
-                                                        </p>
-                                                    </div>
-
-                                                    <div className="hidden md:flex justify-center">
-                                                        <span className={cn(
-                                                            "text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg text-center min-w-[70px]",
-                                                            leg.displayType?.includes('sale') ? "bg-indigo-50 text-indigo-600 border border-indigo-100" : 
-                                                            leg.displayType?.includes('purchase') ? "bg-amber-50 text-amber-600 border border-amber-100" :
-                                                            "bg-slate-100 text-slate-600"
-                                                        )}>
-                                                            {leg.displayLabel?.replace('SCENARIO ', 'S')}
-                                                        </span>
                                                     </div>
 
                                                     <div className="text-right">
                                                         {isDebit && (
-                                                            <div className="text-base font-black text-rose-700 tracking-tighter">
-                                                                ₹{Number(leg.displayDebit).toLocaleString()}
+                                                            <div className="text-sm font-bold text-rose-700">
+                                                                Rs.{Number(leg.displayDebit).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                                             </div>
                                                         )}
                                                         {!isDebit && <div className="hidden md:block text-slate-200">—</div>}
@@ -1758,8 +1732,8 @@ export default function DayBook() {
 
                                                     <div className="text-right">
                                                         {isCredit && (
-                                                            <div className="text-base font-black text-emerald-700 tracking-tighter">
-                                                                ₹{Number(leg.displayCredit).toLocaleString()}
+                                                            <div className="text-sm font-bold text-emerald-700">
+                                                                Rs.{Number(leg.displayCredit).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                                             </div>
                                                         )}
                                                         {!isCredit && <div className="hidden md:block text-slate-200">—</div>}
@@ -1768,8 +1742,8 @@ export default function DayBook() {
                                             );
                                         })}
                                     </div>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
                         </div>
                     )
                 }
