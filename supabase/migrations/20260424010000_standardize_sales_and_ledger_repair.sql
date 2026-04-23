@@ -155,7 +155,96 @@ BEGIN
 END;
 $$;
 
--- 3. Unified confirm_sale_transaction (Prevents Bill No conflicts)
+-- 3. Master Purchase/Arrival Posting Engine
+CREATE OR REPLACE FUNCTION mandi.post_arrival_ledger(p_arrival_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_arrival RECORD;
+    v_purchase_acc_id UUID;
+    v_ap_acc_id UUID;
+    v_comm_income_acc_id UUID;
+    v_recovery_acc_id UUID;
+    v_voucher_id UUID;
+    v_voucher_no BIGINT;
+    v_gross_purchase NUMERIC := 0;
+    v_net_payable NUMERIC := 0;
+    v_total_comm NUMERIC := 0;
+    v_total_exp NUMERIC := 0;
+    v_total_advance NUMERIC := 0;
+    v_summary_narration TEXT;
+BEGIN
+    -- 1. Get Arrival Header
+    SELECT a.*, c.name as party_name FROM mandi.arrivals a 
+    LEFT JOIN mandi.contacts c ON a.party_id = c.id WHERE a.id = p_arrival_id INTO v_arrival;
+    
+    IF NOT FOUND THEN RETURN jsonb_build_object('success', false, 'error', 'Arrival not found'); END IF;
+
+    -- 2. Resolve Accounts with 100% success rate
+    v_purchase_acc_id := mandi.resolve_account_robust(v_arrival.organization_id, 'cost_of_goods', '%Purchase%', '5001');
+    v_ap_acc_id := mandi.resolve_account_robust(v_arrival.organization_id, 'payable', '%Payable%', '2100');
+    v_comm_income_acc_id := mandi.resolve_account_robust(v_arrival.organization_id, 'commission', '%Commission%', '4003');
+    v_recovery_acc_id := mandi.resolve_account_robust(v_arrival.organization_id, 'fees', '%Recovery%', '4002');
+
+    -- Safety check: Ensure core accounts exist
+    IF v_purchase_acc_id IS NULL THEN SELECT id INTO v_purchase_acc_id FROM mandi.accounts WHERE organization_id = v_arrival.organization_id AND type = 'expense' LIMIT 1; END IF;
+    IF v_ap_acc_id IS NULL THEN SELECT id INTO v_ap_acc_id FROM mandi.accounts WHERE organization_id = v_arrival.organization_id AND type = 'liability' LIMIT 1; END IF;
+
+    -- 3. Calculate Totals from Lots
+    SELECT 
+        SUM(COALESCE(net_payable, 0)) as net,
+        SUM(COALESCE(initial_qty * supplier_rate, 0)) as gross,
+        SUM(COALESCE(initial_qty * supplier_rate * (COALESCE(commission_percent, 0) / 100.0), 0)) as comm,
+        SUM(COALESCE(advance, 0)) as adv,
+        SUM(COALESCE(packing_cost, 0) + COALESCE(loading_cost, 0) + COALESCE(farmer_charges, 0)) as exp
+    INTO v_net_payable, v_gross_purchase, v_total_comm, v_total_advance, v_total_exp
+    FROM mandi.lots WHERE arrival_id = p_arrival_id;
+
+    -- 4. Clean existing entries
+    DELETE FROM mandi.ledger_entries WHERE reference_id = p_arrival_id;
+    DELETE FROM mandi.vouchers WHERE arrival_id = p_arrival_id OR reference_id = p_arrival_id;
+
+    -- 5. Create Purchase Voucher
+    SELECT COALESCE(MAX(voucher_no), 0) + 1 INTO v_voucher_no 
+    FROM mandi.vouchers WHERE organization_id = v_arrival.organization_id;
+    
+    v_summary_narration := 'Arrival #' || v_arrival.bill_no;
+    IF v_arrival.vehicle_number IS NOT NULL THEN v_summary_narration := v_summary_narration || ' | Veh: ' || v_arrival.vehicle_number; END IF;
+
+    INSERT INTO mandi.vouchers (organization_id, date, type, voucher_no, narration, amount, party_id, arrival_id, reference_id) 
+    VALUES (v_arrival.organization_id, v_arrival.arrival_date, 'purchase', v_voucher_no, v_summary_narration, v_gross_purchase, v_arrival.party_id, p_arrival_id, p_arrival_id) 
+    RETURNING id INTO v_voucher_id;
+
+    -- 6. Post Ledger
+    -- DR Purchase/Inventory
+    INSERT INTO mandi.ledger_entries (organization_id, voucher_id, account_id, debit, credit, entry_date, description, transaction_type, reference_id) 
+    VALUES (v_arrival.organization_id, v_voucher_id, v_purchase_acc_id, v_gross_purchase, 0, v_arrival.arrival_date, v_summary_narration, 'purchase', p_arrival_id);
+    
+    -- CR Farmer (Payable)
+    INSERT INTO mandi.ledger_entries (organization_id, voucher_id, contact_id, account_id, debit, credit, entry_date, description, transaction_type, reference_id) 
+    VALUES (v_arrival.organization_id, v_voucher_id, v_arrival.party_id, v_ap_acc_id, 0, v_net_payable, v_arrival.arrival_date, v_summary_narration, 'purchase', p_arrival_id);
+    
+    -- CR Commission Income
+    IF v_total_comm > 0 AND v_comm_income_acc_id IS NOT NULL THEN
+        INSERT INTO mandi.ledger_entries (organization_id, voucher_id, account_id, debit, credit, entry_date, description, transaction_type, reference_id) 
+        VALUES (v_arrival.organization_id, v_voucher_id, v_comm_income_acc_id, 0, v_total_comm, v_arrival.arrival_date, 'Commission Income #' || v_arrival.bill_no, 'purchase', p_arrival_id);
+    END IF;
+
+    -- CR Recoveries (Packing/Loading)
+    IF (v_gross_purchase - v_net_payable - v_total_comm) > 0 AND v_recovery_acc_id IS NOT NULL THEN
+        INSERT INTO mandi.ledger_entries (organization_id, voucher_id, account_id, debit, credit, entry_date, description, transaction_type, reference_id) 
+        VALUES (v_arrival.organization_id, v_voucher_id, v_recovery_acc_id, 0, (v_gross_purchase - v_net_payable - v_total_comm), v_arrival.arrival_date, 'Charges Recovery #' || v_arrival.bill_no, 'purchase', p_arrival_id);
+    END IF;
+
+    UPDATE mandi.arrivals SET status = 'completed' WHERE id = p_arrival_id;
+
+    RETURN jsonb_build_object('success', true, 'net_payable', v_net_payable);
+END;
+$$;
+
+-- 4. Unified confirm_sale_transaction (Prevents Bill No conflicts)
 CREATE OR REPLACE FUNCTION mandi.confirm_sale_transaction(
     p_organization_id uuid,
     p_buyer_id uuid,
@@ -242,7 +331,7 @@ BEGIN
 END;
 $$;
 
--- 4. RUN EMERGENCY REPAIR (Syncs all today's transactions immediately)
+-- 5. RUN EMERGENCY REPAIR (Syncs all today's transactions immediately)
 DO $$
 DECLARE
     r RECORD;
