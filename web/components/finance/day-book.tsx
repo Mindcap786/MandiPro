@@ -923,7 +923,11 @@ export default function DayBook() {
         if (!rawData) setLoading(true);
         try {
             const schema = 'mandi';
-            const dateString = date.toISOString().split('T')[0];
+            const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+            const start = new Date(date);
+            start.setHours(0, 0, 0, 0);
+            const end = new Date(date);
+            end.setHours(23, 59, 59, 999);
 
             const { data, error } = await supabase
                 .schema(schema)
@@ -1088,8 +1092,8 @@ export default function DayBook() {
                     .from('sales')
                     .select('id, contact_bill_no, bill_no, buyer_id, discount_amount')
                     .eq('organization_id', orgId)
-                    .gte('sale_date', start.toISOString().split('T')[0])
-                    .lte('sale_date', end.toISOString().split('T')[0]);
+                    .gte('sale_date', dateString)
+                    .lte('sale_date', dateString);
 
                 salesData?.forEach(sale => {
                     saleReferenceMap[sale.id] = String(sale.contact_bill_no || sale.bill_no || '');
