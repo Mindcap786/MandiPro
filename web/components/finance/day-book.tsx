@@ -360,75 +360,30 @@ const getPurchaseSettlementKey = (entry: any) => {
 
 const getEntryGroupKey = (entry: any) => {
     const flow = inferVoucherFlow(entry);
-    const refKey = entry.reference_id ? String(entry.reference_id) : '';
+    const voucher = entry.voucher || {};
     
-    // SALES: group by settlement key so sale + payment receipt merge into one card
-    // (sale + receipt may be separate vouchers linked by invoice_id)
     if (flow === 'sale' || flow === 'sale_payment') {
-        const saleKey = getSaleSettlementKey(entry);
-        if (saleKey) return `sale_group_${saleKey}`;
+        const invoiceId = voucher.invoice_id || entry.reference_id;
+        if (invoiceId) {
+            const isSaleType = voucher.type === 'sale';
+            const narration = (voucher.narration || '').toLowerCase();
+            const isConcurrent = narration.includes('receipt against bill') || narration.includes('pos payment') || isSaleType;
+            if (isConcurrent) return `sale_invoice_${invoiceId}`;
+        }
     }
 
-    // PURCHASES (arrival-linked): group all legs by arrival/reference key
-    // advance_payment + goods_arrival entries may have voucher_id=NULL so we
-    // need the reference/arrival-based key approach here.
     if (flow === 'purchase') {
-        const pKey = getPurchaseSettlementKey(entry);
-        if (pKey) return `purchase_group_${pKey}`;
-    }
-
-    // ─── STANDALONE PAYMENTS (paid_receipt) ────────────────────────────────────
-    // PRIORITY: If this payment is linked to an arrival (advance cash/bank payment),
-    // it MUST group with the purchase — NOT as a standalone payment row.
-    // This is what makes "Full Paid" vs "Udhaar" work for Arrivals / Quick Purchase.
-    //
-    // Mandi Commission sessions have advance=0 so they produce no payment voucher
-    // and correctly remain "Udhaar" without any special handling.
-    //
-    // For standalone payment vouchers (payments page, settled debts),
-    // use voucher_id as the group key — both legs share the same voucher_id.
-    //
-    // NEVER use bill/voucher_no extraction here: voucher_no is a sequential
-    // counter scoped per org, not per party — causes false merges across contacts.
-    if (flow === 'paid_receipt') {
-        // CRITICAL FIX: Arrival-linked advance payments must merge with the purchase group
-        if (entry.voucher?.arrival_id) {
-            const pKey = getPurchaseSettlementKey(entry);
-            if (pKey) return `purchase_group_${pKey}`;
+        const arrivalId = voucher.arrival_id || entry.reference_id;
+        if (arrivalId) {
+            const isPurchaseType = voucher.type === 'purchase';
+            const narration = (voucher.narration || '').toLowerCase();
+            const isConcurrent = narration.includes('arrival #') || isPurchaseType;
+            if (isConcurrent) return `purchase_arrival_${arrivalId}`;
         }
-        if (entry.voucher_id) return `payment_voucher_${entry.voucher_id}`;
-        // No voucher_id (legacy): fallback to purchase settlement approach
-        const pKey = getPurchaseSettlementKey(entry);
-        if (pKey) return `purchase_group_${pKey}`;
-    }
-
-    // ─── STANDALONE RECEIPTS (receive_receipt) ─────────────────────────────────
-    // Same rationale as payments above: use voucher_id when available.
-    // Invoice-linked receipts (have voucher.invoice_id) should merge with the
-    // corresponding sale group via the sale settlement key.
-    if (flow === 'receive_receipt') {
-        // Invoice-linked: merge with sale group
-        if (entry.voucher?.invoice_id) {
-            const saleKey = getSaleSettlementKey(entry);
-            if (saleKey) return `sale_group_${saleKey}`;
-        }
-        // Standalone receipt: group all legs by voucher_id
-        if (entry.voucher_id) return `receipt_voucher_${entry.voucher_id}`;
-        // Legacy fallback
-        const saleKey = getSaleSettlementKey(entry);
-        if (saleKey) return `sale_group_${saleKey}`;
-    }
-
-    const invoiceId = entry.voucher?.invoice_id || (flow === 'sale' ? entry.reference_id : null);
-    if (flow === 'sale' && invoiceId) {
-        return `sale_invoice_${invoiceId}`;
     }
 
     if (entry.voucher_id) return `voucher_${entry.voucher_id}`;
-
-    const contactSuffix = entry.contact_id ? `_${entry.contact_id}` : '';
-    return (refKey ? `ref_${refKey}${contactSuffix}` : null) 
-        || entry.id;
+    return `entry_${entry.id}`;
 };
 
 // Returns the single best "representative" entry for a group (one card per transaction)
@@ -1346,76 +1301,86 @@ export default function DayBook() {
             const flowType = hasPurchaseLeg ? 'purchase' : (hasSaleLeg ? 'sale' : inferVoucherFlow(rawLegs[0]));
             let legs: any[] = [];
             if (flowType === 'purchase') {
-                // displayDebit = cash paid (→ Purchase Insights "Cash Paid" tile)
-                // displayCredit = total purchase value (→ Purchase Insights "Total" tile)
                 const { cashPaid, totalValue } = getPurchaseSettlementTotals(rawLegs);
-                const goodsLeg = visibleLegs.find(l => l.contact_id && Number(l.credit || 0) > 0 && !isAdvanceSettlementEntry(l));
+                const goodsLeg = visibleLegs.find(l => l.contact_id && Number(l.credit || 0) > 0);
                 const baseLeg = goodsLeg || visibleLegs.find(l => l.contact_id) || visibleLegs[0];
                 if (baseLeg) {
+                    const isFullPaid = Math.abs(totalValue - cashPaid) < 1;
+                    const isUdhaar = cashPaid <= 0;
+                    const scenarioLabel = isFullPaid ? 'SCENARIO 1: FULL PAID PURCHASE' : 
+                                         isUdhaar ? 'SCENARIO 3: FULL UDHAAR PURCHASE' : 
+                                         'SCENARIO 2: PARTIAL PURCHASE';
                     legs.push({
                         ...baseLeg,
-                        displayDebit: cashPaid,    // cash paid out immediately
-                        displayCredit: totalValue, // total purchase value
-                        displayLabel: t('daybook.labels.purchase'),
+                        displayDebit: cashPaid,
+                        displayCredit: totalValue,
+                        displayLabel: scenarioLabel,
                         displayType: 'purchase'
                     });
                 }
             } else if (flowType === 'sale') {
-                // For sales: use totals from full group
                 const saleLegs = rawLegs.filter(l => isSaleReceivableEntry(l));
                 const paymentLegs = rawLegs.filter(l => isSaleSettlementReceiptEntry(l));
                 const totalSaleValue = saleLegs.reduce((sum, l) => sum + Number(l.debit || 0), 0);
                 const totalPaidValue = paymentLegs.reduce((sum, l) => sum + Number(l.credit || 0), 0);
-                const goodsLeg = visibleLegs.find(l => l.contact_id && Number(l.debit || 0) > 0 && !isSaleSettlementReceiptEntry(l));
+                const goodsLeg = visibleLegs.find(l => l.contact_id && Number(l.debit || 0) > 0);
                 const baseLeg = goodsLeg || visibleLegs.find(l => l.contact_id) || visibleLegs[0];
                 if (baseLeg) {
+                    const isFullPaid = Math.abs(totalSaleValue - totalPaidValue) < 1;
+                    const isUdhaar = totalPaidValue <= 0;
+                    const scenarioLabel = isFullPaid ? 'SCENARIO 1: FULL PAID SALE' : 
+                                         isUdhaar ? 'SCENARIO 3: FULL UDHAAR SALE' : 
+                                         'SCENARIO 2: PARTIAL CASH SALE';
                     legs.push({
                         ...baseLeg,
-                        displayDebit: totalSaleValue,  // Total sale amount
-                        displayCredit: totalPaidValue, // Amount received
-                        displayLabel: t('daybook.labels.sale'),
+                        displayDebit: totalSaleValue,
+                        displayCredit: totalPaidValue,
+                        displayLabel: scenarioLabel,
                         displayType: 'sale'
                     });
                 }
             } else {
-                const partyLeg = rawLegs.find(l => l.contact_id);
-                const expenseLeg = rawLegs.find(l => l.account?.type === 'expense');
-                const mainLeg = partyLeg || expenseLeg || rawLegs[0];
-
+                const mainLeg = visibleLegs.find(l => l.contact_id) || visibleLegs[0];
                 if (mainLeg) {
                     const groupVolume = rawLegs.reduce((sum, l) => sum + Number(l.debit || 0), 0);
                     const singleVal = groupVolume > 0 && groupVolume < 999999999 ? groupVolume : Math.max(Number(mainLeg.debit || 0), Number(mainLeg.credit || 0));
                     
-                    const isExpense = flowType === 'expense_receipt';
-                    const isReceipt = flowType === 'receive_receipt' || flowType === 'receipt';
+                    const isReceipt = flowType === 'receive_receipt' || flowType === 'receipt' || flowType === 'sale_payment';
                     const isPayment = flowType === 'paid_receipt' || flowType === 'payment';
+                    const isExpense = flowType === 'expense_receipt';
 
-                    const effectiveContactId = mainLeg.contact_id || rawLegs.find((l: any) => !!l.contact_id)?.contact_id;
-                    const resolvedName = effectiveContactId ? contactMap[effectiveContactId] : (mainLeg.account?.name || 'Unknown');
-                    const legToPush = { ...mainLeg, contact: { name: resolvedName } };
-
+                    const v = mainLeg.voucher || {};
+                    const invoiceId = v.invoice_id;
+                    const arrivalId = v.arrival_id;
+                    const narration = (v.narration || '').toLowerCase();
+                    
+                    let label = 'Transaction';
                     if (isReceipt) {
-                        // Money received from buyer/party — credit side goes up
-                        legToPush.displayDebit  = 0;
-                        legToPush.displayCredit = singleVal;
-                        legToPush.displayLabel  = t('daybook.labels.receive_receipt') || 'Receipt';
-                        legToPush.displayType   = 'receive_receipt';
+                        if (invoiceId) {
+                            const billNo = Object.entries(rawData.billToSaleMap || {}).find(([k,v_id]) => v_id === invoiceId)?.[0];
+                            label = `SALE PAYMENT FOR INVOICE #${billNo || '?'}`;
+                        } else {
+                            label = 'PAYMENT RECEIVED';
+                        }
                     } else if (isPayment) {
-                        // Money paid to supplier/farmer — debit side goes up
-                        legToPush.displayDebit  = singleVal;
-                        legToPush.displayCredit = 0;
-                        legToPush.displayLabel  = t('daybook.labels.paid_receipt') || 'Payment Made';
-                        legToPush.displayType   = 'paid_receipt';
+                        if (arrivalId) {
+                            const billNo = Object.entries(rawData.billToArrivalMap || {}).find(([k,v_id]) => v_id === arrivalId)?.[0];
+                            label = `PURCHASE PAYMENT FOR ARRIVAL #${billNo || '?'}`;
+                        } else {
+                            label = 'PAYMENT MADE';
+                        }
                     } else if (isExpense) {
-                        legToPush.displayDebit  = singleVal;
-                        legToPush.displayCredit = 0;
-                        legToPush.displayLabel  = 'Expense';
-                        legToPush.displayType   = 'expense_receipt';
-                    } else {
-                        legToPush.displayDebit  = Number(legToPush.debit  || 0);
-                        legToPush.displayCredit = Number(legToPush.credit || 0);
+                        label = 'EXPENSE';
                     }
-                    legs.push(legToPush);
+
+                    legs.push({
+                        ...mainLeg,
+                        displayDebit: (isPayment || isExpense) ? singleVal : 0,
+                        displayCredit: isReceipt ? singleVal : 0,
+                        displayLabel: label,
+                        displayDescription: v.narration || mainLeg.description,
+                        displayType: flowType
+                    });
                 }
             }
             // Collect voucher_ids covered by this group (from raw legs, not just
