@@ -79,6 +79,21 @@ const formSchema = z.object({
     storage_location: z.string().min(1, 'Required'),
     supplier_id: z.string().min(1, 'Required'),
     arrival_type: z.enum(['commission', 'direct', 'commission_supplier']).default('direct'),
+    
+    // Vehicle & Logistics
+    vehicle_number: z.string().optional().default(''),
+    lot_no: z.string().optional().default(''),
+    vehicle_type: z.string().optional().default(''),
+    guarantor: z.string().optional().default(''),
+    
+    // Driver Details
+    driver_name: z.string().optional().default(''),
+    driver_mobile: z.string().optional().default(''),
+    
+    // Expenses
+    loading_amount: z.union([z.number(), z.literal('')]).transform(v => v === '' ? 0 : v).default(0),
+    other_expenses: z.union([z.number(), z.literal('')]).transform(v => v === '' ? 0 : v).default(0),
+    
     advance: z.union([z.number(), z.literal('')]).transform(v => v === '' ? 0 : v),
     advance_payment_mode: z.enum(['credit', 'cash', 'upi_bank', 'cheque']).default('credit'),
     advance_bank_account_id: z.string().optional(),
@@ -96,6 +111,10 @@ const formSchema = z.object({
         weight_loss: z.union([z.number(), z.literal('')]).transform(v => v === '' ? 0 : v),
         less_units: z.union([z.number(), z.literal('')]).transform(v => v === '' ? 0 : v),
         commission_type: z.enum(['farmer', 'supplier']).default('farmer'),
+        // Item Level Costs
+        packing_cost: z.union([z.number(), z.literal('')]).transform(v => v === '' ? 0 : v).default(0),
+        loading_cost: z.union([z.number(), z.literal('')]).transform(v => v === '' ? 0 : v).default(0),
+        other_cut: z.union([z.number(), z.literal('')]).transform(v => v === '' ? 0 : v).default(0),
     }))
 })
 
@@ -104,6 +123,16 @@ interface QuickPurchaseFormValues {
     storage_location: string;
     supplier_id: string;
     arrival_type: 'commission' | 'direct' | 'commission_supplier';
+    
+    vehicle_number: string;
+    lot_no: string;
+    vehicle_type: string;
+    guarantor: string;
+    driver_name: string;
+    driver_mobile: string;
+    loading_amount: number | '';
+    other_expenses: number | '';
+
     advance: number | '';
     advance_payment_mode: 'credit' | 'cash' | 'upi_bank' | 'cheque';
     advance_bank_account_id?: string;
@@ -121,6 +150,9 @@ interface QuickPurchaseFormValues {
         weight_loss: number | '';
         less_units: number | '';
         commission_type: 'farmer' | 'supplier';
+        packing_cost: number | '';
+        loading_cost: number | '';
+        other_cut: number | '';
     }[];
 }
 
@@ -345,20 +377,22 @@ export function QuickPurchaseForm() {
             })
 
             const { data, error } = await supabase.schema('mandi').rpc('record_quick_purchase', {
-                p_organization_id: profile.organization_id,
-                p_supplier_id: values.supplier_id,
+                p_org_id: profile.organization_id,
+                p_party_id: values.supplier_id,
                 p_arrival_date: format(values.arrival_date, 'yyyy-MM-dd'),
-                p_arrival_type: submissionType,
-                p_items: rpcItems,
-                p_advance: Number(values.advance) || 0,
-                p_advance_payment_mode: values.advance_payment_mode === 'upi_bank' ? 'bank' : values.advance_payment_mode,
-                p_advance_bank_account_id: values.advance_bank_account_id || null,
-                p_advance_cheque_no: values.advance_cheque_no || null,
-                p_advance_cheque_date: values.advance_cheque_date ? format(values.advance_cheque_date, 'yyyy-MM-dd') : null,
-                p_advance_bank_name: values.advance_bank_name || null,
-                p_advance_cheque_status: values.advance_cheque_status || false,
-                p_clear_instantly: values.advance_cheque_status || false,
-                p_created_by: profile.id
+                p_bill_no: values.notes || '', 
+                p_vehicle_number: values.vehicle_number,
+                p_lot_no: values.lot_no,
+                p_storage_location: values.storage_location,
+                p_vehicle_type: values.vehicle_type,
+                p_guarantor: values.guarantor,
+                p_driver_name: values.driver_name,
+                p_driver_mobile: values.driver_mobile,
+                p_loading_amount: Number(values.loading_amount) || 0,
+                p_advance_amount: Number(values.advance) || 0,
+                p_other_expenses: Number(values.other_expenses) || 0,
+                p_payment_mode: values.advance_payment_mode,
+                p_lots: rpcItems
             })
 
             if (error) throw error
@@ -478,24 +512,47 @@ export function QuickPurchaseForm() {
 
                         <FormField
                             control={form.control}
+                            name="vehicle_number"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Vehicle Number</FormLabel>
+                                    <FormControl>
+                                        <Input {...field} placeholder="XX-00-YY-0000" className="h-14 bg-slate-50 border-none rounded-2xl text-xl font-black placeholder:text-slate-200" />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        <FormField
+                            control={form.control}
+                            name="lot_no"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Lot No</FormLabel>
+                                    <FormControl>
+                                        <Input {...field} placeholder="LOT-XXXX" className="h-14 bg-slate-50 border-none rounded-2xl text-xl font-black placeholder:text-slate-200" />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        <FormField
+                            control={form.control}
                             name="storage_location"
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Storage Location</FormLabel>
                                     <Select onValueChange={field.onChange} value={field.value}>
                                         <FormControl>
-                                            <SelectTrigger className={cn(
-                                                "h-14 bg-slate-50 border-none rounded-2xl text-xl font-black focus:ring-4 focus:ring-blue-500/10",
-                                                !!form.formState.errors.storage_location && "border-red-500 ring-2 ring-red-500/20"
-                                            )}>
+                                            <SelectTrigger className="h-14 bg-slate-50 border-none rounded-2xl text-xl font-black">
                                                 <SelectValue placeholder="Select location" />
                                             </SelectTrigger>
                                         </FormControl>
-                                        <SelectContent className="rounded-2xl border-none shadow-xl">
+                                        <SelectContent>
                                             {masterLocations.map((loc) => (
-                                                <SelectItem key={loc.name} value={loc.name} className="py-3 font-bold">
-                                                    {loc.name}
-                                                </SelectItem>
+                                                <SelectItem key={loc.name} value={loc.name}>{loc.name}</SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>
@@ -512,6 +569,112 @@ export function QuickPurchaseForm() {
                                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                                 <span className="text-sm font-black text-slate-900 uppercase tracking-widest">Entry Active</span>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Transport & Expenses Section */}
+                <div className="bg-white rounded-[32px] border border-slate-100 p-8 shadow-sm">
+                    <div className="flex items-center gap-3 mb-8">
+                        <div className="bg-emerald-600 p-2 rounded-xl shadow-lg shadow-emerald-200">
+                            <Truck className="w-5 h-5 text-white" />
+                        </div>
+                        <h2 className="text-2xl font-black tracking-tight text-slate-900">Transport & Expenses</h2>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                        <FormField
+                            control={form.control}
+                            name="vehicle_type"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Vehicle Type</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value}>
+                                        <FormControl>
+                                            <SelectTrigger className="h-14 bg-slate-50 border-none rounded-2xl text-xl font-black">
+                                                <SelectValue placeholder="Select type" />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            {['Pickup', 'Truck', 'Tractor', 'Other'].map(t => (
+                                                <SelectItem key={t} value={t}>{t}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </FormItem>
+                            )}
+                        />
+
+                        <FormField
+                            control={form.control}
+                            name="guarantor"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Guarantor</FormLabel>
+                                    <FormControl>
+                                        <Input {...field} placeholder="Optional" className="h-14 bg-slate-50 border-none rounded-2xl text-xl font-black" />
+                                    </FormControl>
+                                </FormItem>
+                            )}
+                        />
+
+                        <FormField
+                            control={form.control}
+                            name="driver_name"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Driver Name</FormLabel>
+                                    <FormControl>
+                                        <Input {...field} placeholder="Driver Name" className="h-14 bg-slate-50 border-none rounded-2xl text-xl font-black" />
+                                    </FormControl>
+                                </FormItem>
+                            )}
+                        />
+
+                        <FormField
+                            control={form.control}
+                            name="driver_mobile"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Mobile No</FormLabel>
+                                    <FormControl>
+                                        <Input {...field} placeholder="Mobile No" className="h-14 bg-slate-50 border-none rounded-2xl text-xl font-black" />
+                                    </FormControl>
+                                </FormItem>
+                            )}
+                        />
+
+                        <div className="lg:col-span-4 grid grid-cols-3 gap-6 pt-4 border-t border-slate-50">
+                            <FormField
+                                control={form.control}
+                                name="loading_amount"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="text-[9px] font-black uppercase text-slate-400 mb-2 block text-center">Loading Exp</FormLabel>
+                                        <FormControl>
+                                            <Input type="number" {...field} className="h-12 bg-slate-50 border-none rounded-xl text-center font-black" />
+                                        </FormControl>
+                                    </FormItem>
+                                )}
+                            />
+                             <div className="flex flex-col items-center justify-center">
+                                <span className="text-[9px] font-black uppercase text-slate-400 mb-2">Advance Paid</span>
+                                <div className="h-12 w-full bg-slate-50 rounded-xl flex items-center justify-center font-black text-slate-900">
+                                    ₹{Number(form.watch('advance')) || 0}
+                                </div>
+                            </div>
+                            <FormField
+                                control={form.control}
+                                name="other_expenses"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="text-[9px] font-black uppercase text-slate-400 mb-2 block text-center">Other Exp</FormLabel>
+                                        <FormControl>
+                                            <Input type="number" {...field} className="h-12 bg-slate-50 border-none rounded-xl text-center font-black" />
+                                        </FormControl>
+                                    </FormItem>
+                                )}
+                            />
                         </div>
                     </div>
                 </div>
@@ -775,6 +938,30 @@ export function QuickPurchaseForm() {
                                                         )}
                                                     />
                                                     
+                                                    <FormField
+                                                        control={form.control}
+                                                        name={`rows.${index}.packing_cost`}
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormLabel className="text-[7px] font-black uppercase text-slate-400 tracking-tight mb-2 block text-center">Packing</FormLabel>
+                                                                <FormControl>
+                                                                    <Input type="number" {...field} className="h-10 font-black text-sm bg-white border-slate-200 rounded-xl shadow-sm text-center" />
+                                                                </FormControl>
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                    <FormField
+                                                        control={form.control}
+                                                        name={`rows.${index}.loading_cost`}
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormLabel className="text-[7px] font-black uppercase text-slate-400 tracking-tight mb-2 block text-center">Loading</FormLabel>
+                                                                <FormControl>
+                                                                    <Input type="number" {...field} className="h-10 font-black text-sm bg-white border-slate-200 rounded-xl shadow-sm text-center" />
+                                                                </FormControl>
+                                                            </FormItem>
+                                                        )}
+                                                    />
                                                     <FormField
                                                         control={form.control}
                                                         name={`rows.${index}.commission_type`}
