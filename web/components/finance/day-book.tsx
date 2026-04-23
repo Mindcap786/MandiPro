@@ -634,6 +634,13 @@ const getTransactionScenario = (
     return t(`daybook.labels.${flowType}`) || flowType.charAt(0).toUpperCase() + flowType.slice(1);
 };
 
+const extractBillNo = (e: any) => {
+    const fromRef = String(e.reference_no || "").trim();
+    if (fromRef && !isNaN(Number(fromRef))) return fromRef;
+    const match = (e.description || e.voucher?.narration || "").match(/#(\d+)/);
+    return match ? match[1] : null;
+};
+
 const getEntryDescription = (
     entry: any,
     group: any[],
@@ -643,20 +650,12 @@ const getEntryDescription = (
     saleItemMap: Record<string, any>,
     saleReferenceMap: Record<string, string>,
     t: any,
-    rawData?: any // Passing rawData for smart linking fallback
+    rawData?: any 
 ) => {
     const baseDescription = entry.description || entry.voucher?.narration || t('daybook.descriptions.no_description');
     const flowType = inferVoucherFlow(entry);
     const entryContactId = entry.contact_id || group.find(l => !!l.contact_id)?.contact_id;
     let counterpartyName = entryContactId ? contactMap[entryContactId] : null;
-
-    // Smart Fallback for Bill Details & Names
-    const extractBillNo = (e: any) => {
-        const fromRef = String(e.reference_no || "").trim();
-        if (fromRef && !isNaN(Number(fromRef))) return fromRef;
-        const match = (e.description || e.voucher?.narration || "").match(/#(\d+)/);
-        return match ? match[1] : null;
-    };
     const billNo = extractBillNo(entry);
     const saleIdFromBill = billNo ? (rawData as any)?.billToSaleMap?.[billNo] : null;
     const arrivalIdFromBill = billNo ? (rawData as any)?.billToArrivalMap?.[billNo] : null;
@@ -1196,8 +1195,8 @@ export default function DayBook() {
             let legs: any[] = [];
             if (flowType === 'purchase') {
                 const { cashPaid, totalValue } = getPurchaseSettlementTotals(rawLegs);
-                const goodsLeg = visibleLegs.find(l => (inferVoucherFlow(l) === 'purchase' || l.transaction_type === 'purchase') && Number(l.credit || 0) > 0);
-                const baseLeg = goodsLeg || visibleLegs.find(l => l.contact_id) || visibleLegs[0];
+                const purchaseGoodsLeg = rawLegs.find(l => (inferVoucherFlow(l) === 'purchase' || l.transaction_type === 'purchase') && Number(l.credit || 0) > 0);
+                const baseLeg = purchaseGoodsLeg || visibleLegs.find(l => l.contact_id) || visibleLegs[0];
                 
                 if (baseLeg) {
                     // 1. Bill Leg (Credit - Goods Received)
@@ -1206,18 +1205,20 @@ export default function DayBook() {
                         displayDebit: 0,
                         displayCredit: totalValue,
                         displayLabel: 'Purchase',
+                        displayDescription: getEntryDescription(baseLeg, rawLegs, contactMap, arrivalLotMap, arrivalReferenceMap, saleItemMap, saleReferenceMap, t, rawData),
                         displayType: 'purchase'
                     });
 
                     // 2. Payment Leg (Debit - Money Paid)
                     if (cashPaid > 0) {
-                        const actualPaymentLeg = visibleLegs.find(l => (inferVoucherFlow(l) === 'payment' || inferVoucherFlow(l) === 'paid_receipt') && Number(l.debit || 0) > 0);
+                        const actualPaymentLeg = rawLegs.find(l => (inferVoucherFlow(l) === 'payment' || inferVoucherFlow(l) === 'paid_receipt') && Number(l.debit || 0) > 0);
+                        const bNo = extractBillNo(baseLeg);
                         legs.push({
                             ...(actualPaymentLeg || baseLeg),
                             displayDebit: cashPaid,
                             displayCredit: 0,
                             displayLabel: '',
-                            displayDescription: actualPaymentLeg?.displayDescription || `Payment for Bill #${(baseLeg as any).reference_no || 'N/A'}`,
+                            displayDescription: `Payment for Bill #${bNo || 'no.'}`,
                             displayType: 'payment'
                         });
                     }
@@ -1228,8 +1229,9 @@ export default function DayBook() {
                 const totalSaleValue = saleLegs.reduce((sum, l) => sum + Number(l.debit || 0), 0);
                 const totalPaidValue = paymentLegs.reduce((sum, l) => sum + Number(l.credit || 0), 0);
                 
-                const goodsLeg = visibleLegs.find(l => (inferVoucherFlow(l) === 'sale' || l.transaction_type === 'sale') && Number(l.debit || 0) > 0);
-                const baseLeg = goodsLeg || visibleLegs.find(l => l.contact_id) || visibleLegs[0];
+                // Find a proper sale leg for the goods description
+                const saleGoodsLeg = rawLegs.find(l => (inferVoucherFlow(l) === 'sale' || l.transaction_type === 'sale') && Number(l.debit || 0) > 0);
+                const baseLeg = saleGoodsLeg || visibleLegs.find(l => l.contact_id) || visibleLegs[0];
                 
                 if (baseLeg) {
                     // 1. Sale Leg (Debit - Goods Sold)
@@ -1238,18 +1240,20 @@ export default function DayBook() {
                         displayDebit: totalSaleValue,
                         displayCredit: 0,
                         displayLabel: 'Sale',
+                        displayDescription: getEntryDescription(baseLeg, rawLegs, contactMap, arrivalLotMap, arrivalReferenceMap, saleItemMap, saleReferenceMap, t, rawData),
                         displayType: 'sale'
                     });
 
                     // 2. Payment Leg (Credit - Money Received)
                     if (totalPaidValue > 0) {
-                        const actualReceiptLeg = visibleLegs.find(l => (inferVoucherFlow(l) === 'sale_payment' || inferVoucherFlow(l) === 'receive_receipt') && Number(l.credit || 0) > 0);
+                        const actualReceiptLeg = rawLegs.find(l => (inferVoucherFlow(l) === 'sale_payment' || inferVoucherFlow(l) === 'receive_receipt') && Number(l.credit || 0) > 0);
+                        const bNo = extractBillNo(baseLeg);
                         legs.push({
                             ...(actualReceiptLeg || baseLeg),
                             displayDebit: 0,
                             displayCredit: totalPaidValue,
                             displayLabel: '',
-                            displayDescription: actualReceiptLeg?.displayDescription || `Payment for Invoice #${(baseLeg as any).reference_no || 'N/A'}`,
+                            displayDescription: `Payment for Invoice #${bNo || 'no.'}`,
                             displayType: 'receipt'
                         });
                     }
@@ -1612,30 +1616,17 @@ export default function DayBook() {
                     ) : (
                         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
                             {/* Table Header */}
-                            <div className="grid grid-cols-[80px_120px_1fr_80px_120px_120px] gap-4 px-6 py-4 bg-slate-50 border-b border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                <div>Time</div>
+                            <div className="grid grid-cols-[1fr_120px_120px_120px] gap-4 px-6 py-4 bg-slate-50 border-b border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-500">
                                 <div>Particulars(partyname)</div>
-                                <div>Description</div>
                                 <div>Type</div>
-                                <div className="text-right">
-                                    Debit
-                                    <div className="text-[8px] opacity-60">Mandi Pays / Sells</div>
-                                </div>
-                                <div className="text-right">
-                                    Credit
-                                    <div className="text-[8px] opacity-60">Mandi Rec'vd / Purch</div>
-                                </div>
+                                <div className="text-right">Debit</div>
+                                <div className="text-right">Credit</div>
                             </div>
 
-                            <div className="space-y-4 px-6 py-6 bg-slate-50/30">
+                            <div className="space-y-6 px-6 py-8 bg-white">
                                 {filteredGroups.map((g: any) => (
-                                    <div key={g.gid} className={cn(
-                                        "bg-white rounded-2xl border border-slate-200 shadow-[0_2px_12px_rgba(0,0,0,0.03)] overflow-hidden transition-all hover:border-slate-300 hover:shadow-md",
-                                        g.hasCash && "border-l-4 border-l-emerald-500",
-                                        g.summaryLegs.length > 1 && "bg-slate-50/10"
-                                    )}>
+                                    <div key={g.gid} className="border-t-2 border-b-2 border-slate-600 bg-white">
                                         {g.summaryLegs.map((leg: any, idx: number) => {
-                                            const time = format(new Date(leg.displayTimestamp || leg.created_at || leg.entry_date), "HH:mm");
                                             const particulars = leg.contact?.name || leg.account?.name;
                                             const description = leg.displayDescription;
                                             const isDebit = (leg.displayDebit || 0) > 0.01;
@@ -1643,55 +1634,36 @@ export default function DayBook() {
 
                                             return (
                                                 <div key={`${g.gid}_${idx}`} className={cn(
-                                                    "grid grid-cols-1 md:grid-cols-[80px_120px_1fr_80px_120px_120px] gap-2 md:gap-4 px-6 py-4 items-start",
-                                                    idx > 0 && "border-t border-slate-100 bg-slate-50/40"
+                                                    "grid grid-cols-[1fr_120px_120px_120px] gap-4 px-2 py-4 items-start",
+                                                    idx > 0 && "pt-0 pb-4" // Payment sub-row styling
                                                 )}>
-                                                    <div className="hidden md:block text-[11px] font-[1000] text-slate-400 font-mono pt-1">
-                                                        {idx === 0 ? time : ""}
-                                                    </div>
-                                                    
-                                                    <div className="min-w-0 pt-1">
-                                                        <div className="text-[12px] font-[1000] text-slate-800 uppercase tracking-tight truncate">
-                                                            {idx === 0 ? particulars : ""}
-                                                        </div>
-                                                    </div>
-
+                                                    {/* Particulars Column (Description in Screenshot 2) */}
                                                     <div className="min-w-0">
-                                                        <div className="text-[13px] font-medium text-slate-600 whitespace-pre-wrap leading-relaxed">
-                                                            {description}
-                                                            {leg.displayNameLotPrefix && idx === 0 && (
-                                                                <span className="ml-2 text-[10px] text-emerald-700 font-[1000] uppercase tracking-tighter bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100 shadow-sm">[{leg.displayNameLotPrefix}]</span>
+                                                        <div className="text-[14px] text-slate-800 leading-relaxed font-medium">
+                                                            {idx === 0 && particulars && (
+                                                                <div className="text-[12px] font-black text-slate-400 mb-1 uppercase tracking-tight">
+                                                                    {particulars}
+                                                                </div>
                                                             )}
+                                                            <div className="whitespace-pre-wrap">
+                                                                {description}
+                                                            </div>
                                                         </div>
                                                     </div>
 
-                                                    <div className="hidden md:block pt-1">
-                                                        {leg.displayLabel && (
-                                                            <span className={cn(
-                                                                "px-2.5 py-1 rounded-lg text-[9px] font-[1000] uppercase tracking-widest border shadow-sm",
-                                                                leg.displayLabel === 'Sale' ? "bg-indigo-50 text-indigo-700 border-indigo-100" :
-                                                                leg.displayLabel === 'Purchase' ? "bg-emerald-50 text-emerald-700 border-emerald-100" :
-                                                                "bg-slate-100 text-slate-500 border-slate-200"
-                                                            )}>
-                                                                {leg.displayLabel}
-                                                            </span>
-                                                        )}
+                                                    {/* Type Column */}
+                                                    <div className="text-[14px] font-medium text-slate-700 pt-0.5">
+                                                        {leg.displayLabel || ""}
                                                     </div>
 
-                                                    <div className="text-right pt-1">
-                                                        {isDebit && (
-                                                            <div className="text-[15px] font-[1000] text-slate-900 tracking-tight">
-                                                                {Number(leg.displayDebit).toLocaleString()}
-                                                            </div>
-                                                        )}
+                                                    {/* Debit Column */}
+                                                    <div className="text-right text-[15px] font-bold text-slate-900 pt-0.5">
+                                                        {isDebit ? Number(leg.displayDebit).toLocaleString() : ""}
                                                     </div>
 
-                                                    <div className="text-right pt-1">
-                                                        {isCredit && (
-                                                            <div className="text-[15px] font-[1000] text-slate-900 tracking-tight">
-                                                                {Number(leg.displayCredit).toLocaleString()}
-                                                            </div>
-                                                        )}
+                                                    {/* Credit Column */}
+                                                    <div className="text-right text-[15px] font-bold text-slate-900 pt-0.5">
+                                                        {isCredit ? Number(leg.displayCredit).toLocaleString() : ""}
                                                     </div>
                                                 </div>
                                             );
