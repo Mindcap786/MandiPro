@@ -680,7 +680,7 @@ const getEntryDescription = (
             const { details, items, qtyByUnit, totalCharges, breakdown } = (arrivalInfo as any);
             const bNo = refId ? arrivalReferenceMap?.[String(refId)] : 'N/A';
             
-            let desc = `Invoice #${bNo || 'N/A'}`;
+            let desc = `Purchase Bill #${bNo || 'N/A'}`;
             if (details && Array.isArray(details) && details.length > 0) {
                 const detailStr = details.map((d: any) => `${d.name}: ${d.qty} ${d.unit || ''} @ ₹${d.rate}`).join(', ');
                 const totals = qtyByUnit ? Object.entries(qtyByUnit).map(([u, q]) => `${q} ${u}`).join(', ') : '0';
@@ -730,9 +730,9 @@ const getEntryDescription = (
                     if (details && Array.isArray(details) && details.length > 0) {
                         const detailStr = details.map((d: any) => `${d.name}: ${d.qty} ${d.unit || ''} @ ₹${d.rate}`).join(', ');
                         const totals = qtyByUnit ? Object.entries(qtyByUnit).map(([u, q]) => `${q} ${u}`).join(', ') : `${qty} ${unit}`;
-                        return `Invoice #${bNo || 'N/A'} (${detailStr}) | Total Qty: ${totals}${discSuffix}`;
+                        return `Sale Invoice #${bNo || 'N/A'} (${detailStr}) | Total Qty: ${totals}${discSuffix}`;
                     }
-                    return `Invoice #${bNo || 'N/A'} (${items}) | Qty: ${qty} ${unit || ''} @ ₹${avgPrice || 0}${unit ? `/${unit}` : ''}${discSuffix}`;
+                    return `Sale Invoice #${bNo || 'N/A'} (${items}) | Qty: ${qty} ${unit || ''} @ ₹${avgPrice || 0}${unit ? `/${unit}` : ''}${discSuffix}`;
                 }
             }
             return t('daybook.descriptions.cash_received', { name: counterpartyName || t('common.unknown') });
@@ -746,7 +746,7 @@ const getEntryDescription = (
             if (details && Array.isArray(details) && details.length > 0) {
                 const detailStr = details.map((d: any) => `${d.name}: ${d.qty} ${d.unit || ''} @ ₹${d.rate}`).join(', ');
                 const totals = qtyByUnit ? Object.entries(qtyByUnit).map(([u, q]) => `${q} ${u}`).join(', ') : `${qty} ${unit}`;
-                return `Invoice #${bNo || 'N/A'} (${detailStr}) | Total Qty: ${totals}${discSuffix}`;
+                return `Sale Invoice #${bNo || 'N/A'} (${detailStr}) | Total Qty: ${totals}${discSuffix}`;
             }
             return `Invoice #${bNo || 'N/A'} (${items}) | Qty: ${qty} ${unit || ''} @ ₹${avgPrice || 0}${unit ? `/${unit}` : ''}${discSuffix}`;
         }
