@@ -1660,7 +1660,7 @@ export default function ArrivalsEntryForm() {
                                         </div>
 
                                         {form.watch('advance_payment_mode') === 'upi_bank' && (
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 duration-300 mt-4">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 duration-300 mt-4 bg-blue-50/50 p-4 rounded-2xl border border-blue-100">
                                                 <FormField
                                                     control={form.control}
                                                     name="advance_bank_account_id"
@@ -1684,6 +1684,32 @@ export default function ArrivalsEntryForm() {
                                                         </FormItem>
                                                     )}
                                                 />
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <FormField
+                                                        control={form.control}
+                                                        name="advance_bank_name"
+                                                        render={({ field }) => (
+                                                            <FormItem className="space-y-1">
+                                                                <FormLabel className="text-[9px] font-black text-slate-600 uppercase tracking-wider ml-1">Party's Bank</FormLabel>
+                                                                <FormControl>
+                                                                    <Input {...field} placeholder="SBI, HDFC etc" className="h-10 text-xs font-bold border-slate-200 bg-white placeholder:text-slate-400 rounded-xl shadow-sm" />
+                                                                </FormControl>
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                    <FormField
+                                                        control={form.control}
+                                                        name="advance_cheque_no"
+                                                        render={({ field }) => (
+                                                            <FormItem className="space-y-1">
+                                                                <FormLabel className="text-[9px] font-black text-slate-600 uppercase tracking-wider ml-1">Trans/Ref No</FormLabel>
+                                                                <FormControl>
+                                                                    <Input {...field} placeholder="Ref #" className="h-10 text-xs font-bold border-slate-200 bg-white placeholder:text-slate-400 rounded-xl shadow-sm" />
+                                                                </FormControl>
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                </div>
                                             </div>
                                         )}
 

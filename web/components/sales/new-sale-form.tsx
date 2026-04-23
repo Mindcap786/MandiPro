@@ -682,7 +682,7 @@ function NewSaleForm() {
                 chequeNo: values.cheque_no || null,
                 chequeDate: values.cheque_date ? values.cheque_date.toISOString().split('T')[0] : null,
                 chequeStatus: values.cheque_status,
-                bankName: values.payment_mode === 'cheque' ? values.bank_name : null,
+                bankName: values.bank_name || null,
                 amountReceived: amountPaid,
                 cgstAmount: totals.cgstAmount,
                 sgstAmount: totals.sgstAmount,
@@ -1021,6 +1021,33 @@ function NewSaleForm() {
                                                         </FormItem>
                                                     )}
                                                 />
+                                                
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <FormField
+                                                        control={form.control}
+                                                        name="bank_name"
+                                                        render={({ field }) => (
+                                                            <FormItem className="space-y-1">
+                                                                <FormLabel className="text-[10px] font-black text-slate-600 uppercase tracking-wider">Party's Bank Name</FormLabel>
+                                                                <FormControl>
+                                                                    <Input {...field} placeholder="e.g. SBI, HDFC" className="h-10 text-xs font-bold border-slate-200 bg-white placeholder:text-slate-400 focus:border-indigo-500" />
+                                                                </FormControl>
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                    <FormField
+                                                        control={form.control}
+                                                        name="cheque_no"
+                                                        render={({ field }) => (
+                                                            <FormItem className="space-y-1">
+                                                                <FormLabel className="text-[10px] font-black text-slate-600 uppercase tracking-wider">Trans/Ref No</FormLabel>
+                                                                <FormControl>
+                                                                    <Input {...field} placeholder="Ref #" className="h-10 text-xs font-bold border-slate-200 bg-white placeholder:text-slate-400 focus:border-indigo-500" />
+                                                                </FormControl>
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                </div>
 
                                                 {(() => {
                                                     const accId = form.watch("bank_account_id");
