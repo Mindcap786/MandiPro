@@ -292,11 +292,15 @@ export default function ArrivalsEntryForm() {
         const totalExpenses = packing + loading + itemTransportShare;
 
         // farmerPayment (Before arrival-level advance)
+        // For Direct: Pay total (Goods + Expenses)
+        // For Commission: Pay net (Goods - Commission - Expenses)
         const farmerPayment = arrivalType === 'direct'
-            ? adjustedValue
+            ? adjustedValue + totalExpenses
             : adjustedValue - commissionAmount - totalExpenses;
 
         // Net Cost (to Mandi)
+        // For Direct: Total out-of-pocket (Goods + Expenses)
+        // For Commission: Total cost of goods (Adjusted Value)
         const netCost = arrivalType === 'direct'
             ? adjustedValue + totalExpenses
             : adjustedValue;
@@ -1842,10 +1846,7 @@ export default function ArrivalsEntryForm() {
                                 <div className="flex flex-col">
                                     <div className="text-[8px] font-black text-blue-600 uppercase tracking-widest mb-0.5">Total Net Value</div>
                                     <div className="text-lg font-black text-blue-700 tracking-tighter tabular-nums leading-none">
-                                        ₹{fields.reduce((sum, f, i) => {
-                                            const financials = calculateItemFinancials(i);
-                                            return sum + (form.watch('arrival_type') === 'direct' ? financials.netCost : financials.adjustedValue);
-                                        }, 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                                        ₹{totalNetBill.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                                     </div>
                                 </div>
 
@@ -1973,16 +1974,7 @@ export default function ArrivalsEntryForm() {
                                     <div>
                                         <div className="text-[10px] font-black text-white/50 uppercase tracking-widest mb-1">Total Consignment Value</div>
                                         <div className="text-3xl font-black tracking-tight">
-                                            ₹{(() => {
-                                                const total = pendingValues.items.reduce((sum: number, item: any) => {
-                                                    const iQty = Number(item.qty) || 0;
-                                                    const iRate = Number(item.supplier_rate) || 0;
-                                                    const iLess = Number(item.less_percent) || 0;
-                                                    const iAdjustedQty = iQty - (iQty * iLess / 100);
-                                                    return sum + (iAdjustedQty * iRate);
-                                                }, 0);
-                                                return isNaN(total) ? "0" : total.toLocaleString('en-IN', { maximumFractionDigits: 0 });
-                                            })()}
+                                            ₹{totalNetBill.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                                         </div>
                                     </div>
                                     <div className="text-right flex flex-col items-end">
