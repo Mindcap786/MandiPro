@@ -1665,12 +1665,12 @@ export default function DayBook() {
                     </div>
                 )}
 
-                {/* Transaction List */}
+                {/* Transaction List: Ledger Style */}
                 <div className="px-4 space-y-4">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between px-2">
                         <NativeSectionLabel>Transactions ({filteredGroups.length})</NativeSectionLabel>
                         {!isBalanced && (
-                            <span className="text-[8px] font-black text-amber-600 bg-amber-50 px-2 py-1 rounded-full uppercase tracking-widest animate-pulse border border-amber-100">
+                            <span className="text-[8px] font-black text-amber-600 bg-amber-50 px-2 py-1 rounded-full uppercase tracking-widest border border-amber-100">
                                 Imbalanced ⚖️
                             </span>
                         )}
@@ -1680,65 +1680,100 @@ export default function DayBook() {
                         <div className="p-20 flex justify-center"><Loader2 className="animate-spin text-emerald-600" /></div>
                     ) : filteredGroups.length === 0 ? (
                         <div className="py-20 text-center bg-white rounded-3xl border-2 border-dashed border-slate-100">
-                            <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">No entries found</p>
+                            <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">No entries found today</p>
                         </div>
                     ) : (
-                        filteredGroups.map((g: any) => (
-                            <div key={g.gid} className="space-y-2">
-                                {g.legs.map((leg: any, idx: number) => {
-                                    const isInflow = (leg.displayCredit || 0) > 0;
-                                    const isSale = leg.displayType === 'sale';
-                                    const isPurchase = leg.displayType === 'purchase';
-                                    const isExpense = leg.displayType === 'expense_receipt';
+                        <div className="space-y-4">
+                            {/* Desktop/Tablet Header */}
+                            <div className="hidden md:grid grid-cols-[80px_80px_1fr_100px_100px_100px] gap-4 px-6 py-3 bg-slate-100 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-500 border border-slate-200 shadow-sm mb-2">
+                                <div>Time</div>
+                                <div>#Ref</div>
+                                <div>Particulars (Party Name)</div>
+                                <div className="text-center">Type</div>
+                                <div className="text-right">Debit (Dr)</div>
+                                <div className="text-right">Credit (Cr)</div>
+                            </div>
 
-                                    return (
-                                        <NativeCard key={`${g.gid}_${idx}`} className="p-4 space-y-3">
-                                            <div className="flex items-start justify-between">
-                                                <div className="min-w-0 flex-1">
-                                                    <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                            {filteredGroups.map((g: any) => (
+                                <div key={g.gid} className="bg-white rounded-[32px] border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-all duration-300">
+                                    <div className="divide-y divide-slate-100">
+                                        {g.legs.map((leg: any, idx: number) => {
+                                            const time = format(new Date(leg.displayTimestamp || leg.created_at || leg.entry_date), "HH:mm");
+                                            const refNo = leg.reference_no || g.gid.split('_').pop();
+                                            const particulars = leg.contact?.name || leg.account?.name;
+                                            const description = leg.displayDescription;
+                                            const isDebit = (leg.displayDebit || 0) > 0;
+                                            const isCredit = (leg.displayCredit || 0) > 0;
+
+                                            return (
+                                                <div key={`${g.gid}_${idx}`} className="grid grid-cols-1 md:grid-cols-[80px_80px_1fr_100px_100px_100px] gap-2 md:gap-4 p-4 md:px-6 md:py-4 items-center hover:bg-slate-50/50 transition-colors">
+                                                    {/* Mobile Time/Ref Row */}
+                                                    <div className="md:hidden flex justify-between mb-1">
+                                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{time} | #{refNo}</span>
                                                         <span className={cn(
-                                                            "text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg",
-                                                            isSale ? "bg-indigo-100 text-indigo-700" : 
-                                                            isPurchase ? "bg-amber-100 text-amber-700" :
-                                                            isExpense ? "bg-rose-100 text-rose-700" :
-                                                            "bg-emerald-100 text-emerald-700"
+                                                            "text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg",
+                                                            leg.displayType?.includes('sale') ? "bg-indigo-100 text-indigo-700" : "bg-emerald-100 text-emerald-700"
                                                         )}>
                                                             {leg.displayLabel}
                                                         </span>
-                                                        {leg.isUdhaar && (
-                                                            <span className="bg-slate-900 text-white px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest">Udhaar</span>
-                                                        )}
-                                                        <span className="text-[9px] font-mono text-slate-400 uppercase">#{leg.reference_no || g.gid.split('_').pop()}</span>
                                                     </div>
-                                                    <h3 className="text-sm font-black text-slate-900 truncate leading-tight flex items-center gap-1.5">
-                                                        {leg.contact?.name || leg.account?.name}
-                                                        {leg.displayNameLotPrefix && (
-                                                            <span className="text-[10px] text-slate-400 font-mono">[{leg.displayNameLotPrefix}]</span>
+
+                                                    {/* Columns */}
+                                                    <div className="hidden md:block text-[11px] font-bold text-slate-400 font-mono">{time}</div>
+                                                    <div className="hidden md:block text-[11px] font-bold text-slate-600 font-mono">#{refNo}</div>
+                                                    
+                                                    <div className="min-w-0">
+                                                        <div className="flex items-center gap-2 mb-0.5">
+                                                            <span className="text-sm font-black text-slate-900 truncate">
+                                                                {particulars}
+                                                            </span>
+                                                            {leg.displayNameLotPrefix && (
+                                                                <span className="text-[10px] text-emerald-600 font-mono bg-emerald-50 px-1.5 py-0.5 rounded">[{leg.displayNameLotPrefix}]</span>
+                                                            )}
+                                                        </div>
+                                                        <p className="text-[11px] text-slate-500 font-medium leading-relaxed italic">
+                                                            {description}
+                                                        </p>
+                                                    </div>
+
+                                                    <div className="hidden md:flex justify-center">
+                                                        <span className={cn(
+                                                            "text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg text-center min-w-[70px]",
+                                                            leg.displayType?.includes('sale') ? "bg-indigo-50 text-indigo-600 border border-indigo-100" : 
+                                                            leg.displayType?.includes('purchase') ? "bg-amber-50 text-amber-600 border border-amber-100" :
+                                                            "bg-slate-100 text-slate-600"
+                                                        )}>
+                                                            {leg.displayLabel?.replace('SCENARIO ', 'S')}
+                                                        </span>
+                                                    </div>
+
+                                                    <div className="text-right">
+                                                        {isDebit && (
+                                                            <div className="text-base font-black text-rose-700 tracking-tighter">
+                                                                ₹{Number(leg.displayDebit).toLocaleString()}
+                                                            </div>
                                                         )}
-                                                    </h3>
-                                                    <p className="text-[10px] text-slate-500 font-medium line-clamp-2 mt-1 italic leading-relaxed">
-                                                        {leg.displayDescription}
-                                                    </p>
+                                                        {!isDebit && <div className="hidden md:block text-slate-200">—</div>}
+                                                    </div>
+
+                                                    <div className="text-right">
+                                                        {isCredit && (
+                                                            <div className="text-base font-black text-emerald-700 tracking-tighter">
+                                                                ₹{Number(leg.displayCredit).toLocaleString()}
+                                                            </div>
+                                                        )}
+                                                        {!isCredit && <div className="hidden md:block text-slate-200">—</div>}
+                                                    </div>
                                                 </div>
-                                                <div className="text-right pl-4">
-                                                    <p className={cn(
-                                                        "text-lg font-[1000] tracking-tighter leading-none",
-                                                        isInflow ? "text-emerald-700" : "text-rose-700"
-                                                    )}>
-                                                        {isInflow ? '+' : '-'}₹{(leg.displayCredit || leg.displayDebit || 0).toLocaleString()}
-                                                    </p>
-                                                    <p className="text-[8px] font-black uppercase text-slate-400 mt-1 tracking-widest opacity-60">
-                                                        {isInflow ? 'CREDIT (IN)' : 'DEBIT (OUT)'}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        </NativeCard>
-                                    );
-                                })}
-                            </div>
-                        ))
-                    )}
-                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )
+                }
+            </div>
 
                 {/* Date Picker BottomSheet */}
                 <BottomSheet open={datePickerOpen} onClose={() => setDatePickerOpen(false)} title="Go to Date">
