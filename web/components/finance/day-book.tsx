@@ -1270,6 +1270,10 @@ export default function DayBook() {
                     else if (isPayment) label = 'Payment';
                     else if (isExpense) label = 'Expense';
 
+                    // Mandi Terminology Flip:
+                    // Receipt (Receive Money) -> Credit
+                    // Payment (Pay Money) -> Debit
+                    // Expense -> Debit
                     legs.push({
                         ...mainLeg,
                         displayDebit: (isPayment || isExpense) ? singleVal : 0,
@@ -1608,24 +1612,28 @@ export default function DayBook() {
                     ) : (
                         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
                             {/* Table Header */}
-                            <div className="grid grid-cols-[80px_100px_1fr_80px_120px_120px] gap-4 px-6 py-4 bg-slate-50 border-b border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                            <div className="grid grid-cols-[80px_120px_1fr_80px_120px_120px] gap-4 px-6 py-4 bg-slate-50 border-b border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-500">
                                 <div>Time</div>
                                 <div>Particulars(partyname)</div>
                                 <div>Description</div>
                                 <div>Type</div>
                                 <div className="text-right">
                                     Debit
-                                    <div className="text-[8px] opacity-60">Goods Sold / Money Paid</div>
+                                    <div className="text-[8px] opacity-60">Mandi Pays / Sells</div>
                                 </div>
                                 <div className="text-right">
                                     Credit
-                                    <div className="text-[8px] opacity-60">Goods Rec'vd / Money Rec'vd</div>
+                                    <div className="text-[8px] opacity-60">Mandi Rec'vd / Purch</div>
                                 </div>
                             </div>
 
-                            <div className="divide-y divide-slate-100">
+                            <div className="space-y-4 px-6 py-6 bg-slate-50/30">
                                 {filteredGroups.map((g: any) => (
-                                    <div key={g.gid} className="hover:bg-slate-50/30 transition-colors">
+                                    <div key={g.gid} className={cn(
+                                        "bg-white rounded-2xl border border-slate-200 shadow-[0_2px_12px_rgba(0,0,0,0.03)] overflow-hidden transition-all hover:border-slate-300 hover:shadow-md",
+                                        g.hasCash && "border-l-4 border-l-emerald-500",
+                                        g.summaryLegs.length > 1 && "bg-slate-50/10"
+                                    )}>
                                         {g.summaryLegs.map((leg: any, idx: number) => {
                                             const time = format(new Date(leg.displayTimestamp || leg.created_at || leg.entry_date), "HH:mm");
                                             const particulars = leg.contact?.name || leg.account?.name;
@@ -1635,43 +1643,52 @@ export default function DayBook() {
 
                                             return (
                                                 <div key={`${g.gid}_${idx}`} className={cn(
-                                                    "grid grid-cols-1 md:grid-cols-[80px_100px_1fr_80px_120px_120px] gap-2 md:gap-4 px-6 py-3 items-start",
-                                                    idx > 0 && "pt-0 pb-4" // Payment sub-row styling
+                                                    "grid grid-cols-1 md:grid-cols-[80px_120px_1fr_80px_120px_120px] gap-2 md:gap-4 px-6 py-4 items-start",
+                                                    idx > 0 && "border-t border-slate-100 bg-slate-50/40"
                                                 )}>
-                                                    <div className="hidden md:block text-[11px] font-medium text-slate-400 font-mono">
+                                                    <div className="hidden md:block text-[11px] font-[1000] text-slate-400 font-mono pt-1">
                                                         {idx === 0 ? time : ""}
                                                     </div>
                                                     
-                                                    <div className="min-w-0">
-                                                        <div className="text-[12px] font-bold text-slate-900 truncate">
+                                                    <div className="min-w-0 pt-1">
+                                                        <div className="text-[12px] font-[1000] text-slate-800 uppercase tracking-tight truncate">
                                                             {idx === 0 ? particulars : ""}
                                                         </div>
                                                     </div>
 
                                                     <div className="min-w-0">
-                                                        <div className="text-[12px] font-medium text-slate-600 whitespace-pre-wrap leading-relaxed">
+                                                        <div className="text-[13px] font-medium text-slate-600 whitespace-pre-wrap leading-relaxed">
                                                             {description}
                                                             {leg.displayNameLotPrefix && idx === 0 && (
-                                                                <span className="ml-2 text-[10px] text-emerald-600 font-mono bg-emerald-50 px-1.5 py-0.5 rounded">[{leg.displayNameLotPrefix}]</span>
+                                                                <span className="ml-2 text-[10px] text-emerald-700 font-[1000] uppercase tracking-tighter bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100 shadow-sm">[{leg.displayNameLotPrefix}]</span>
                                                             )}
                                                         </div>
                                                     </div>
 
-                                                    <div className="hidden md:block text-[10px] font-black text-slate-400 uppercase tracking-tighter">
-                                                        {leg.displayLabel}
+                                                    <div className="hidden md:block pt-1">
+                                                        {leg.displayLabel && (
+                                                            <span className={cn(
+                                                                "px-2.5 py-1 rounded-lg text-[9px] font-[1000] uppercase tracking-widest border shadow-sm",
+                                                                leg.displayLabel === 'Sale' ? "bg-indigo-50 text-indigo-700 border-indigo-100" :
+                                                                leg.displayLabel === 'Purchase' ? "bg-emerald-50 text-emerald-700 border-emerald-100" :
+                                                                "bg-slate-100 text-slate-500 border-slate-200"
+                                                            )}>
+                                                                {leg.displayLabel}
+                                                            </span>
+                                                        )}
                                                     </div>
 
-                                                    <div className="text-right">
+                                                    <div className="text-right pt-1">
                                                         {isDebit && (
-                                                            <div className="text-[13px] font-black text-rose-800">
+                                                            <div className="text-[15px] font-[1000] text-slate-900 tracking-tight">
                                                                 {Number(leg.displayDebit).toLocaleString()}
                                                             </div>
                                                         )}
                                                     </div>
 
-                                                    <div className="text-right">
+                                                    <div className="text-right pt-1">
                                                         {isCredit && (
-                                                            <div className="text-[13px] font-black text-emerald-800">
+                                                            <div className="text-[15px] font-[1000] text-slate-900 tracking-tight">
                                                                 {Number(leg.displayCredit).toLocaleString()}
                                                             </div>
                                                         )}
