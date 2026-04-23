@@ -28,7 +28,8 @@ import {
     Clock,
     Zap,
     X,
-    Landmark
+    Landmark,
+    Truck
 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
