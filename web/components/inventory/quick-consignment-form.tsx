@@ -1467,7 +1467,7 @@ export function QuickPurchaseForm() {
                                     <div className="space-y-1">
                                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Supplier / Farmer</span>
                                         <span className="text-xl font-black text-slate-900">
-                                            {contacts.find(c => c.id === form.getValues('supplier_id'))?.name || 'N/A'}
+                                            {masterContacts.find(c => c.id === form.getValues('supplier_id'))?.name || 'N/A'}
                                         </span>
                                     </div>
                                 </div>
@@ -1476,8 +1476,8 @@ export function QuickPurchaseForm() {
                                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Items Summary</span>
                                     <div className="border border-slate-100 rounded-2xl divide-y divide-slate-50 overflow-hidden">
                                         {form.getValues('rows').map((row, idx) => {
-                                            const commodity = items.find(i => i.id === row.item_id)
-                                            const financials = calculateRowFinancials(row)
+                                            const commodity = masterCommodities.find(i => i.id === row.item_id)
+                                            const financials = calculateRowFinancials(row, form.getValues('arrival_type'))
                                             return (
                                                 <div key={idx} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
                                                     <div className="flex flex-col">
@@ -1487,7 +1487,7 @@ export function QuickPurchaseForm() {
                                                         </span>
                                                     </div>
                                                     <div className="text-right">
-                                                        <span className="text-sm font-black text-slate-900">₹{financials.billAmount.toLocaleString()}</span>
+                                                        <span className="text-sm font-black text-slate-900">₹{(financials?.netPayable || 0).toLocaleString()}</span>
                                                     </div>
                                                 </div>
                                             )
