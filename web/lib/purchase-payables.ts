@@ -115,13 +115,17 @@ export function calculateArrivalGrossValue(lots: any[], arrivalLike?: any) {
  * Determines if a purchase lot is: PAID | PARTIAL | PENDING
  * 
  * Business Rules:
- * - Uncleared cheques don't count as payment
- * - Credit/UDHAAR always shows balance pending
- * - Uses EPSILON tolerance for floating-point comparison
+ * - Prioritize database-calculated 'payment_status' if available.
+ * - Fallback to frontend calculation if DB status is missing.
  */
 export function calculatePaymentStatus(
     lot: any
 ): 'paid' | 'partial' | 'pending' {
+    // Priority 1: Database Source of Truth
+    if (lot?.payment_status) {
+        return lot.payment_status.toLowerCase() as any;
+    }
+
     const AMOUNT_EPSILON = 0.01;
     
     // Step 1: Calculate net bill amount
@@ -131,7 +135,6 @@ export function calculatePaymentStatus(
     const advancePaid = toNumber(lot?.advance);
     
     // Step 3: Check if payment was actually cleared
-    // Uncleared cheques (advance_cheque_status=false) don't count
     const isPaymentCleared = 
         !lot?.advance_payment_mode || 
         ['cash', 'bank', 'upi', 'UPI/BANK'].includes(lot.advance_payment_mode) || 

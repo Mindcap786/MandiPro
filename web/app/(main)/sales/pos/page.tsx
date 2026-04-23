@@ -48,13 +48,18 @@ type POSItem = {
     custom_attributes?: any
     sale_price: number
     barcode: string | null
-    lot_details?: { id: string; qr_code: string | null; current_qty: number; arrival_id?: string | null }[]
+    lot_details?: { id: string; qr_code: string | null; barcode: string | null; current_qty: number; arrival_id?: string | null }[]
     unit: string
+
     gst_rate: number
     image_url?: string
     available_qty: number
-    lot_id: string | null // For Mandi schema
-    lot_code: string | null
+    purchase_rate: number
+    packing_cost: number
+    loading_cost: number
+    farmer_charges: number
+    lot_id: string | null 
+
 }
 
 const toRpcPaymentMode = (paymentMode: 'Cash' | 'Credit' | 'UPI/Bank' | 'Cheque') => {
@@ -92,9 +97,10 @@ export default function POSPage() {
         let lotQrCode: string | undefined = undefined;
         
         for (const it of items) {
-            const matchedLot = it.lot_details?.find(ld => ld.qr_code === search);
+            // Check both QR code and the new Barcode field
+            const matchedLot = it.lot_details?.find(ld => ld.qr_code === search || ld.barcode === search);
             if (matchedLot) {
-                if (scannedLots.includes(matchedLot.qr_code as string)) {
+                if (matchedLot.qr_code && scannedLots.includes(matchedLot.qr_code)) {
                     toast.error("Scanned Twice", { description: "This specific lot is already fully added into the cart.", position: 'top-center' });
                     setSearch('');
                     return;
@@ -111,6 +117,7 @@ export default function POSPage() {
             foundItem = items.find(it => it.barcode === search || it.sku_code === search);
             lotQty = 1; // Generic commodities default to adding 1
         }
+
         
         if (foundItem) {
             // Show item detail popup instead of directly adding
@@ -314,9 +321,14 @@ export default function POSPage() {
 
             // 2. Fetch Inventory/Stock Data (Lots + Commodities)
             const [lotRes, commodityRes] = await Promise.all([
-                supabase.schema('mandi').from('lots').select('id, item_id, arrival_id, unit, sale_price, wholesale_price, supplier_rate, qr_code, current_qty, storage_location, lot_code, custom_attributes, contact_id(name)').eq('organization_id', orgId).in('status', ['active', 'available', 'partial']).gt('current_qty', 0).order('created_at', { ascending: true }),
+            const [lotRes, commodityRes] = await Promise.all([
+                supabase.schema('mandi').from('lots').select('id, item_id, arrival_id, unit, sale_price, wholesale_price, supplier_rate, packing_cost, loading_cost, farmer_charges, qr_code, barcode, current_qty, storage_location, lot_code, custom_attributes, contact_id(name)').eq('organization_id', orgId).in('status', ['active', 'available', 'partial']).gt('current_qty', 0).order('created_at', { ascending: true }),
                 supabase.schema('mandi').from('commodities').select('id, name, local_name, barcode, gst_rate, sale_price, image_url, sku_code, custom_attributes').eq('organization_id', orgId)
             ]);
+
+                supabase.schema('mandi').from('commodities').select('id, name, local_name, barcode, gst_rate, sale_price, image_url, sku_code, custom_attributes').eq('organization_id', orgId)
+            ]);
+
 
             if (lotRes.error) throw lotRes.error;
 
@@ -360,12 +372,24 @@ export default function POSPage() {
                         lot_details: [],
                         supplier_name: supplierName,
                         sale_price: price,
+                        purchase_rate: Number(lot.supplier_rate) || 0,
+                        packing_cost: Number(lot.packing_cost) || 0,
+                        loading_cost: Number(lot.loading_cost) || 0,
+                        farmer_charges: Number(lot.farmer_charges) || 0
                     };
                 }
 
+
                 stockMap[key].total_qty += Number(lot.current_qty) || 0;
-                stockMap[key].lot_details.push({ id: lot.id, qr_code: lot.qr_code, current_qty: Number(lot.current_qty), arrival_id: lot.arrival_id });
+                stockMap[key].lot_details.push({ 
+                    id: lot.id, 
+                    qr_code: lot.qr_code, 
+                    barcode: lot.barcode,
+                    current_qty: Number(lot.current_qty), 
+                    arrival_id: lot.arrival_id 
+                });
             }
+
 
             const normalizedItems: POSItem[] = Object.entries(stockMap).map(([key, stock]: [string, any]) => ({
                 id: stock.item_id,
@@ -382,9 +406,14 @@ export default function POSPage() {
                 gst_rate: Number(commodityMap[stock.item_id]?.gst_rate) || 0,
                 image_url: stock.image_url,
                 available_qty: stock.total_qty,
+                purchase_rate: stock.purchase_rate,
+                packing_cost: stock.packing_cost,
+                loading_cost: stock.loading_cost,
+                farmer_charges: stock.farmer_charges,
                 lot_id: stock.lot_id,
                 lot_code: stock.lot_code
             })).sort((a: any, b: any) => (a.name || '').localeCompare(b.name || ''));
+
 
             setItems(normalizedItems);
             setFilteredItems(normalizedItems);
@@ -744,8 +773,12 @@ export default function POSPage() {
             (item.local_name || '').toLowerCase().includes(lowerSearch) ||
             (item.sku_code || '').toLowerCase().includes(lowerSearch) ||
             (item.barcode || '').toLowerCase().includes(lowerSearch) ||
-            item.lot_details?.some(ld => ld.qr_code && ld.qr_code.toLowerCase().includes(lowerSearch))
+            item.lot_details?.some(ld => 
+                (ld.qr_code && ld.qr_code.toLowerCase().includes(lowerSearch)) ||
+                (ld.barcode && ld.barcode.toLowerCase().includes(lowerSearch))
+            )
         )
+
         setFilteredItems(filtered)
     }, [search, items])
 
@@ -813,6 +846,7 @@ export default function POSPage() {
                                     </div>
 
                                     {/* Grade / custom attributes */}
+
                                     {item.custom_attributes && Object.keys(item.custom_attributes).length > 0 && (
                                         <div className="flex flex-wrap gap-2">
                                             {Object.entries(item.custom_attributes).map(([k, v]) => (

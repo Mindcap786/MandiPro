@@ -33,12 +33,12 @@ export async function GET(request: NextRequest) {
         .schema('mandi')
         .from('arrivals')
         .select(`
-            id, arrival_date, arrival_type, lot_prefix, num_lots,
-            gross_qty, less_percent, less_units, net_qty,
-            commission_percent, transport_amount, loading_amount,
-            packing_amount, advance_amount, status, created_at,
-            party:contacts(id, name, contact_type, phone),
-            commodity:commodities(id, name, default_unit)
+            id, arrival_date, arrival_type, lot_prefix, arrival_no,
+            reference_no, vehicle_number, driver_name,
+            hire_charges, hamali_expenses, other_expenses,
+            advance_amount, status, created_at,
+            party:contacts!party_id(id, name, contact_type, phone)
+
         `, { count: 'exact' })
         .order('arrival_date', { ascending: false })
         .order('created_at', { ascending: false })

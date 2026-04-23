@@ -264,20 +264,108 @@ DECLARE
     v_total_bill NUMERIC;
     v_new_status TEXT;
     v_ref_id UUID;
+    v_has_pending_cheque BOOLEAN;
 BEGIN
     v_ref_id := COALESCE(NEW.reference_id, OLD.reference_id);
-    IF NOT EXISTS (SELECT 1 FROM mandi.sales WHERE id = v_ref_id) THEN RETURN NULL; END IF;
-    SELECT COALESCE(SUM(credit), 0) INTO v_total_paid FROM mandi.ledger_entries WHERE reference_id = v_ref_id AND transaction_type IN ('sale_payment', 'receipt', 'payment');
-    SELECT COALESCE(SUM(debit), 0) INTO v_total_bill FROM mandi.ledger_entries WHERE reference_id = v_ref_id AND transaction_type = 'sale';
-    IF v_total_bill = 0 THEN v_new_status := 'pending';
-    ELSIF v_total_paid >= (v_total_bill - 0.1) THEN v_new_status := 'paid';
-    ELSIF v_total_paid > 0.1 THEN v_new_status := 'partial';
-    ELSE v_new_status := 'pending';
-    END IF;
-    UPDATE mandi.sales SET payment_status = v_new_status, amount_received = v_total_paid, balance_due = (v_total_bill - v_total_paid) WHERE id = v_ref_id;
+    IF v_ref_id IS NULL OR NOT EXISTS (SELECT 1 FROM mandi.sales WHERE id = v_ref_id) THEN RETURN NULL; END IF;
+
+    -- Mandi Perspective: 
+    -- Receipt (Money In) = Debit (Naam) to AR/Contact
+    -- Sale Bill (Goods Out) = Credit (Jama) for AR/Contact
+    
+    SELECT COALESCE(SUM(debit), 0) INTO v_total_paid 
+    FROM mandi.ledger_entries 
+    WHERE reference_id = v_ref_id 
+      AND transaction_type IN ('sale_payment', 'receipt', 'payment');
+
+    SELECT COALESCE(SUM(credit), 0) INTO v_total_bill 
+    FROM mandi.ledger_entries 
+    WHERE reference_id = v_ref_id 
+      AND transaction_type = 'sale';
+
+    -- Check for pending cheques
+    SELECT EXISTS (
+        SELECT 1 FROM mandi.vouchers 
+        WHERE invoice_id = v_ref_id 
+          AND type = 'receipt' 
+          AND payment_mode = 'cheque' 
+          AND (cheque_status = 'Pending' OR is_cleared = false)
+    ) INTO v_has_pending_cheque;
+
+    v_new_status := mandi.classify_bill_status(v_total_bill, v_total_paid, v_has_pending_cheque);
+
+    UPDATE mandi.sales 
+    SET payment_status = v_new_status, 
+        amount_received = v_total_paid, 
+        balance_due = (v_total_bill - v_total_paid) 
+    WHERE id = v_ref_id;
+
+    RETURN NULL;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION mandi.update_purchase_status_from_ledger()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+DECLARE
+    v_total_paid NUMERIC;
+    v_total_bill NUMERIC;
+    v_new_status TEXT;
+    v_ref_id UUID;
+    v_has_pending_cheque BOOLEAN;
+BEGIN
+    v_ref_id := COALESCE(NEW.reference_id, OLD.reference_id);
+    
+    -- Check if it's an arrival/purchase
+    IF v_ref_id IS NULL OR NOT EXISTS (SELECT 1 FROM mandi.arrivals WHERE id = v_ref_id) THEN RETURN NULL; END IF;
+
+    -- Mandi Perspective:
+    -- Payment (Money Out) = Credit (Jama) to AP/Contact
+    -- Purchase Bill (Goods In) = Debit (Naam) for AP/Contact
+    
+    SELECT COALESCE(SUM(credit), 0) INTO v_total_paid 
+    FROM mandi.ledger_entries 
+    WHERE reference_id = v_ref_id 
+      AND transaction_type IN ('purchase_payment', 'payment', 'arrival_advance');
+
+    SELECT COALESCE(SUM(debit), 0) INTO v_total_bill 
+    FROM mandi.ledger_entries 
+    WHERE reference_id = v_ref_id 
+      AND transaction_type = 'purchase';
+
+    -- Check for pending cheques
+    SELECT EXISTS (
+        SELECT 1 FROM mandi.vouchers 
+        WHERE reference_id = v_ref_id 
+          AND type = 'payment' 
+          AND payment_mode = 'cheque' 
+          AND (cheque_status = 'Pending' OR is_cleared = false)
+    ) INTO v_has_pending_cheque;
+
+    v_new_status := mandi.classify_bill_status(v_total_bill, v_total_paid, v_has_pending_cheque);
+
+    UPDATE mandi.arrivals 
+    SET status = v_new_status
+    WHERE id = v_ref_id;
+
+    -- Also update purchase_bills if they exist
+    UPDATE mandi.purchase_bills 
+    SET payment_status = v_new_status
+    WHERE reference_id = v_ref_id OR lot_id IN (SELECT id FROM mandi.lots WHERE arrival_id = v_ref_id);
+
     RETURN NULL;
 END;
 $function$;
 
 DROP TRIGGER IF EXISTS sale_payment_status_auto_update ON mandi.ledger_entries;
-CREATE TRIGGER sale_payment_status_auto_update AFTER INSERT OR UPDATE OR DELETE ON mandi.ledger_entries FOR EACH ROW EXECUTE FUNCTION mandi.update_sale_payment_status_from_ledger();
+CREATE TRIGGER sale_payment_status_auto_update 
+AFTER INSERT OR UPDATE OR DELETE ON mandi.ledger_entries 
+FOR EACH ROW EXECUTE FUNCTION mandi.update_sale_payment_status_from_ledger();
+
+DROP TRIGGER IF EXISTS purchase_payment_status_auto_update ON mandi.ledger_entries;
+CREATE TRIGGER purchase_payment_status_auto_update 
+AFTER INSERT OR UPDATE OR DELETE ON mandi.ledger_entries 
+FOR EACH ROW EXECUTE FUNCTION mandi.update_purchase_status_from_ledger();
+

@@ -137,7 +137,7 @@ export function PurchaseBillDetailsSheet({ lotId, isOpen, isLocked, onClose, onU
             const { data: lotData, error: lotError } = await supabase
                 .schema('mandi')
                 .from('lots')
-                .select('*, farmer:contacts(name, city), item:commodities(name, custom_attributes), purchase_bills(payment_status), sale_items(amount, qty, rate)')
+                .select('*, farmer:contacts(name, city), item:commodities(name, custom_attributes), payment_status, sale_items(amount, qty, rate)')
                 .eq('id', lotId)
                 .single();
 
@@ -428,7 +428,7 @@ export function PurchaseBillDetailsSheet({ lotId, isOpen, isLocked, onClose, onU
     const extraAdvance = totalPayable < -AMOUNT_EPSILON ? Math.abs(totalPayable) : 0;
 
     // Sold Out Check
-    const isPaid = data?.purchase_bills?.[0]?.payment_status === 'paid';
+    const isPaid = data?.payment_status === 'paid';
     const isActuallySoldOut = data?.current_qty !== undefined && data.current_qty <= 0; // Purely inventory check
     const isSoldOut = isLocked; // Driven tightly by the global FIFO ledger logic in dialog
 

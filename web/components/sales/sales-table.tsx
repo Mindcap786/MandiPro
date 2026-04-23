@@ -132,7 +132,7 @@ export default function SalesTable({ data, isLoading }: { data: any[], isLoading
                             // Database computes this with all charges correctly.
                             const grandTotal = Number(row.total_amount_inc_tax) || Number(row.total_amount) || 0;
 
-                            const totalPaid = Number(row.paid_amount) || 0;
+                            const totalPaid = Math.max(Number(row.paid_amount || 0), Number(row.amount_received || 0));
                             const pendingAmt = grandTotal - totalPaid;
 
                             // Trade profit is intentionally hidden in list view for performance (no nested items fetched).
