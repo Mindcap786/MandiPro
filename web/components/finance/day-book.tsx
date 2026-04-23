@@ -959,7 +959,7 @@ export default function DayBook() {
                         items: itemLabel, 
                         qtyByUnit,
                         details: lots.map(l => ({
-                            name: `${formatItemName(l.item)}${l.lot_code ? ` [Lot: ${l.lot_code}]` : ''}`,
+                            name: `${formatItemName(l.item)}${l.lot_code ? ` [${l.lot_code}]` : ''}`,
                             qty: Number(l.initial_qty || 0),
                             rate: Number(l.supplier_rate || 0),
                             unit: l.unit
@@ -1034,20 +1034,21 @@ export default function DayBook() {
                     })();
                     
                     const lotNode = Array.isArray(si.lot) ? si.lot[0] : si.lot;
-                    const lotCode = lotNode?.lot_code ? ` [Lot: ${lotNode.lot_code}]` : '';
+                    const lotCode = lotNode?.lot_code ? ` [${lotNode.lot_code}]` : '';
                     const itemNameWithLot = itemNameFull + lotCode;
                     
                     if (itemNameFull) {
                         stat.items.push(itemNameFull);
                         const rateKey = `${itemNameFull}_${si.rate}_${lotNode?.lot_code || 'N/A'}`;
+                        const correctUnit = lotNode?.unit || si.unit || 'Unit';
                         if (!stat.detailsMap.has(rateKey)) {
-                            stat.detailsMap.set(rateKey, { name: itemNameWithLot, qty: 0, rate: Number(si.rate || 0), unit: si.unit } as any);
+                            stat.detailsMap.set(rateKey, { name: itemNameWithLot, qty: 0, rate: Number(si.rate || 0), unit: correctUnit } as any);
                         }
                         const d = stat.detailsMap.get(rateKey)!;
                         d.qty += Number(si.quantity || 0);
                         
                         // Mixed Unit Aggregation for Sales
-                        const u = si.unit || 'Unit';
+                        const u = correctUnit;
                         if (!stat.qtyByUnit) stat.qtyByUnit = {};
                         stat.qtyByUnit[u] = (stat.qtyByUnit[u] || 0) + Number(si.quantity || 0);
                     }
@@ -1069,7 +1070,7 @@ export default function DayBook() {
                         unit: stat.unit, 
                         avgPrice: stat.count > 0 ? stat.priceSum / stat.count : 0,
                         lotPrefix: Array.from(new Set(stat.items.map(i => {
-                            const match = i.match(/\[Lot: (.*?)\]/);
+                            const match = i.match(/\[(.*?)\]/);
                             return match ? match[1] : null;
                         }).filter(Boolean))).join(', ')
                     };
@@ -1278,7 +1279,7 @@ export default function DayBook() {
                     // 2. Payment Leg (Credit - Money Received)
                     if (totalPaidValue > 0) {
                         const actualReceiptLeg = rawLegs.find(l => (inferVoucherFlow(l) === 'sale_payment' || inferVoucherFlow(l) === 'receive_receipt') && Number(l.credit || 0) > 0);
-                        const bNo = extractBillNo(baseLeg);
+                        const bNo = effectiveReferenceId ? saleReferenceMap?.[String(effectiveReferenceId)] : extractBillNo(baseLeg);
                         legs.push({
                             ...(actualReceiptLeg || baseLeg),
                             displayDebit: 0,
@@ -2033,7 +2034,7 @@ export default function DayBook() {
                                                     </td>
                                                     <td className={cellBase}>
                                                         <div className="flex flex-col">
-                                                            <span className={cn("font-black text-slate-800 text-sm tracking-tight leading-snug mb-1 inline-flex items-baseline gap-2 flex-wrap", e.status === 'reversed' && "line-through text-slate-500")}>
+                                                            <span className={cn("font-black text-slate-800 text-xs tracking-tight leading-snug mb-1 inline-flex items-baseline gap-2 flex-wrap", e.status === 'reversed' && "line-through text-slate-500")}>
                                                                 {e.status === 'reversed' && <span className="text-rose-500 mr-2 uppercase text-[10px] bg-rose-50 px-2 py-0.5 rounded-sm inline-block no-underline align-middle mb-1">{t('daybook.labels.reversed')}</span>}
                                                                 <span>{(e.displayDescription || e.description || e.voucher?.narration || t('daybook.descriptions.no_description')).replace(/(\d+)\.0+(?=\s|[A-Za-z]|$)/g, '$1')}</span>
                                                                 {isFirst && e.displayNameLotPrefix && (
@@ -2059,14 +2060,14 @@ export default function DayBook() {
                                                     </td>
                                                     <td className={cn(
                                                         cellBase,
-                                                        "text-right font-mono font-[900] text-base tracking-tighter",
+                                                        "text-right font-mono font-[900] text-sm tracking-tighter",
                                                         (e.displayDebit || 0) > 0 ? "text-slate-800" : "text-slate-300"
                                                     )}>
                                                         {(e.displayDebit || 0) > 0 ? (e.displayDebit).toLocaleString() : '—'}
                                                     </td>
                                                     <td className={cn(
                                                         cellBase,
-                                                        "pr-8 text-right font-mono font-[900] text-base tracking-tighter",
+                                                        "pr-8 text-right font-mono font-[900] text-sm tracking-tighter",
                                                         isFirst && "rounded-tr-2xl",
                                                         isLast  && "rounded-br-2xl",
                                                         (e.displayCredit || 0) > 0 ? "text-slate-800" : "text-slate-300"

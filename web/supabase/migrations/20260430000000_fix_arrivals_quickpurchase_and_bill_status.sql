@@ -74,7 +74,7 @@ BEGIN
     -- Udhaar/credit/no-settlement modes contribute nothing to "paid".
     -- Pending cheques likewise do not reduce udhaar until cleared.
     v_effective_paid := CASE
-        WHEN v_mode IN ('cash', 'bank', 'upi')   THEN v_adv
+        WHEN v_mode IN ('cash', 'bank', 'upi', 'upi/bank')   THEN v_adv
         WHEN v_mode = 'cheque' AND p_cheque_cleared THEN v_adv
         ELSE 0
     END;
@@ -218,11 +218,11 @@ BEGIN
 
         INSERT INTO mandi.vouchers (
             organization_id, date, type, voucher_no, amount, narration,
-            party_id, arrival_id, reference_id, status
+            party_id, arrival_id, reference_id
         ) VALUES (
             v_org_id, v_arrival.arrival_date, 'purchase', v_voucher_no,
             v_total_payable, v_narration,
-            v_party_id, p_arrival_id, p_arrival_id, 'active'
+            v_party_id, p_arrival_id, p_arrival_id
         ) RETURNING id INTO v_purchase_vch_id;
 
         -- Dr Inventory (asset up)
@@ -250,9 +250,9 @@ BEGIN
 
     -- ── 2b. Advance payment voucher — only for settled liquid modes ──
     --    (credit/udhaar does nothing; pending cheque waits for clearance)
-    IF v_advance > 0.01 AND v_mode IN ('cash', 'bank', 'upi') THEN
+    IF v_advance > 0.01 AND v_mode IN ('cash', 'bank', 'upi', 'upi/bank') THEN
         v_payment_acc_id := CASE
-            WHEN v_mode IN ('bank', 'upi') THEN COALESCE(v_bank_acc_id, v_cash_acc_id)
+            WHEN v_mode IN ('bank', 'upi', 'upi/bank') THEN COALESCE(v_bank_acc_id, v_cash_acc_id)
             ELSE v_cash_acc_id
         END;
 
@@ -263,11 +263,11 @@ BEGIN
 
             INSERT INTO mandi.vouchers (
                 organization_id, date, type, voucher_no, amount, narration,
-                party_id, arrival_id, reference_id, payment_mode, status
+                party_id, arrival_id, reference_id, payment_mode
             ) VALUES (
                 v_org_id, v_arrival.arrival_date, 'payment', v_voucher_no,
                 v_advance, 'Payment for Bill #' || v_bill_label,
-                v_party_id, p_arrival_id, p_arrival_id, v_mode, 'active'
+                v_party_id, p_arrival_id, p_arrival_id, v_mode
             ) RETURNING id INTO v_payment_vch_id;
 
             -- Dr Party (reduces what we owe)
@@ -356,7 +356,7 @@ BEGIN
     -- advance=0 so downstream never sees a phantom cashless "advance".
     v_advance_amount  := COALESCE((p_arrival->>'advance')::NUMERIC, 0);
     v_advance_mode    := LOWER(COALESCE(NULLIF(TRIM(p_arrival->>'advance_payment_mode'), ''), 'credit'));
-    IF v_advance_mode NOT IN ('cash', 'bank', 'upi', 'cheque') THEN
+    IF v_advance_mode NOT IN ('cash', 'bank', 'upi', 'upi/bank', 'cheque') THEN
         v_advance_mode   := 'credit';
         v_advance_amount := 0;
     END IF;
@@ -488,7 +488,7 @@ DECLARE
     v_cheque_cleared BOOLEAN := COALESCE(p_advance_cheque_status, false) OR COALESCE(p_clear_instantly, false);
 BEGIN
     -- Normalise mode so downstream ledger never sees bogus advance.
-    IF v_mode NOT IN ('cash', 'bank', 'upi', 'cheque') THEN
+    IF v_mode NOT IN ('cash', 'bank', 'upi', 'upi/bank', 'cheque') THEN
         v_mode    := 'credit';
         v_advance := 0;
     END IF;
