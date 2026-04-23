@@ -292,14 +292,15 @@ export default function ArrivalsEntryForm() {
         const totalExpenses = packing + loading + itemTransportShare;
 
         // farmerPayment (Before arrival-level advance)
-        // For Direct: Pay total (Goods + Expenses)
-        // For Commission: Pay net (Goods - Commission - Expenses)
+        // USER REQUEST: For Direct Purchase, Net Cost = Final Payable.
+        // For Direct: Pay (Goods - OtherCut + Expenses)
+        // For Commission: Pay (Goods - Commission - OtherCut - Expenses)
         const farmerPayment = arrivalType === 'direct'
             ? adjustedValue + totalExpenses
             : adjustedValue - commissionAmount - totalExpenses;
 
         // Net Cost (to Mandi)
-        // For Direct: Total out-of-pocket (Goods + Expenses)
+        // For Direct: Total out-of-pocket (Goods - OtherCut + Expenses)
         // For Commission: Total cost of goods (Adjusted Value)
         const netCost = arrivalType === 'direct'
             ? adjustedValue + totalExpenses
@@ -1844,7 +1845,7 @@ export default function ArrivalsEntryForm() {
                                 <div className="w-px h-8 bg-slate-200 hidden md:block" />
                                 
                                 <div className="flex flex-col">
-                                    <div className="text-[8px] font-black text-blue-600 uppercase tracking-widest mb-0.5">Total Net Value</div>
+                                    <div className="text-[8px] font-black text-blue-600 uppercase tracking-widest mb-0.5">Total Bill Amount</div>
                                     <div className="text-lg font-black text-blue-700 tracking-tighter tabular-nums leading-none">
                                         ₹{totalNetBill.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                                     </div>
@@ -1972,7 +1973,7 @@ export default function ArrivalsEntryForm() {
                                 {/* Financial Summary */}
                                 <div className="bg-slate-900 p-6 rounded-2xl shadow-xl flex justify-between items-center text-white">
                                     <div>
-                                        <div className="text-[10px] font-black text-white/50 uppercase tracking-widest mb-1">Total Consignment Value</div>
+                                        <div className="text-[10px] font-black text-white/50 uppercase tracking-widest mb-1">Total Bill Amount</div>
                                         <div className="text-3xl font-black tracking-tight">
                                             ₹{totalNetBill.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                                         </div>

@@ -67,6 +67,9 @@ export default function PurchaseBillInvoice({
         const isSettled = !!l.settlement_at;
         const gQty = toNumber(l.gross_quantity) || toNumber(l.initial_qty);
         const nQty = gQty - ((gQty * toNumber(l.less_percent) / 100) + toNumber(l.less_units));
+        
+        // Use net_payable from DB if available, otherwise calculate
+        const lotNetPayable = toNumber(l.net_payable);
         const goodsVal = isSettled 
             ? toNumber(l.settlement_goods_value) 
             : nQty * toNumber(l.supplier_rate);
@@ -79,11 +82,18 @@ export default function PurchaseBillInvoice({
         totalPaidAmount += toNumber(l.paid_amount);
         totalOtherCharges += toNumber(l.other_charges || 0);
         totalArrivalExpenseShare += toNumber(l.farmer_charges || 0);
+        
+        // If we have net_payable from DB, let's use it for the final sum calculation later if possible
+        // but for now we follow the breakdown logic for the template.
     });
     
     const isSettled = lotsToProcess.some(l => !!l.settlement_at);
 
-    const finalPayable = Math.max(0, totalNetGoodsValue - totalCommission - totalLotExpenses - totalAdvance - totalPaidAmount - totalOtherCharges - totalArrivalExpenseShare)
+    // USER REQUEST: Simple parity for Direct and Quick Purchase.
+    // The breakdown should lead to the correct final payable.
+    const finalPayable = arrivalType === 'direct' 
+        ? Math.max(0, totalNetGoodsValue - totalArrivalExpenseShare + totalLotExpenses - totalAdvance - totalPaidAmount - totalOtherCharges)
+        : Math.max(0, totalNetGoodsValue - totalCommission - totalLotExpenses - totalAdvance - totalPaidAmount - totalOtherCharges - totalArrivalExpenseShare)
 
     // Organization address
     const fullAddress = [
@@ -348,8 +358,12 @@ export default function PurchaseBillInvoice({
                         {/* Loading/Packing Cost + Arrival Expenses */}
                         {(totalLotExpenses > 0) || totalArrivalExpenseShare > 0.01 ? (
                             <div className="flex justify-between items-center text-xs border-t border-gray-100 pt-1">
-                                <span className="text-gray-400 font-bold uppercase tracking-widest">Expenses / Transport</span>
-                                <span className="font-bold text-red-500">− ₹{Math.round(totalLotExpenses + totalArrivalExpenseShare).toLocaleString()}</span>
+                                <span className="text-gray-400 font-bold uppercase tracking-widest">
+                                    {arrivalType === 'direct' ? 'Expenses (Reimbursed)' : 'Expenses / Transport'}
+                                </span>
+                                <span className={cn("font-bold", arrivalType === 'direct' ? "text-emerald-600" : "text-red-500")}>
+                                    {arrivalType === 'direct' ? '+' : '−'} ₹{Math.round(totalLotExpenses + totalArrivalExpenseShare).toLocaleString()}
+                                </span>
                             </div>
                         ) : null}
 

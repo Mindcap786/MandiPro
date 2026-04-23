@@ -246,41 +246,21 @@ export function QuickPurchaseForm() {
         const qty = Number(row.qty) || 0
         const rate = Number(row.rate) || 0
         const commPercent = Number(row.commission) || 0
-        const lessPercentVal = (qty * (Number(row.weight_loss) || 0)) / 100
-        const lessUnits = Number(row.less_units) || 0
         
         // 1. Gross Value
         const grossValue = qty * rate
 
-        // 2. Adjusted Value (After Less % and Less Units)
-        const adjustedQty = Math.max(0, qty - lessPercentVal - lessUnits)
-        const adjustedValue = adjustedQty * rate
+        // 2. Commission (Calculated on Gross)
+        const commissionAmount = (grossValue * commPercent) / 100
         
-        // 3. Commission (10% of Gross - Less %)
-        const valueAfterLessPercent = (qty - lessPercentVal) * rate
-        const commissionAmount = (valueAfterLessPercent * commPercent) / 100
-        
-        // 4. Expenses (Packing + Loading + Other Cut)
-        const packing = Number(row.packing_cost) || 0
-        const loading = Number(row.loading_cost) || 0
-        const otherCut = Number(row.other_cut) || 0
-        const itemExpenses = packing + loading + otherCut
-
-        // 5. Final Math based on Type
-        let netPayable = 0
-        if (type === 'direct') {
-            // Mandi pays for everything. Net Cost and Final Payable are the SAME.
-            netPayable = adjustedValue + itemExpenses
-        } else {
-            // Farmer/Supplier pays for everything. Deduct costs and commission.
-            netPayable = adjustedValue - commissionAmount - itemExpenses
-        }
+        // 3. Final Math: Mandi pays (Gross - Commission)
+        const netPayable = grossValue - commissionAmount
 
         return {
             grossValue,
-            adjustedValue,
+            adjustedValue: grossValue, // Adjusted = Gross in simplified view
             commissionAmount,
-            expensesTotal: itemExpenses,
+            expensesTotal: 0,
             netPayable,
             unitCost: qty > 0 ? netPayable / qty : 0
         }
@@ -558,59 +538,8 @@ export function QuickPurchaseForm() {
                             )}
                         />
 
-                        <FormField
-                            control={form.control}
-                            name="vehicle_number"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Vehicle Number</FormLabel>
-                                    <FormControl>
-                                        <Input {...field} placeholder="XX-00-YY-0000" className="h-14 bg-slate-50 border-none rounded-2xl text-xl font-black placeholder:text-slate-200" />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-
-                        <FormField
-                            control={form.control}
-                            name="lot_no"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Lot No</FormLabel>
-                                    <FormControl>
-                                        <Input {...field} placeholder="LOT-XXXX" className="h-14 bg-slate-50 border-none rounded-2xl text-xl font-black placeholder:text-slate-200" />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-
-                        <FormField
-                            control={form.control}
-                            name="storage_location"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Storage Location</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value}>
-                                        <FormControl>
-                                            <SelectTrigger className="h-14 bg-slate-50 border-none rounded-2xl text-xl font-black">
-                                                <SelectValue placeholder="Select location" />
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            {masterLocations.map((loc) => (
-                                                <SelectItem key={loc.name} value={loc.name}>{loc.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-
-                        <div className="hidden lg:block border-l border-slate-100 mx-4 h-14" />
-
+                        {/* Transport Section Hidden as per user request */}
+                        {/* Status Section */}
                         <div className="flex flex-col justify-center">
                             <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Status</span>
                             <div className="flex items-center gap-2">
@@ -621,111 +550,7 @@ export function QuickPurchaseForm() {
                     </div>
                 </div>
 
-                {/* Transport & Expenses Section */}
-                <div className="bg-white rounded-[32px] border border-slate-100 p-8 shadow-sm">
-                    <div className="flex items-center gap-3 mb-8">
-                        <div className="bg-emerald-600 p-2 rounded-xl shadow-lg shadow-emerald-200">
-                            <Truck className="w-5 h-5 text-white" />
-                        </div>
-                        <h2 className="text-2xl font-black tracking-tight text-slate-900">Transport & Expenses</h2>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                        <FormField
-                            control={form.control}
-                            name="vehicle_type"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Vehicle Type</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value}>
-                                        <FormControl>
-                                            <SelectTrigger className="h-14 bg-slate-50 border-none rounded-2xl text-xl font-black">
-                                                <SelectValue placeholder="Select type" />
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            {['Pickup', 'Truck', 'Tractor', 'Other'].map(t => (
-                                                <SelectItem key={t} value={t}>{t}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </FormItem>
-                            )}
-                        />
-
-                        <FormField
-                            control={form.control}
-                            name="guarantor"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Guarantor</FormLabel>
-                                    <FormControl>
-                                        <Input {...field} placeholder="Optional" className="h-14 bg-slate-50 border-none rounded-2xl text-xl font-black" />
-                                    </FormControl>
-                                </FormItem>
-                            )}
-                        />
-
-                        <FormField
-                            control={form.control}
-                            name="driver_name"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Driver Name</FormLabel>
-                                    <FormControl>
-                                        <Input {...field} placeholder="Driver Name" className="h-14 bg-slate-50 border-none rounded-2xl text-xl font-black" />
-                                    </FormControl>
-                                </FormItem>
-                            )}
-                        />
-
-                        <FormField
-                            control={form.control}
-                            name="driver_mobile"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Mobile No</FormLabel>
-                                    <FormControl>
-                                        <Input {...field} placeholder="Mobile No" className="h-14 bg-slate-50 border-none rounded-2xl text-xl font-black" />
-                                    </FormControl>
-                                </FormItem>
-                            )}
-                        />
-
-                        <div className="lg:col-span-4 grid grid-cols-3 gap-6 pt-4 border-t border-slate-50">
-                            <FormField
-                                control={form.control}
-                                name="loading_amount"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel className="text-[9px] font-black uppercase text-slate-400 mb-2 block text-center">Loading Exp</FormLabel>
-                                        <FormControl>
-                                            <Input type="number" {...field} className="h-12 bg-slate-50 border-none rounded-xl text-center font-black" />
-                                        </FormControl>
-                                    </FormItem>
-                                )}
-                            />
-                             <div className="flex flex-col items-center justify-center">
-                                <span className="text-[9px] font-black uppercase text-slate-400 mb-2">Advance Paid</span>
-                                <div className="h-12 w-full bg-slate-50 rounded-xl flex items-center justify-center font-black text-slate-900">
-                                    ₹{Number(form.watch('advance')) || 0}
-                                </div>
-                            </div>
-                            <FormField
-                                control={form.control}
-                                name="other_expenses"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel className="text-[9px] font-black uppercase text-slate-400 mb-2 block text-center">Other Exp</FormLabel>
-                                        <FormControl>
-                                            <Input type="number" {...field} className="h-12 bg-slate-50 border-none rounded-xl text-center font-black" />
-                                        </FormControl>
-                                    </FormItem>
-                                )}
-                            />
-                        </div>
-                    </div>
-                </div>
+                {/* Transport & Expenses Section Removed as per user request */}
 
                 {/* Line Items */}
                 <div className="space-y-6">
@@ -928,120 +753,8 @@ export function QuickPurchaseForm() {
                                             />
                                         </div>
 
-                                        {(Number(row.commission) > 0 || Number(row.weight_loss) > 0 || Number(row.less_units) > 0) && (
-                                            <div className="md:col-span-12 bg-slate-50/50 rounded-2xl border border-slate-100 p-4 animate-in fade-in slide-in-from-top-2">
-                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-end">
-                                                    <FormField
-                                                        control={form.control}
-                                                        name={`rows.${index}.weight_loss`}
-                                                        render={({ field }) => (
-                                                            <FormItem>
-                                                                <FormLabel className="text-[7px] font-black uppercase text-slate-400 tracking-tight mb-2 block text-center">Weight Loss %</FormLabel>
-                                                                <FormControl>
-                                                                    <Input 
-                                                                        type="number" 
-                                                                        {...field} 
-                                                                        onChange={(e) => {
-                                                                            const val = e.target.value === '' ? '' : Number(e.target.value);
-                                                                            field.onChange(val);
-                                                                            if (val === '' || Number(val) === 0) {
-                                                                                // Clear the linked field
-                                                                                form.setValue(`rows.${index}.less_units`, 0);
-                                                                            } else if (row?.qty) {
-                                                                                const lessUnits = (Number(row.qty) * Number(val)) / 100;
-                                                                                form.setValue(`rows.${index}.less_units`, Number(lessUnits.toFixed(2)));
-                                                                            }
-                                                                        }}
-                                                                        className="h-10 font-black text-sm bg-white border-slate-200 rounded-xl shadow-sm text-center" 
-                                                                    />
-                                                                </FormControl>
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                    <FormField
-                                                        control={form.control}
-                                                        name={`rows.${index}.less_units`}
-                                                        render={({ field }) => (
-                                                            <FormItem>
-                                                                <FormLabel className="text-[7px] font-black uppercase text-slate-400 tracking-tight mb-2 block text-center">Less Qty (Units)</FormLabel>
-                                                                <FormControl>
-                                                                    <Input 
-                                                                        type="number" 
-                                                                        {...field} 
-                                                                        onChange={(e) => {
-                                                                            const val = e.target.value === '' ? '' : Number(e.target.value);
-                                                                            field.onChange(val);
-                                                                            if (val === '' || Number(val) === 0) {
-                                                                                // Clear the linked field
-                                                                                form.setValue(`rows.${index}.weight_loss`, 0);
-                                                                            } else if (row?.qty && Number(row.qty) > 0) {
-                                                                                const weightLoss = (Number(val) / Number(row.qty)) * 100;
-                                                                                form.setValue(`rows.${index}.weight_loss`, Number(weightLoss.toFixed(2)));
-                                                                            }
-                                                                        }}
-                                                                        className="h-10 font-black text-sm bg-white border-slate-200 rounded-xl shadow-sm text-center" 
-                                                                    />
-                                                                </FormControl>
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                    
-                                                    <FormField
-                                                        control={form.control}
-                                                        name={`rows.${index}.packing_cost`}
-                                                        render={({ field }) => (
-                                                            <FormItem>
-                                                                <FormLabel className="text-[7px] font-black uppercase text-slate-400 tracking-tight mb-2 block text-center">Packing</FormLabel>
-                                                                <FormControl>
-                                                                    <Input type="number" {...field} className="h-10 font-black text-sm bg-white border-slate-200 rounded-xl shadow-sm text-center" />
-                                                                </FormControl>
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                    <FormField
-                                                        control={form.control}
-                                                        name={`rows.${index}.loading_cost`}
-                                                        render={({ field }) => (
-                                                            <FormItem>
-                                                                <FormLabel className="text-[7px] font-black uppercase text-slate-400 tracking-tight mb-2 block text-center">Loading</FormLabel>
-                                                                <FormControl>
-                                                                    <Input type="number" {...field} className="h-10 font-black text-sm bg-white border-slate-200 rounded-xl shadow-sm text-center" />
-                                                                </FormControl>
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                    <FormField
-                                                        control={form.control}
-                                                        name={`rows.${index}.commission_type`}
-                                                        render={({ field }) => (
-                                                            <FormItem>
-                                                                <FormLabel className="text-[7px] font-black uppercase text-slate-400 tracking-tight mb-2 block text-center">Comm Type</FormLabel>
-                                                                <div className="flex bg-white border border-slate-200 rounded-xl p-1 h-10">
-                                                                    {(['farmer', 'supplier'] as const).map(t => (
-                                                                        <button
-                                                                            key={t}
-                                                                            type="button"
-                                                                            onClick={() => field.onChange(t)}
-                                                                            className={cn(
-                                                                                "flex-1 rounded-lg text-[8px] font-black uppercase tracking-tighter transition-all",
-                                                                                field.value === t ? "bg-slate-900 text-white shadow-sm" : "text-slate-400 hover:text-slate-600"
-                                                                            )}
-                                                                        >
-                                                                            {t}
-                                                                        </button>
-                                                                    ))}
-                                                                </div>
-                                                            </FormItem>
-                                                        )}
-                                                    />
+                                        {/* Deductions block hidden as per user request */}
 
-                                                    <div className="flex flex-col items-center justify-center h-10 bg-blue-600/5 rounded-xl border border-blue-600/10 px-4">
-                                                        <span className="text-[6px] font-black text-blue-400 uppercase tracking-widest mb-1 leading-none">Net Payable</span>
-                                                        <span className="text-xs font-black text-blue-600 leading-none">₹{(rowFinancials?.netPayable || 0).toLocaleString()}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
 
                                         {/* Financial Summary Bar (Matches Screenshots) */}
                                         <div className="md:col-span-12 mt-4 pt-4 border-t border-slate-50">
@@ -1051,20 +764,10 @@ export function QuickPurchaseForm() {
                                                     <span className="text-xs font-black text-slate-900">₹{(rowFinancials?.grossValue || 0).toLocaleString()}</span>
                                                     <span className="text-[6px] text-slate-400">{row.qty} x {row.rate}</span>
                                                 </div>
-                                                <div className="flex flex-col items-center justify-center p-2 rounded-2xl bg-orange-50/50">
-                                                    <span className="text-[7px] font-black uppercase text-orange-400 mb-1">Adjusted Value</span>
-                                                    <span className="text-xs font-black text-orange-600">₹{(rowFinancials?.adjustedValue || 0).toLocaleString()}</span>
-                                                    <span className="text-[6px] text-orange-400">After cuts/discounts</span>
-                                                </div>
                                                 <div className="flex flex-col items-center justify-center p-2 rounded-2xl bg-purple-50/50">
                                                     <span className="text-[7px] font-black uppercase text-purple-400 mb-1">Commission</span>
                                                     <span className="text-xs font-black text-purple-600">₹{(rowFinancials?.commissionAmount || 0).toLocaleString()}</span>
-                                                    <span className="text-[6px] text-purple-400">{row.commission}% of adjusted</span>
-                                                </div>
-                                                <div className="flex flex-col items-center justify-center p-2 rounded-2xl bg-red-50/50">
-                                                    <span className="text-[7px] font-black uppercase text-red-400 mb-1">Expenses & Cuts</span>
-                                                    <span className="text-xs font-black text-red-600">₹{(rowFinancials?.expensesTotal || 0).toLocaleString()}</span>
-                                                    <span className="text-[6px] text-red-400">Incl. Other Cut</span>
+                                                    <span className="text-[6px] text-purple-400">{row.commission}% of gross</span>
                                                 </div>
                                                 <div className="flex flex-col items-center justify-center p-2 rounded-2xl bg-emerald-50/50 border border-emerald-100">
                                                     <span className="text-[7px] font-black uppercase text-emerald-500 mb-1">
