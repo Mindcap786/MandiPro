@@ -98,7 +98,7 @@ export function SupplierInwardsDialog({ supplier, unappliedPayment = 0, isOpen, 
                 if (arrivalDate < startOfDay(dateRange.from)) return;
             }
 
-            const type = lot.arrival?.arrival_type || 'direct';
+            const type = lot.arrival?.arrival_type || lot.arrival_type || 'direct';
             const key = lot.arrival?.contact_bill_no || lot.arrival?.reference_no || lot.arrival?.bill_no || lot.arrival_id || 'misc';
             if (!grouped[key]) {
                 grouped[key] = {

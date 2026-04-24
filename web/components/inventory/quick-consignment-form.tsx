@@ -215,6 +215,7 @@ export function QuickPurchaseForm() {
     const advanceValue = useWatch({ control: form.control, name: 'advance' })
     const paymentMode = useWatch({ control: form.control, name: 'advance_payment_mode' })
     const rows = useWatch({ control: form.control, name: 'rows' })
+    const arrivalType = useWatch({ control: form.control, name: 'arrival_type' })
 
     const { fields, append, remove } = useFieldArray({
         control: form.control,
@@ -233,6 +234,21 @@ export function QuickPurchaseForm() {
             form.setValue('advance_bank_account_id', defaultBank.id)
         }
     }, [masterLoading, masterBanks, form])
+
+    // Auto-derive arrival_type when supplier is selected
+    useEffect(() => {
+        const supplierId = form.watch('supplier_id');
+        if (!supplierId) return;
+
+        const selectedParty = masterContacts.find(c => c.id === supplierId);
+        if (selectedParty) {
+            if (selectedParty.type === 'farmer') {
+                form.setValue('arrival_type', 'commission');
+            } else if (selectedParty.type === 'supplier') {
+                form.setValue('arrival_type', 'commission_supplier');
+            }
+        }
+    }, [form.watch('supplier_id'), masterContacts, form])
 
     const calculateRowFinancials = (row: any, type: string) => {
         if (!row) return { 
@@ -269,24 +285,10 @@ export function QuickPurchaseForm() {
         const tripLoading = Number(form.watch('loading_amount')) || 0
         const tripOther = Number(form.watch('other_expenses')) || 0
         
-        // Derive global arrival_type:
-        // 1. If any row has commission, use the commission_type from that row.
-        // 2. Otherwise, check if the selected party is a farmer or supplier.
-        const hasCommission = rows.some(r => (Number(r.commission) || 0) > 0)
-        const firstCommType = rows.find(r => (Number(r.commission) || 0) > 0)?.commission_type
-        
-        const selectedParty = masterContacts.find(c => c.id === form.watch('supplier_id'))
-        
-        let derivedType: 'direct' | 'commission' | 'commission_supplier' = 'direct'
-        if (hasCommission) {
-            derivedType = firstCommType === 'supplier' ? 'commission_supplier' : 'commission'
-        } else if (selectedParty) {
-            derivedType = selectedParty.type === 'farmer' ? 'commission' : 
-                          selectedParty.type === 'supplier' ? 'commission_supplier' : 'direct'
-        }
+        const selectedArrivalType = arrivalType || 'direct'
         
         const rowTotals = rows.reduce((acc, row) => {
-            const financials = calculateRowFinancials(row, derivedType)
+            const financials = calculateRowFinancials(row, selectedArrivalType)
             return {
                 grossValue: acc.grossValue + financials.grossValue,
                 adjustedValue: acc.adjustedValue + financials.adjustedValue,
@@ -305,13 +307,13 @@ export function QuickPurchaseForm() {
 
         return {
             ...rowTotals,
-            arrivalType: derivedType,
+            arrivalType: selectedArrivalType,
             tripExpenses: tripLoading + tripOther,
             billAmount: finalPayable,
             finalPay: finalPay,
             isOverpaid: advance > finalPayable && finalPayable > 0
         }
-    }, [rows, advanceValue, form.watch('loading_amount'), form.watch('other_expenses')])
+    }, [rows, arrivalType, advanceValue, form.watch('loading_amount'), form.watch('other_expenses')])
 
     const onSubmit = async (values: QuickPurchaseFormValues) => {
         if (!profile?.organization_id) return
@@ -347,12 +349,7 @@ export function QuickPurchaseForm() {
             return;
         }
 
-        const selectedParty = masterContacts.find(c => c.id === values.supplier_id)
-        const hasCommission = values.rows.some(r => Number(r.commission) > 0)
-        let submissionType: 'commission' | 'direct' | 'commission_supplier' = 'direct'
-        if (hasCommission) {
-            submissionType = selectedParty?.type === 'farmer' ? 'commission' : 'commission_supplier'
-        }
+        const submissionType = values.arrival_type;
 
         // STAGE 1: SHOW REVIEW SUMMARY (No DB save yet)
         setSubmittedValues(values)
@@ -368,13 +365,7 @@ export function QuickPurchaseForm() {
         if (!submittedValues || !profile?.organization_id) return
         
         const values = submittedValues
-        const selectedParty = masterContacts.find(c => c.id === values.supplier_id)
-        const hasCommission = values.rows.some(r => Number(r.commission) > 0)
-        
-        let submissionType: 'commission' | 'direct' | 'commission_supplier' = 'direct'
-        if (hasCommission) {
-            submissionType = selectedParty?.type === 'farmer' ? 'commission' : 'commission_supplier'
-        }
+        const submissionType = values.arrival_type;
 
         setIsConfirming(true)
         try {
@@ -537,6 +528,29 @@ export function QuickPurchaseForm() {
                                         className="h-14 bg-slate-50 border-none rounded-2xl text-xl font-black"
                                         error={!!form.formState.errors.supplier_id}
                                     />
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        <FormField
+                            control={form.control}
+                            name="arrival_type"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Purchase Type</FormLabel>
+                                    <Select value={field.value} onValueChange={field.onChange}>
+                                        <FormControl>
+                                            <SelectTrigger className="h-14 bg-slate-50 border-none rounded-2xl text-xl font-black">
+                                                <SelectValue placeholder="Select Type" />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent className="bg-white border-slate-200 text-slate-900 shadow-xl rounded-2xl border-none">
+                                            <SelectItem value="commission" className="font-bold py-3">Farmer Owned (Comm)</SelectItem>
+                                            <SelectItem value="commission_supplier" className="font-bold py-3">Supplier Owned (Comm)</SelectItem>
+                                            <SelectItem value="direct" className="font-bold py-3">Mandi Owned (Direct)</SelectItem>
+                                        </SelectContent>
+                                    </Select>
                                     <FormMessage />
                                 </FormItem>
                             )}
