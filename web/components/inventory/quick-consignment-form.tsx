@@ -235,20 +235,24 @@ export function QuickPurchaseForm() {
         }
     }, [masterLoading, masterBanks, form])
 
-    // Auto-derive arrival_type when supplier is selected
+    // Auto-derive arrival_type when supplier is selected OR based on commissions
     useEffect(() => {
         const supplierId = form.watch('supplier_id');
         if (!supplierId) return;
 
         const selectedParty = masterContacts.find(c => c.id === supplierId);
-        if (selectedParty) {
-            if (selectedParty.type === 'farmer') {
-                form.setValue('arrival_type', 'commission');
-            } else if (selectedParty.type === 'supplier') {
-                form.setValue('arrival_type', 'commission_supplier');
+        const hasCommission = rows.some(r => Number(r.commission) > 0);
+
+        if (!hasCommission) {
+            form.setValue('arrival_type', 'direct');
+        } else {
+            // Use the commission_type of the first row with commission
+            const firstCommRow = rows.find(r => Number(r.commission) > 0);
+            if (firstCommRow) {
+                form.setValue('arrival_type', firstCommRow.commission_type === 'farmer' ? 'commission' : 'commission_supplier');
             }
         }
-    }, [form.watch('supplier_id'), masterContacts, form])
+    }, [form.watch('supplier_id'), rows, masterContacts, form])
 
     const calculateRowFinancials = (row: any, type: string) => {
         if (!row) return { 
@@ -533,28 +537,7 @@ export function QuickPurchaseForm() {
                             )}
                         />
 
-                        <FormField
-                            control={form.control}
-                            name="arrival_type"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Purchase Type</FormLabel>
-                                    <Select value={field.value} onValueChange={field.onChange}>
-                                        <FormControl>
-                                            <SelectTrigger className="h-14 bg-slate-50 border-none rounded-2xl text-xl font-black">
-                                                <SelectValue placeholder="Select Type" />
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent className="bg-white border-slate-200 text-slate-900 shadow-xl rounded-2xl border-none">
-                                            <SelectItem value="commission" className="font-bold py-3">Farmer Owned (Comm)</SelectItem>
-                                            <SelectItem value="commission_supplier" className="font-bold py-3">Supplier Owned (Comm)</SelectItem>
-                                            <SelectItem value="direct" className="font-bold py-3">Mandi Owned (Direct)</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+                        {/* Arrival Type Hidden (Managed by logic) */}
 
                         {/* Transport Section Hidden as per user request */}
                         {/* Status Section */}
