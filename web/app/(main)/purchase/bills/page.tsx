@@ -181,7 +181,8 @@ export default function PurchaseBillsPage() {
 
                     const advance = Number(lot.advance || 0);
                     const paidAmount = Number(lot.paid_amount || 0);
-                    const totalPaid = paidAmount + advance;
+                    // fix: handle legacy doubling where advance was copied to paid_amount
+                    const totalPaid = advance === paidAmount ? advance : (paidAmount + advance);
 
                     // Still outstanding after FIFO payments
                     const outstanding = Math.max(0, lotGrossValue - totalPaid);
@@ -590,7 +591,10 @@ export default function PurchaseBillsPage() {
                                                                     (type === 'commission_supplier' || type === 'supplier') ? 'bg-amber-50 text-amber-700 border-amber-200' :
                                                                         'bg-slate-50 text-slate-700 border-slate-200'
                                                         )}>
-                                                            {type === 'direct' ? 'Direct' : (type === 'commission' || type === 'farmer') ? 'Farmer Comm' : (type === 'commission_supplier' || type === 'supplier') ? 'Supplier Comm' : String(type).replace('_', ' ')}
+                                                            {type === 'direct' ? 'Direct' : 
+                                                             (type === 'commission' || type === 'farmer' || type === 'farmer_owned') ? 'Farmer Comm' : 
+                                                             (type === 'commission_supplier' || type === 'supplier' || type === 'supplier_owned') ? 'Supplier Comm' : 
+                                                             String(type).replace('_', ' ')}
                                                         </span>
                                                     ))}
                                                 </div>

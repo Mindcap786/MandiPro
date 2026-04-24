@@ -388,10 +388,10 @@ export function SupplierInwardsDialog({ supplier, unappliedPayment = 0, isOpen, 
                                                         <Badge variant="outline" className={cn(
                                                             "text-[9px] font-black px-2 py-0.5 uppercase tracking-[0.1em]",
                                                             group.type === 'direct' ? "bg-blue-50 text-blue-700 border-blue-200" :
-                                                            (group.type === 'commission' || group.type === 'farmer') ? "bg-purple-50 text-purple-700 border-purple-200" :
+                                                            (group.type === 'commission' || group.type === 'farmer' || group.type === 'farmer_owned') ? "bg-purple-50 text-purple-700 border-purple-200" :
                                                             "bg-amber-50 text-amber-700 border-amber-200"
                                                         )}>
-                                                            {group.type === 'direct' ? 'Direct' : (group.type === 'commission' || group.type === 'farmer') ? 'Farmer Comm' : 'Supplier Comm'}
+                                                            {group.type === 'direct' ? 'Direct' : (group.type === 'commission' || group.type === 'farmer' || group.type === 'farmer_owned') ? 'Farmer Comm' : 'Supplier Comm'}
                                                         </Badge>
                                                     </div>
                                                     <Button
@@ -490,34 +490,6 @@ export function SupplierInwardsDialog({ supplier, unappliedPayment = 0, isOpen, 
                                                                              </div>
                                                                          </div>
                                                                          <div className="flex items-center gap-2 pl-3 border-l border-slate-50">
-                                                                             <Popover>
-                                                                                 <PopoverTrigger asChild>
-                                                                                     <Button
-                                                                                         size="sm"
-                                                                                         variant="outline"
-                                                                                         className="h-7 px-3 rounded-lg transition-all text-[9px] font-black uppercase tracking-tighter border-slate-200 hover:bg-slate-50"
-                                                                                     >
-                                                                                         <Truck className="w-3 h-3 mr-1" />
-                                                                                         Transfer
-                                                                                     </Button>
-                                                                                 </PopoverTrigger>
-                                                                                 <PopoverContent className="w-48 p-2 z-[250] bg-white border-slate-200 shadow-xl" align="end">
-                                                                                     <div className="text-[10px] font-black uppercase text-slate-500 mb-2 px-2 tracking-widest">Move to Godown</div>
-                                                                                     <div className="space-y-1">
-                                                                                         {storageLocations.map((loc) => (
-                                                                                             <Button
-                                                                                                 key={loc.name}
-                                                                                                 variant="ghost"
-                                                                                                 className="w-full justify-start text-[10px] font-bold h-8 hover:bg-blue-50 hover:text-blue-600 rounded-md"
-                                                                                                 onClick={() => handleRelocate(lot.id, loc.name)}
-                                                                                             >
-                                                                                                 {loc.name}
-                                                                                             </Button>
-                                                                                         ))}
-                                                                                     </div>
-                                                                                 </PopoverContent>
-                                                                             </Popover>
-
                                                                              <Button
                                                                                  size="sm"
                                                                                  onClick={() => onEditLot(lot.id, isLocked)}

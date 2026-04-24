@@ -268,13 +268,20 @@ export function QuickPurchaseForm() {
         const tripLoading = Number(form.watch('loading_amount')) || 0
         const tripOther = Number(form.watch('other_expenses')) || 0
         
-        // Derive global arrival_type from rows: if any row has commission, it's a commission arrival
+        // Derive global arrival_type:
+        // 1. If any row has commission, use the commission_type from that row.
+        // 2. Otherwise, check if the selected party is a farmer or supplier.
         const hasCommission = rows.some(r => (Number(r.commission) || 0) > 0)
         const firstCommType = rows.find(r => (Number(r.commission) || 0) > 0)?.commission_type
+        
+        const selectedParty = masterContacts.find(c => c.id === form.watch('supplier_id'))
         
         let derivedType: 'direct' | 'commission' | 'commission_supplier' = 'direct'
         if (hasCommission) {
             derivedType = firstCommType === 'supplier' ? 'commission_supplier' : 'commission'
+        } else if (selectedParty) {
+            derivedType = selectedParty.type === 'farmer' ? 'commission' : 
+                          selectedParty.type === 'supplier' ? 'commission_supplier' : 'direct'
         }
         
         const rowTotals = rows.reduce((acc, row) => {
