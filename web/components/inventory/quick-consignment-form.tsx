@@ -249,16 +249,14 @@ export function QuickPurchaseForm() {
         
         // 1. Gross Value
         const grossValue = qty * rate
-
-        // 2. Commission (Calculated on Gross)
         const commissionAmount = (grossValue * commPercent) / 100
         
-        // 3. Final Math: Mandi pays (Gross - Commission)
+        // Net Payable per row: What Mandi owes for this specific item
         const netPayable = grossValue - commissionAmount
 
         return {
             grossValue,
-            adjustedValue: grossValue, // Adjusted = Gross in simplified view
+            adjustedValue: grossValue,
             commissionAmount,
             expensesTotal: 0,
             netPayable,
@@ -267,12 +265,20 @@ export function QuickPurchaseForm() {
     }
 
     const totalFinancials = useMemo(() => {
-        const type = form.watch('arrival_type')
         const tripLoading = Number(form.watch('loading_amount')) || 0
         const tripOther = Number(form.watch('other_expenses')) || 0
         
+        // Derive global arrival_type from rows: if any row has commission, it's a commission arrival
+        const hasCommission = rows.some(r => (Number(r.commission) || 0) > 0)
+        const firstCommType = rows.find(r => (Number(r.commission) || 0) > 0)?.commission_type
+        
+        let derivedType: 'direct' | 'commission' | 'commission_supplier' = 'direct'
+        if (hasCommission) {
+            derivedType = firstCommType === 'supplier' ? 'commission_supplier' : 'commission'
+        }
+        
         const rowTotals = rows.reduce((acc, row) => {
-            const financials = calculateRowFinancials(row, type)
+            const financials = calculateRowFinancials(row, derivedType)
             return {
                 grossValue: acc.grossValue + financials.grossValue,
                 adjustedValue: acc.adjustedValue + financials.adjustedValue,
@@ -282,27 +288,22 @@ export function QuickPurchaseForm() {
             }
         }, { grossValue: 0, adjustedValue: 0, commissionAmount: 0, expensesTotal: 0, netPayable: 0 })
 
-        // Apply trip-level expenses
-        let finalPayable = 0
-        if (type === 'direct') {
-            // Add trip expenses to the final payable (as per user request: Net Cost = Final Payable)
-            finalPayable = rowTotals.netPayable + tripLoading + tripOther
-        } else {
-            // Deduct trip expenses from farmer payment
-            finalPayable = rowTotals.netPayable - tripLoading - tripOther
-        }
+        // Apply trip-level expenses: Mandi ALWAYS deducts expenses from the supplier/farmer payment
+        // (If Mandi pays the loading, that amount is subtracted from what is owed to the party)
+        const finalPayable = rowTotals.netPayable - tripLoading - tripOther
 
         const advance = Number(advanceValue) || 0
         const finalPay = finalPayable - advance
 
         return {
             ...rowTotals,
+            arrivalType: derivedType,
             tripExpenses: tripLoading + tripOther,
             billAmount: finalPayable,
             finalPay: finalPay,
-            isOverpaid: advance > finalPayable
+            isOverpaid: advance > finalPayable && finalPayable > 0
         }
-    }, [rows, advanceValue, form.watch('arrival_type'), form.watch('loading_amount'), form.watch('other_expenses')])
+    }, [rows, advanceValue, form.watch('loading_amount'), form.watch('other_expenses')])
 
     const onSubmit = async (values: QuickPurchaseFormValues) => {
         if (!profile?.organization_id) return
@@ -316,12 +317,7 @@ export function QuickPurchaseForm() {
         const totalAdvance = Number(values.advance) || 0;
         const totalNetBill = totalFinancials.billAmount;
 
-        // Validate positive amount for non-credit modes
-        if (values.advance_payment_mode !== 'credit' && totalAdvance <= 0) {
-            toast.error(`Please enter a paid amount greater than 0 for ${values.advance_payment_mode.toUpperCase()} mode.`);
-            form.setFocus(`advance`);
-            return;
-        }
+        // Removed strict 0 advance check for non-credit modes
 
         if (totalAdvance > totalNetBill && totalNetBill > 0) {
             toast.error(`Total Paid (₹${totalAdvance.toLocaleString()}) cannot exceed Purchase Bill Amount (₹${totalNetBill.toLocaleString()}).`);
@@ -420,7 +416,7 @@ export function QuickPurchaseForm() {
                 p_advance_amount: Number(values.advance) || 0,
                 p_other_expenses: Number(values.other_expenses) || 0,
                 p_payment_mode: values.advance_payment_mode,
-                p_lots: rpcItems
+                p_lots: rpcItems.map(item => ({ ...item, arrival_type: totalFinancials.arrivalType }))
             })
 
             if (error) throw error
