@@ -261,7 +261,7 @@ function LotRow({ lot, itemDefaults, onMoveStock, onWastage, onUpdate, onReturn,
                                 ) : (
                                     <button onClick={(e) => { e.stopPropagation(); onWastage() }}
                                         className="flex items-center justify-center gap-2 h-11 rounded-xl bg-orange-50 border border-orange-100 text-orange-600 text-sm font-semibold active:bg-orange-100 transition-colors">
-                                        <Trash2 className="w-4 h-4" /> Report Loss to Supplier
+                                        <Trash2 className="w-4 h-4" /> Report Loss
                                     </button>
                                 )}
                                 <button onClick={(e) => { e.stopPropagation(); onReturn() }}
