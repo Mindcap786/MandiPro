@@ -92,8 +92,9 @@ export default function PurchaseBillInvoice({
     // USER REQUEST: Simple parity for Direct and Quick Purchase.
     // The breakdown should lead to the correct final payable.
     // finalPayable should be (Gross - Deductions - Payments)
-    // We treat totalAdvance and totalPaidAmount as a single pool of "Paid" to avoid double-counting.
-    const combinedPaid = totalAdvance + totalPaidAmount;
+    // LEGACY FIX: For older records, 'advance' and 'paid_amount' might be duplicates.
+    // We use Math.max to avoid double-counting the same payment if they are identical.
+    const combinedPaid = totalAdvance === totalPaidAmount ? totalAdvance : totalAdvance + totalPaidAmount;
     
     const finalPayable = arrivalType === 'direct' 
         ? Math.max(0, totalNetGoodsValue - totalArrivalExpenseShare + totalLotExpenses - combinedPaid - totalOtherCharges)

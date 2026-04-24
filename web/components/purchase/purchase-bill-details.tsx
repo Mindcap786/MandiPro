@@ -67,9 +67,9 @@ export function PurchaseBillDetailsSheet({ lotId, isOpen, isLocked, onClose, onU
 
     // Section Toggles
     const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-        header: false,
-        transport: false,
-        consignment: false
+        header: true,
+        transport: true,
+        consignment: true
     });
 
     // Form States
@@ -89,6 +89,7 @@ export function PurchaseBillDetailsSheet({ lotId, isOpen, isLocked, onClose, onU
         hire_charges: 0,
         hamali_expenses: 0,
         other_expenses: 0,
+        loaders_count: 0,
         // Consignment (Lot)
         item_id: "",
         unit: "",
@@ -178,6 +179,7 @@ export function PurchaseBillDetailsSheet({ lotId, isOpen, isLocked, onClose, onU
                     hire_charges: arrivalData.hire_charges || 0,
                     hamali_expenses: arrivalData.hamali_expenses || 0,
                     other_expenses: arrivalData.other_expenses || 0,
+                    loaders_count: arrivalData.loaders_count || 0,
                     arrival_type: (() => {
                         const t = arrivalData.arrival_type || lotData.arrival_type || 'direct';
                         if (t === 'farmer') return 'commission';
@@ -197,7 +199,7 @@ export function PurchaseBillDetailsSheet({ lotId, isOpen, isLocked, onClose, onU
                     less_units: lotData.less_units || 0,
                     packing_cost: lotData.packing_cost || 0,
                     loading_cost: lotData.loading_cost || 0,
-                    advance: (Number(lotData.advance) || 0) + (Number(arrivalData.advance_amount) || 0),
+                    advance: Number(lotData.advance) === Number(arrivalData.advance_amount) ? (Number(lotData.advance) || 0) : (Number(lotData.advance) || 0) + (Number(arrivalData.advance_amount) || 0),
                     advance_payment_mode: lotData.advance_payment_mode || arrivalData.advance_payment_mode || 'cash',
                     advance_bank_account_id: lotData.advance_bank_account_id || arrivalData.advance_bank_account_id || "",
                     advance_cheque_no: lotData.advance_cheque_no || arrivalData.advance_cheque_no || "",
@@ -301,7 +303,15 @@ export function PurchaseBillDetailsSheet({ lotId, isOpen, isLocked, onClose, onU
                     guarantor: formData.guarantor,
                     hire_charges: formData.hire_charges,
                     hamali_expenses: formData.hamali_expenses,
-                    other_expenses: formData.other_expenses
+                    other_expenses: formData.other_expenses,
+                    loaders_count: formData.loaders_count,
+                    advance_amount: formData.advance, // Sync advance to arrival level too
+                    advance_payment_mode: formData.advance_payment_mode === 'upi_bank' ? 'bank' : formData.advance_payment_mode,
+                    advance_bank_account_id: formData.advance_bank_account_id || null,
+                    advance_cheque_no: formData.advance_cheque_no,
+                    advance_bank_name: formData.advance_bank_name,
+                    advance_cheque_date: formData.advance_cheque_date ? format(formData.advance_cheque_date, 'yyyy-MM-dd') : null,
+                    advance_cheque_status: formData.advance_cheque_status
                 })
                 .eq('id', data.arrival_id);
 
@@ -730,6 +740,18 @@ export function PurchaseBillDetailsSheet({ lotId, isOpen, isLocked, onClose, onU
                                                 />
                                             </div>
                                         )}
+                                        <div className="space-y-2">
+                                            <Label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
+                                                Loaders Count
+                                            </Label>
+                                            <Input
+                                                type="number"
+                                                value={formData.loaders_count}
+                                                onChange={(e) => setFormData({ ...formData, loaders_count: e.target.value === "" ? "" : Number(e.target.value) })}
+                                                className="bg-white border-slate-200 h-11 text-slate-900 font-bold focus:ring-2 focus:ring-blue-500/20"
+                                                disabled={isSoldOut}
+                                            />
+                                        </div>
                                         {isVisible('hire_charges') && (
                                             <div className="space-y-2">
                                                 <Label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
@@ -1057,7 +1079,7 @@ export function PurchaseBillDetailsSheet({ lotId, isOpen, isLocked, onClose, onU
                                                                 : "Packing, Loading, and Transport are borne by Farmer."}
                                                     </div>
                                                 </div>
-                                                 {isVisible('advance') && formData.arrival_type === 'direct' && (
+                                                 {isVisible('advance') && (
                                                     <div className="col-span-2 space-y-6 p-6 rounded-3xl bg-[#F8FAFC]/80 border-2 border-slate-200/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative group/advance overflow-hidden">
                                                         {/* Decorative Background */}
                                                         <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 blur-3xl rounded-full -mr-16 -mt-16 pointer-events-none" />
