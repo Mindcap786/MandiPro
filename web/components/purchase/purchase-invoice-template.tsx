@@ -288,7 +288,7 @@ export default function PurchaseBillInvoice({
                             {totalAdvance > 0 && (
                                 <>
                                     <span className="text-gray-400 font-bold uppercase">Paid Amount</span>
-                                    <span className="font-black text-emerald-700">₹{totalAdvance.toLocaleString()}</span>
+                                    <span className="font-black text-emerald-700">₹{combinedPaid.toLocaleString()}</span>
                                 </>
                             )}
 

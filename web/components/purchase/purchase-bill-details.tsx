@@ -97,6 +97,7 @@ export function PurchaseBillDetailsSheet({ lotId, isOpen, isLocked, onClose, onU
         supplier_rate: 0,
         initial_qty: 0,
         grade: "",
+        supplier_id: "",
         variety: "",
         barcode: "",
         commission_percent: 0,
@@ -114,6 +115,8 @@ export function PurchaseBillDetailsSheet({ lotId, isOpen, isLocked, onClose, onU
         farmer_charges: 0,
         sale_price: 0
     });
+
+    const [availableContacts, setAvailableContacts] = useState<any[]>([]);
 
     // Governance
     const moduleKey = formData.arrival_type === 'direct' ? 'arrivals_direct' :
@@ -167,6 +170,7 @@ export function PurchaseBillDetailsSheet({ lotId, isOpen, isLocked, onClose, onU
 
                 // Populate Form
                 setFormData({
+                    supplier_id: lotData.contact_id || "",
                     arrival_date: arrivalData.arrival_date ? new Date(arrivalData.arrival_date).toISOString().split('T')[0] : "",
                     storage_location: arrivalData.storage_location || "",
                     reference_no: arrivalData.reference_no || "",
@@ -191,15 +195,15 @@ export function PurchaseBillDetailsSheet({ lotId, isOpen, isLocked, onClose, onU
                     unit_weight: lotData.unit_weight || 0,
                     supplier_rate: lotData.supplier_rate || 0,
                     initial_qty: lotData.initial_qty || 0,
-                    grade: lotData.grade || "",
-                    variety: lotData.variety || "",
+                    grade: lotData.custom_attributes?.grade || lotData.grade || "",
+                    variety: lotData.custom_attributes?.variety || lotData.variety || "",
                     barcode: lotData.barcode || "",
                     commission_percent: lotData.commission_percent || 0,
                     less_percent: lotData.less_percent || 0,
                     less_units: lotData.less_units || 0,
                     packing_cost: lotData.packing_cost || 0,
                     loading_cost: lotData.loading_cost || 0,
-                    advance: Number(lotData.advance) === Number(arrivalData.advance_amount) ? (Number(lotData.advance) || 0) : (Number(lotData.advance) || 0) + (Number(arrivalData.advance_amount) || 0),
+                    advance: Number(lotData.advance || arrivalData.advance_amount || 0),
                     advance_payment_mode: lotData.advance_payment_mode || arrivalData.advance_payment_mode || 'cash',
                     advance_bank_account_id: lotData.advance_bank_account_id || arrivalData.advance_bank_account_id || "",
                     advance_cheque_no: lotData.advance_cheque_no || arrivalData.advance_cheque_no || "",
@@ -212,14 +216,16 @@ export function PurchaseBillDetailsSheet({ lotId, isOpen, isLocked, onClose, onU
 
                 // 3. Fetch Master Data
                 if (profile?.organization_id) {
-                    const [storageRes, itemsRes, bankRes] = await Promise.all([
+                    const [storageRes, itemsRes, bankRes, contactsRes] = await Promise.all([
                         supabase.schema('mandi').from("storage_locations").select("name").eq("organization_id", profile.organization_id).eq("is_active", true),
                         supabase.schema('mandi').from("commodities").select("id, name, default_unit, custom_attributes").eq("organization_id", profile.organization_id),
-                        supabase.schema('mandi').from("accounts").select("id, name, is_default").eq("organization_id", profile.organization_id).eq("type", 'asset').eq('account_sub_type', 'bank')
+                        supabase.schema('mandi').from("accounts").select("id, name, is_default").eq("organization_id", profile.organization_id).eq("type", 'asset').eq('account_sub_type', 'bank'),
+                        supabase.schema('mandi').from("contacts").select("id, name, city").eq("organization_id", profile.organization_id).in("type", ["farmer", "supplier"])
                     ]);
                     if (storageRes.data) setStorageLocations(storageRes.data);
                     if (itemsRes.data) setAvailableItems(itemsRes.data);
-                if (bankRes.data) setBankAccounts(bankRes.data);
+                    if (bankRes.data) setBankAccounts(bankRes.data);
+                    if (contactsRes.data) setAvailableContacts(contactsRes.data);
                 }
             } else {
                 setArrival(null);
@@ -322,6 +328,7 @@ export function PurchaseBillDetailsSheet({ lotId, isOpen, isLocked, onClose, onU
                 .schema('mandi')
                 .from('lots')
                 .update({
+                    contact_id: formData.supplier_id,
                     item_id: formData.item_id,
                     lot_code: formData.lot_prefix,
                     arrival_type: formData.arrival_type,
@@ -349,6 +356,7 @@ export function PurchaseBillDetailsSheet({ lotId, isOpen, isLocked, onClose, onU
                     advance_bank_name: formData.advance_bank_name,
                     advance_cheque_status: formData.advance_cheque_status,
                     farmer_charges: formData.farmer_charges,
+                    other_cut: formData.farmer_charges, // Sync other_cut with farmer_charges
                     sale_price: formData.sale_price,
                     total_weight: formData.initial_qty * (formData.unit_weight || data.unit_weight || 1)
                 })
@@ -569,24 +577,36 @@ export function PurchaseBillDetailsSheet({ lotId, isOpen, isLocked, onClose, onU
                                 <SectionHeader id="header" icon={CalendarIcon} title="Arrival Header" isExpanded={expandedSections.header} />
                                 {expandedSections.header && (
                                     <div className="grid grid-cols-2 gap-4 p-4 pt-0 transition-all animate-in slide-in-from-top-2">
-                                        {isVisible('entry_date') && (
-                                            <div className="space-y-2">
-                                                <Label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
-                                                    {getLabel('entry_date', 'Arrival Date')} {isMandatory('entry_date') && <span className="text-red-500">*</span>}
-                                                </Label>
+                                        <div className="col-span-2 space-y-2">
+                                            <Label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Supplier / Party</Label>
+                                            <Select value={formData.supplier_id} onValueChange={(v) => setFormData({ ...formData, supplier_id: v })} disabled={isSoldOut}>
+                                                <SelectTrigger className="bg-white border-slate-200 h-11 text-slate-900 font-bold focus:ring-2 focus:ring-blue-500/20">
+                                                    <SelectValue placeholder="Select Supplier" />
+                                                </SelectTrigger>
+                                                <SelectContent className="bg-white border-slate-200 text-slate-900 shadow-xl max-h-[300px]">
+                                                    {availableContacts.map(c => (
+                                                        <SelectItem key={c.id} value={c.id}>{c.name} {c.city ? `(${c.city})` : ''}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Arrival Date</Label>
+                                            <div className="relative">
+                                                <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-600 pointer-events-none" />
                                                 <Input
                                                     type="date"
                                                     value={formData.arrival_date}
                                                     onChange={(e) => setFormData({ ...formData, arrival_date: e.target.value })}
-                                                    className={cn("bg-white border-slate-200 h-11 text-slate-900 font-bold focus:ring-2 focus:ring-blue-500/20", isMandatory('entry_date') && !formData.arrival_date && "border-red-500")}
+                                                    className="bg-white border-slate-200 h-11 pl-10 text-slate-900 font-bold focus:ring-2 focus:ring-blue-500/20"
                                                     disabled={isSoldOut}
                                                 />
                                             </div>
-                                        )}
+                                        </div>
                                         {isVisible('reference_no') && (
                                             <div className="space-y-2">
                                                 <Label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
-                                                    {getLabel('reference_no', 'Reference No')} {isMandatory('reference_no') && <span className="text-red-500">*</span>}
+                                                    {getLabel('reference_no', 'Ref / Bill No')} {isMandatory('reference_no') && <span className="text-red-500">*</span>}
                                                 </Label>
                                                 <Input
                                                     value={formData.reference_no}
@@ -679,12 +699,17 @@ export function PurchaseBillDetailsSheet({ lotId, isOpen, isLocked, onClose, onU
                                                 <Label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">
                                                     {getLabel('vehicle_type', 'Vehicle Type')} {isMandatory('vehicle_type') && <span className="text-red-500">*</span>}
                                                 </Label>
-                                                <Input
-                                                    value={formData.vehicle_type}
-                                                    onChange={(e) => setFormData({ ...formData, vehicle_type: e.target.value })}
-                                                    className={cn("bg-white border-slate-200 h-11 text-slate-900 font-bold focus:ring-2 focus:ring-blue-500/20", isMandatory('vehicle_type') && !formData.vehicle_type && "border-red-500")}
-                                                    disabled={isSoldOut}
-                                                />
+                                                <Select value={formData.vehicle_type} onValueChange={(v) => setFormData({ ...formData, vehicle_type: v })} disabled={isSoldOut}>
+                                                    <SelectTrigger className="bg-white border-slate-200 h-11 text-slate-900 font-bold focus:ring-2 focus:ring-blue-500/20">
+                                                        <SelectValue placeholder="Type" />
+                                                    </SelectTrigger>
+                                                    <SelectContent className="bg-white border-slate-200 text-slate-900 shadow-xl">
+                                                        <SelectItem value="Pickup">Pickup</SelectItem>
+                                                        <SelectItem value="Truck">Truck</SelectItem>
+                                                        <SelectItem value="Tempo">Tempo</SelectItem>
+                                                        <SelectItem value="Tractor">Tractor</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
                                             </div>
                                         )}
                                         {isVisible('guarantor') && (
