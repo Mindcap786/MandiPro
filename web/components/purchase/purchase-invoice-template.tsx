@@ -49,7 +49,7 @@ export default function PurchaseBillInvoice({
         arrivalType === 'commission' || arrivalType === 'farmer' ? 'Farmer Arrival (Commission)' :
             'Supplier Arrival (Commission)'
 
-    const paymentMode = arrival?.payment_mode || lot.payment_mode || 'udhaar'
+    const paymentMode = arrival?.advance_payment_mode || lot.advance_payment_mode || 'udhaar'
 
     // ── Financial calculations (Aggregated across all lots) ──────
     const lotsToProcess = arrivalLots.length > 0 ? arrivalLots : [lot];
@@ -91,9 +91,13 @@ export default function PurchaseBillInvoice({
 
     // USER REQUEST: Simple parity for Direct and Quick Purchase.
     // The breakdown should lead to the correct final payable.
+    // finalPayable should be (Gross - Deductions - Payments)
+    // We treat totalAdvance and totalPaidAmount as a single pool of "Paid" to avoid double-counting.
+    const combinedPaid = totalAdvance + totalPaidAmount;
+    
     const finalPayable = arrivalType === 'direct' 
-        ? Math.max(0, totalNetGoodsValue - totalArrivalExpenseShare + totalLotExpenses - totalAdvance - totalPaidAmount - totalOtherCharges)
-        : Math.max(0, totalNetGoodsValue - totalCommission - totalLotExpenses - totalAdvance - totalPaidAmount - totalOtherCharges - totalArrivalExpenseShare)
+        ? Math.max(0, totalNetGoodsValue - totalArrivalExpenseShare + totalLotExpenses - combinedPaid - totalOtherCharges)
+        : Math.max(0, totalNetGoodsValue - totalCommission - totalLotExpenses - combinedPaid - totalOtherCharges - totalArrivalExpenseShare)
 
     // Organization address
     const fullAddress = [
@@ -276,8 +280,8 @@ export default function PurchaseBillInvoice({
                         </span>
                         <div className="grid grid-cols-[100px_1fr] gap-x-2 gap-y-1.5 text-[10px]">
                             <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Mode of Pay</span>
-                            <span className="font-black text-blue-600 uppercase text-[10px] tracking-tight">
-                                {(totalAdvance + totalPaidAmount) <= 0 ? 'UDHAAR (CREDIT)' : (paymentMode === 'credit' || paymentMode === 'udhaar' ? 'CREDIT (UDHAAR)' : paymentMode)}
+                            <span className="font-black text-blue-700 uppercase">
+                                {combinedPaid <= 0 ? 'UDHAAR (CREDIT)' : (paymentMode.toLowerCase() === 'credit' || paymentMode.toLowerCase() === 'udhaar' ? 'CREDIT (UDHAAR)' : paymentMode)}
                             </span>
                             
                             {totalAdvance > 0 && (
@@ -367,22 +371,12 @@ export default function PurchaseBillInvoice({
                             </div>
                         ) : null}
 
-                        {/* Advance Paid */}
-                        {totalAdvance > 0 && (
+                        {/* Paid Amount (Combined) */}
+                        {combinedPaid > 0 && (
                             <div className="flex justify-between items-center text-xs border-t border-gray-100 pt-1">
-                                <span className="text-emerald-600 font-bold uppercase tracking-widest">Paid (Advance)</span>
+                                <span className="text-emerald-600 font-bold uppercase tracking-widest">Amount Paid</span>
                                 <span className="font-bold text-emerald-600">
-                                    − ₹{Math.round(totalAdvance).toLocaleString()}
-                                </span>
-                            </div>
-                        )}
-
-                        {/* Other Payments */}
-                        {totalPaidAmount > 0 && (
-                            <div className="flex justify-between items-center text-xs border-t border-gray-100 pt-1">
-                                <span className="text-emerald-600 font-bold uppercase tracking-widest">Other Payments</span>
-                                <span className="font-bold text-emerald-600">
-                                    − ₹{Math.round(totalPaidAmount).toLocaleString()}
+                                    − ₹{Math.round(combinedPaid).toLocaleString()}
                                 </span>
                             </div>
                         )}
